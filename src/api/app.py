@@ -422,6 +422,14 @@ async def save_summary(summary: Dict[str, Any]):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+def format_value(value: Any) -> str:
+    """Format values consistently"""
+    if value is None or pd.isna(value):
+        return "N/A"
+    if isinstance(value, float):
+        return f"{value:.1f}"
+    return str(value)
+
 @app.get("/summary/export")
 async def export_summary(start_date: str, end_date: str):
     """Export summary in AI-ready format"""
@@ -430,14 +438,6 @@ async def export_summary(start_date: str, end_date: str):
         summary = db.generate_weekly_summary(start_date, end_date)
         if not summary:
             raise HTTPException(status_code=404, detail="No data found for the specified date range")
-
-        def format_value(value):
-            """Format values consistently"""
-            if value is None:
-                return "N/A"
-            if isinstance(value, float):
-                return f"{value:.1f}"
-            return str(value)
 
         # Start building content
         content = [
@@ -475,10 +475,7 @@ async def export_summary(start_date: str, end_date: str):
         ])
 
         # Process each workout
-        print(f"\nProcessing {len(summary.get('qualitative_feedback', []))} workouts for export")
         for workout in sorted(summary.get('qualitative_feedback', []), key=lambda x: x.get('day', '')):
-            print(f"\nExporting workout for {workout.get('day')} - {workout.get('type')}")
-            
             content.extend([
                 "",
                 f"### {workout.get('day')} - {workout.get('type')}",
