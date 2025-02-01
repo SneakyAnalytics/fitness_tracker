@@ -48,8 +48,7 @@ class FitParser:
     def calculate_tss(self, normalized_power: float, duration_hours: float, ftp: float) -> float:
         """Calculate Training Stress Score (TSS)"""
         intensity_factor = safe_divide(normalized_power, ftp)
-        return safe_divide(duration_hours * normalized_power * intensity_factor * 100, ftp * 3600)
-
+        return (duration_hours * normalized_power * intensity_factor * 100) / (ftp * 3600)
 
     
     def calculate_hr_zones(self, hr_data: List[int], max_hr: Optional[int] = None) -> Dict[str, float]:
