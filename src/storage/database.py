@@ -364,18 +364,18 @@ class WorkoutDatabase:
                     
                     # Process TSS
                     workout_tss = (
-                        _get_numeric_value(workout.get('TSS')) or
-                        _get_numeric_value(csv_metrics.get('actual_tss')) or
-                        _get_numeric_value(fit_metrics.get('tss'))
+                        self._get_numeric_value(workout.get('TSS')) or
+                        self._get_numeric_value(csv_metrics.get('actual_tss')) or
+                        self._get_numeric_value(fit_metrics.get('tss'))
                     )
                     print(f"TSS: {workout_tss}")
                     total_tss += workout_tss
                     
                     # Process duration
                     duration = (
-                        _get_numeric_value(fit_metrics.get('duration')) or
-                        _get_numeric_value(csv_metrics.get('actual_duration')) or
-                        _get_numeric_value(workout.get('TimeTotalInHours', 0)) * 60
+                        self._get_numeric_value(fit_metrics.get('duration')) or
+                        self._get_numeric_value(csv_metrics.get('actual_duration')) or
+                        self._get_numeric_value(workout.get('TimeTotalInHours', 0)) * 60
                     )
                     print(f"Duration: {duration}")
                     total_duration += duration
@@ -401,8 +401,8 @@ class WorkoutDatabase:
                             'metrics': {
                                 'actual_tss': workout_tss,
                                 'actual_duration': duration,
-                                'planned_tss': _get_numeric_value(csv_metrics.get('planned_tss')),
-                                'planned_duration': _get_numeric_value(csv_metrics.get('planned_duration')),
+                                'planned_tss': self._get_numeric_value(csv_metrics.get('planned_tss')),
+                                'planned_duration': self._get_numeric_value(csv_metrics.get('planned_duration')),
                                 'rpe': workout.get('Rpe')
                             },
                             'power_data': power_data if power_data else None,
