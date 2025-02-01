@@ -118,6 +118,7 @@ class WorkoutDatabase:
         c = conn.cursor()
         
         try:
+            print(f"DEBUG: Saving daily metric for {date} - {metric_type}")
             c.execute(
                 '''
                 INSERT OR REPLACE INTO daily_metrics 
@@ -131,6 +132,7 @@ class WorkoutDatabase:
                 )
             )
             conn.commit()
+            print(f"DEBUG: Successfully saved daily metric for {date} - {metric_type}")
             return True
         except Exception as e:
             print(f"Error saving daily metric: {e}")
@@ -202,7 +204,7 @@ class WorkoutDatabase:
             # Convert date format if needed
             try:
                 #Parse the input date
-                if '/' in workout_day:
+                if ('/' in workout_day):
                     parsed_date = datetime.strptime(workout_day, '%m/%d/%y')
                 else:
                     parsed_date = datetime.strptime(workout_day, '%Y-%m-%d')
@@ -340,6 +342,8 @@ class WorkoutDatabase:
             sessions_completed = len(workout_rows)
             workout_types = set()
             daily_workouts = []
+            daily_energy = {}
+            daily_sleep_quality = {}
             
             # Process workouts
             for day, title, workout_data, qual_data, fit_data in workout_rows:
@@ -420,6 +424,53 @@ class WorkoutDatabase:
                     traceback.print_exc()
                     continue
             
+            # Calculate average daily energy
+            c.execute(
+                '''
+                SELECT date, metric_data FROM daily_metrics WHERE metric_type = 'Body Battery'
+                AND date BETWEEN ? AND ?
+                ''',
+                (start_date, end_date)
+            )
+            body_battery_rows = c.fetchall()
+            total_energy = 0
+            count = 0
+            for date, metric_data in body_battery_rows:
+                metric_data = json.loads(metric_data)
+                avg_body_battery = metric_data.get('summary', {}).get('avg', None)
+                if avg_body_battery is not None:
+                    scaled_energy = avg_body_battery * 5 / 100  # Scale to 1-5 range
+                    daily_energy[date] = scaled_energy
+                    total_energy += scaled_energy
+                    count += 1
+            
+            avg_daily_energy = total_energy / count if count > 0 else None
+
+            # Calculate average daily sleep quality
+            c.execute(
+                '''
+                SELECT date, metric_data FROM daily_metrics WHERE metric_type = 'Sleep Quality'
+                AND date BETWEEN ? AND ?
+                ''',
+                (start_date, end_date)
+            )
+            sleep_quality_rows = c.fetchall()
+            total_sleep_quality = 0
+            sleep_count = 0
+            for date, metric_data in sleep_quality_rows:
+                metric_data = json.loads(metric_data)
+                sleep_quality_score = metric_data.get('sleep_quality_score', None)
+                print(f"DEBUG: Processing sleep quality for {date}: {metric_data}")
+                if sleep_quality_score is not None:
+                    daily_sleep_quality[date] = sleep_quality_score
+                    total_sleep_quality += sleep_quality_score
+                    sleep_count += 1
+                    print(f"DEBUG: Retrieved sleep quality score for {date}: {sleep_quality_score}")
+                else:
+                    print(f"DEBUG: No sleep quality score found for {date}")
+            
+            avg_sleep_quality = total_sleep_quality / sleep_count if sleep_count > 0 else None
+            
             summary = {
                 'start_date': start_date,
                 'end_date': end_date,
@@ -427,7 +478,11 @@ class WorkoutDatabase:
                 'total_training_hours': round(total_duration / 60, 2),
                 'sessions_completed': sessions_completed,
                 'workout_types': list(workout_types),
-                'qualitative_feedback': sorted(daily_workouts, key=lambda x: x.get('day', ''))
+                'qualitative_feedback': sorted(daily_workouts, key=lambda x: x.get('day', '')),
+                'daily_energy': daily_energy,
+                'avg_daily_energy': avg_daily_energy,
+                'daily_sleep_quality': daily_sleep_quality,
+                'avg_sleep_quality': avg_sleep_quality
             }
             
             print("\nFinal Summary Stats:")
@@ -436,6 +491,8 @@ class WorkoutDatabase:
             print(f"Sessions: {summary['sessions_completed']}")
             print(f"Workout Types: {summary['workout_types']}")
             print(f"Number of daily workouts: {len(summary['qualitative_feedback'])}")
+            print(f"Average Daily Energy: {summary['avg_daily_energy']}")
+            print(f"Average Sleep Quality: {summary['avg_sleep_quality']}")
             
             return summary
             

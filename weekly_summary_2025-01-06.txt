@@ -1,0 +1,249 @@
+## Overall Weekly Summary
+• Total TSS: 344.2
+• Total Training Hours: 6.6
+• Number of Sessions Completed: 8
+• Average Sleep Quality (1-5): N/A
+• Average Daily Energy (1-5): 2.9
+• Any schedule/weather challenges: None reported
+
+## Weekly Self-Assessment
+1. Overall Energy Trend:
+   • Monday: 2.8
+   • Tuesday: 2.5
+   • Wednesday: 3.0
+   • Thursday: 2.0
+   • Friday: 3.2
+   • Saturday: 3.6
+   • Sunday: N/A
+
+2. Sleep Quality Trend:
+   • Monday: N/A
+   • Tuesday: N/A
+   • Wednesday: N/A
+   • Thursday: N/A
+   • Friday: N/A
+   • Saturday: N/A
+   • Sunday: N/A
+
+3. Recovery Quality:
+   • Muscle soreness patterns: N/A
+   • General fatigue level: N/A
+
+4. Motivation/Engagement:
+   • Enjoyment of workouts (1-5): N/A
+   • Preferred workout types: Bike, Other, Strength
+   • Challenging aspects: N/A
+
+## Daily Workout Details
+
+### 2025-01-06 - Other
+1. Basic Metrics:
+   - Planned TSS: 0.0 | Actual TSS: 24.6
+   - Duration: Planned 0.0 | Actual 46.1
+   - RPE (1-10): N/A
+
+3. Heart Rate Analysis:
+   - Average HR: 78.0
+   - Max HR: 118.0
+   - Time in HR Zones:
+     * zone1: 46.0%
+
+4. Key Observations:
+   - How the workout felt: N/A
+   - Any unusual fatigue: N/A
+   - Technical issues: N/A
+   - Modifications made: N/A
+
+### 2025-01-07 - Bike
+1. Basic Metrics:
+   - Planned TSS: 0.0 | Actual TSS: 54.1
+   - Duration: Planned 0.0 | Actual 65.1
+   - RPE (1-10): N/A
+
+2. Power Data:
+   - Average Power: 172.0
+   - Normalized Power: N/A
+   - Intensity Factor (IF): N/A
+   - Power Zone Distribution:
+     * zone1: 17.0%
+     * zone2: 28.0%
+     * zone3: 25.0%
+
+3. Heart Rate Analysis:
+   - Average HR: 132.0
+   - Max HR: 149.0
+   - Time in HR Zones:
+     * zone1: 38.0%
+     * zone2: 29.0%
+
+4. Key Observations:
+   - How the workout felt: N/A
+   - Any unusual fatigue: N/A
+   - Technical issues: N/A
+   - Modifications made: N/A
+
+### 2025-01-08 - Strength
+1. Basic Metrics:
+   - Planned TSS: 0.0 | Actual TSS: 21.2
+   - Duration: Planned 0.0 | Actual 29.9
+   - RPE (1-10): N/A
+
+3. Heart Rate Analysis:
+   - Average HR: 118.0
+   - Max HR: 158.0
+   - Time in HR Zones:
+     * zone1: 24.0%
+     * zone2: 5.0%
+
+4. Key Observations:
+   - How the workout felt: N/A
+   - Any unusual fatigue: N/A
+   - Technical issues: N/A
+   - Modifications made: N/A
+
+### For Strength Sessions:
+- Exercises completed: N/A
+- Weight/rep adjustments: N/A
+- Areas of soreness: N/A
+- Recovery time needed: N/A
+
+### 2025-01-08 - Bike
+1. Basic Metrics:
+   - Planned TSS: 0.0 | Actual TSS: 33.2
+   - Duration: Planned 0.0 | Actual 50.2
+   - RPE (1-10): N/A
+
+2. Power Data:
+   - Average Power: 157.0
+   - Normalized Power: N/A
+   - Intensity Factor (IF): N/A
+   - Power Zone Distribution:
+     * zone1: 6.0%
+     * zone2: 46.0%
+
+3. Heart Rate Analysis:
+   - Average HR: 129.0
+   - Max HR: 150.0
+   - Time in HR Zones:
+     * zone1: 43.0%
+     * zone2: 10.0%
+
+4. Key Observations:
+   - How the workout felt: N/A
+   - Any unusual fatigue: N/A
+   - Technical issues: N/A
+   - Modifications made: N/A
+
+### 2025-01-09 - Bike
+1. Basic Metrics:
+   - Planned TSS: 0.0 | Actual TSS: 62.3
+   - Duration: Planned 0.0 | Actual 75.2
+   - RPE (1-10): N/A
+
+2. Power Data:
+   - Average Power: 175.0
+   - Normalized Power: N/A
+   - Intensity Factor (IF): N/A
+   - Power Zone Distribution:
+     * zone2: 52.0%
+     * zone3: 23.0%
+
+3. Heart Rate Analysis:
+   - Average HR: 130.0
+   - Max HR: 148.0
+   - Time in HR Zones:
+     * zone1: 59.0%
+     * zone2: 20.0%
+
+4. Key Observations:
+   - How the workout felt: N/A
+   - Any unusual fatigue: N/A
+   - Technical issues: N/A
+   - Modifications made: N/A
+
+### 2025-01-10 - Other
+1. Basic Metrics:
+   - Planned TSS: 0.0 | Actual TSS: 24.6
+   - Duration: Planned 0.0 | Actual 44.1
+   - RPE (1-10): N/A
+
+3. Heart Rate Analysis:
+   - Average HR: 83.0
+   - Max HR: 140.0
+   - Time in HR Zones:
+     * zone1: 44.0%
+
+4. Key Observations:
+   - How the workout felt: N/A
+   - Any unusual fatigue: N/A
+   - Technical issues: N/A
+   - Modifications made: N/A
+
+### 2025-01-11 - Bike
+1. Basic Metrics:
+   - Planned TSS: 0.0 | Actual TSS: 107.4
+   - Duration: Planned 0.0 | Actual 68.6
+   - RPE (1-10): N/A
+
+2. Power Data:
+   - Average Power: 233.0
+   - Normalized Power: N/A
+   - Intensity Factor (IF): N/A
+   - Power Zone Distribution:
+     * zone1: 5.0%
+     * zone2: 2.0%
+     * zone3: 10.0%
+     * zone4: 22.0%
+     * zone5: 30.0%
+
+3. Heart Rate Analysis:
+   - Average HR: 177.0
+   - Max HR: 195.0
+   - Time in HR Zones:
+     * zone1: 1.0%
+     * zone2: 3.0%
+     * zone3: 1.0%
+     * zone4: 6.0%
+     * zone5: 5.0%
+
+4. Key Observations:
+   - How the workout felt: N/A
+   - Any unusual fatigue: N/A
+   - Technical issues: N/A
+   - Modifications made: N/A
+
+### 2025-01-11 - Bike
+1. Basic Metrics:
+   - Planned TSS: 0.0 | Actual TSS: 16.8
+   - Duration: Planned 0.0 | Actual 19.2
+   - RPE (1-10): N/A
+
+2. Power Data:
+   - Average Power: 177.0
+   - Normalized Power: N/A
+   - Intensity Factor (IF): N/A
+   - Power Zone Distribution:
+     * zone1: 3.0%
+     * zone2: 11.0%
+     * zone3: 4.0%
+     * zone4: 1.0%
+     * zone5: 1.0%
+
+3. Heart Rate Analysis:
+   - Average HR: 141.0
+   - Max HR: 160.0
+   - Time in HR Zones:
+     * zone1: 4.0%
+     * zone2: 14.0%
+     * zone3: 3.0%
+
+4. Key Observations:
+   - How the workout felt: N/A
+   - Any unusual fatigue: N/A
+   - Technical issues: N/A
+   - Modifications made: N/A
+
+## Additional Notes
+• Equipment issues: N/A
+• Nutrition concerns: N/A
+• Other relevant factors: N/A
