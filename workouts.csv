@@ -1,0 +1,9 @@
+Title,WorkoutType,WorkoutDescription,PlannedDuration,PlannedDistanceInMeters,WorkoutDay,CoachComments,DistanceInMeters,PowerAverage,PowerMax,Energy,AthleteComments,TimeTotalInHours,VelocityAverage,VelocityMax,CadenceAverage,CadenceMax,HeartRateAverage,HeartRateMax,TorqueAverage,TorqueMax,IF,TSS,HRZone1Minutes,HRZone2Minutes,HRZone3Minutes,HRZone4Minutes,HRZone5Minutes,HRZone6Minutes,HRZone7Minutes,HRZone8Minutes,HRZone9Minutes,HRZone10Minutes,PWRZone1Minutes,PWRZone2Minutes,PWRZone3Minutes,PWRZone4Minutes,PWRZone5Minutes,PWRZone6Minutes,PWRZone7Minutes,PWRZone8Minutes,PWRZone9Minutes,PWRZone10Minutes,Rpe,Feeling
+Yoga,Other,,,,1/6/25,,,,,,,0.769154727,,,,,78,118,,,0.538516026,24.55,46,0,0,0,0,0,0,,,,,,,,,,,,,,,
+Zwift - 1/7 - Progressive Intensity in Watopia,Bike,,,,1/7/25,,33193.35156,172,205,675.072,,1.085833311,8.491000175,,84,,132,149,,,0.707836684,54.14,38,29,0,0,0,0,0,,,,17,28,25,0,0,,,,,,,
+Strength,Strength,,,,1/8/25,,0,,,,,0.498037785,0,,,,118,158,,,0.626082795,21.25,24,5,0,0,0,0,0,,,,,,,,,,,,,,,
+Zwift - 1/8 - Zone 2 Ride in Makuri Islands,Bike,,,,1/8/25,,24315.66992,157,169,475.09,,0.837222219,8.067000389,,85,,129,150,,,0.633310168,33.23,43,10,0,0,0,0,0,,,,6,46,0,0,0,,,,,,,
+Zwift - 1/9 - Progressive Endurance in Scotland,Bike,,,,1/9/25,,35100.71875,175,194,791.477,,1.253888845,7.775000095,,78,,130,148,,,0.706665439,62.32,59,20,0,0,0,0,0,,,,0,52,23,0,0,,,,,,,
+Yoga,Other,,,,1/10/25,,,,,,,0.734337509,,,,,83,140,,,0.551842106,24.58,44,0,0,0,0,0,0,,,,,,,,,,,,,,,
+Zwift - Pacer Group Ride: Watopia's Waistband in Watopia with Maria,Bike,,,,1/11/25,,11078.23047,177,346,205.466,,0.319999993,9.616000175,,81,,141,160,,,0.730707338,16.8,4,14,3,0,0,0,0,,,,3,11,4,1,1,,,,,,,
+Zwift - Group Ride: Long | Stage 1 | Tour de Zwift on Makuri 40 in Makuri Islands,Bike,,,,1/11/25,,41020.30859,233,515,960.528,,1.142777801,9.970000267,,77,,177,195,,,0.97371825,107.37,1,3,1,6,5,11,47,,,,5,2,10,22,30,,,,,,10,

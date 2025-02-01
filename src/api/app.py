@@ -455,18 +455,29 @@ async def export_summary(start_date: str, end_date: str):
 
         # Add daily energy levels
         daily_energy = summary.get('daily_energy', {})
-        for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']:
-            content.append(f"   • {day}: {format_value(daily_energy.get(day))}")
+        days_of_week = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        for day in days_of_week:
+            date_str = (pd.to_datetime(start_date) + pd.Timedelta(days=days_of_week.index(day))).strftime('%Y-%m-%d')
+            energy_value = daily_energy.get(date_str, "N/A")
+            content.append(f"   • {day}: {format_value(energy_value)}")
+
+        # Add daily sleep quality levels
+        content.append("")
+        content.append("2. Sleep Quality Trend:")
+        daily_sleep_quality = summary.get('daily_sleep_quality', {})
+        for day in days_of_week:
+            date_str = (pd.to_datetime(start_date) + pd.Timedelta(days=days_of_week.index(day))).strftime('%Y-%m-%d')
+            sleep_quality_value = daily_sleep_quality.get(date_str, "N/A")
+            content.append(f"   • {day}: {format_value(sleep_quality_value)}")
 
         # Add recovery quality sections
         content.extend([
             "",
-            "2. Recovery Quality:",
-            f"   • Sleep quality trend: {format_value(summary.get('sleep_quality_trend'))}",
+            "3. Recovery Quality:",
             f"   • Muscle soreness patterns: {format_value(summary.get('muscle_soreness_patterns'))}",
             f"   • General fatigue level: {format_value(summary.get('general_fatigue_level'))}",
             "",
-            "3. Motivation/Engagement:",
+            "4. Motivation/Engagement:",
             f"   • Enjoyment of workouts (1-5): {format_value(summary.get('workout_enjoyment'))}",
             f"   • Preferred workout types: {', '.join(summary.get('workout_types', []))}",
             f"   • Challenging aspects: {format_value(summary.get('challenging_aspects'))}",
