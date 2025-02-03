@@ -103,7 +103,6 @@ def add_weekly_summary():
     sessions_planned = int(get_number_input("Number of sessions planned: ", 0, 30))
     avg_sleep = get_number_input("Average sleep quality (1-5): ", 1, 5)
     avg_energy = get_number_input("Average daily energy (1-5): ", 1, 5)
-    workout_enjoyment = int(get_number_input("Overall workout enjoyment (1-5): ", 1, 5))  # Added this line
 
     # Get daily energy levels
     print("\n=== Daily Energy Levels (1-5) ===")
@@ -127,7 +126,6 @@ def add_weekly_summary():
         sessions_planned=sessions_planned,
         avg_sleep_quality=avg_sleep,
         avg_daily_energy=avg_energy,
-        workout_enjoyment=workout_enjoyment,  # Added this line
         daily_energy=daily_energy,
         sleep_quality_trend=sleep_trend,
         muscle_soreness_patterns=soreness,

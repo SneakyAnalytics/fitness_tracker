@@ -78,23 +78,12 @@ class WeeklySummary:
     sessions_planned: int
     avg_sleep_quality: float
     avg_daily_energy: float
-    workout_enjoyment: int
     
     # Optional fields (with default values)
     daily_energy: Dict[str, int] = None
     sleep_quality_trend: Optional[str] = None
     muscle_soreness_patterns: Optional[str] = None
     general_fatigue_level: Optional[str] = None
-    preferred_workout_types: List[str] = None
-    challenging_aspects: Optional[str] = None
-    schedule_challenges: Optional[str] = None
-    preferred_workout_times: Optional[str] = None
-    schedule_constraints: Optional[str] = None
-    focus_areas: Optional[str] = None
-    planned_events: Optional[str] = None
-    equipment_issues: Optional[str] = None
-    nutrition_concerns: Optional[str] = None
-    other_factors: Optional[str] = None
     
     def __post_init__(self):
         if self.daily_energy is None:
@@ -105,7 +94,6 @@ class WeeklySummary:
                 'Thursday': None,
                 'Friday': None,
                 'Saturday': None,
-                'Sunday': None
             }
         if self.preferred_workout_types is None:
             self.preferred_workout_types = []

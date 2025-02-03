@@ -85,6 +85,44 @@ class WorkoutDatabase:
             return default
         return default
 
+    def _calculate_sleep_quality_score(
+        self, sleep_hours: float, deep_sleep: float, 
+        light_sleep: float, rem_sleep: float
+    ) -> float:
+        """Calculate sleep quality score on 1-5 scale"""
+        try:
+            # Base score from total sleep duration
+            if sleep_hours >= 7 and sleep_hours <= 9:
+                duration_score = 5.0
+            elif sleep_hours >= 6:
+                duration_score = 4.0
+            elif sleep_hours >= 5:
+                duration_score = 3.0
+            else:
+                duration_score = 2.0
+                
+            # Calculate percentages of sleep stages
+            total_sleep_minutes = sleep_hours * 60
+            if total_sleep_minutes > 0:
+                deep_pct = (deep_sleep / total_sleep_minutes) * 100
+                rem_pct = (rem_sleep / total_sleep_minutes) * 100
+            else:
+                deep_pct = rem_pct = 0
+                
+            # Score sleep stages
+            stages_score = 3.0  # Default score
+            if deep_pct >= 20 and rem_pct >= 20:
+                stages_score = 5.0
+            elif deep_pct >= 15 and rem_pct >= 15:
+                stages_score = 4.0
+                
+            # Final weighted score
+            final_score = (duration_score * 0.6) + (stages_score * 0.4)
+            return round(final_score, 2)
+        except Exception as e:
+            print(f"Error calculating sleep score: {str(e)}")
+            return 1.0
+
     def save_fit_data(self, workout_day: str, workout_title: str, fit_data: Dict[str, Any], file_name: str) -> bool:
         """Save or update FIT file data"""
         conn = sqlite3.connect(self.db_path)
@@ -113,6 +151,8 @@ class WorkoutDatabase:
             conn.close()
 
     def save_daily_metric(self, date: str, metric_type: str, metric_data: Dict[str, Any]) -> bool:
+        print(f"DEBUG: Saving metric {metric_type} for date {date}")
+        print(f"DEBUG: Metric data: {json.dumps(metric_data, indent=2)}")
         """Save or update daily metric data"""
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
@@ -309,7 +349,7 @@ class WorkoutDatabase:
             return workouts
         finally:
             conn.close()
-
+            
     def generate_weekly_summary(self, start_date: str, end_date: str) -> Dict[str, Any]:
         """Generate a comprehensive weekly summary integrating all data sources"""
         print(f"\nDEBUG: Generating weekly summary")
@@ -446,31 +486,54 @@ class WorkoutDatabase:
             
             avg_daily_energy = total_energy / count if count > 0 else None
 
-            # Calculate average daily sleep quality
+            # Get all sleep-related metrics
             c.execute(
                 '''
-                SELECT date, metric_data FROM daily_metrics WHERE metric_type = 'Sleep Quality'
+                SELECT date, metric_type, metric_data 
+                FROM daily_metrics 
+                WHERE (metric_type LIKE '%Sleep%' OR metric_type = 'Time In Deep Sleep' 
+                    OR metric_type = 'Time In Light Sleep' OR metric_type = 'Time In REM Sleep')
                 AND date BETWEEN ? AND ?
                 ''',
                 (start_date, end_date)
             )
-            sleep_quality_rows = c.fetchall()
+            sleep_rows = c.fetchall()
+            
+            # Process sleep metrics by date
+            daily_sleep_quality = {}
             total_sleep_quality = 0
             sleep_count = 0
-            for date, metric_data in sleep_quality_rows:
+            
+            # First pass: gather all metrics by date
+            for date, metric_type, metric_data in sleep_rows:
+                if date not in daily_sleep_quality:
+                    daily_sleep_quality[date] = {}
+                    
                 metric_data = json.loads(metric_data)
-                sleep_quality_score = metric_data.get('sleep_quality_score', None)
-                print(f"DEBUG: Processing sleep quality for {date}: {metric_data}")
-                if sleep_quality_score is not None:
-                    daily_sleep_quality[date] = sleep_quality_score
-                    total_sleep_quality += sleep_quality_score
+                # Store each sleep metric
+                daily_sleep_quality[date][metric_type] = metric_data.get('summary', {}).get('avg')
+            
+            # Second pass: calculate sleep quality scores
+            for date, metrics in daily_sleep_quality.items():
+                sleep_hours = metrics.get('Sleep Hours', 0)
+                deep_sleep = metrics.get('Time In Deep Sleep', 0)
+                light_sleep = metrics.get('Time In Light Sleep', 0)
+                rem_sleep = metrics.get('Time In REM Sleep', 0)
+                
+                # Calculate sleep quality score (1-5 scale)
+                if sleep_hours > 0:  # Only calculate if we have sleep data
+                    sleep_score = self._calculate_sleep_quality_score(
+                        sleep_hours, deep_sleep, light_sleep, rem_sleep
+                    )
+                    daily_sleep_quality[date]['sleep_quality_score'] = sleep_score
+                    total_sleep_quality += sleep_score
                     sleep_count += 1
-                    print(f"DEBUG: Retrieved sleep quality score for {date}: {sleep_quality_score}")
-                else:
-                    print(f"DEBUG: No sleep quality score found for {date}")
-            
+                    print(f"DEBUG: Calculated sleep quality score for {date}: {sleep_score}")
+
+            # Calculate average sleep quality
             avg_sleep_quality = total_sleep_quality / sleep_count if sleep_count > 0 else None
-            
+            print(f"DEBUG: Final average sleep quality: {avg_sleep_quality}")
+                
             summary = {
                 'start_date': start_date,
                 'end_date': end_date,
@@ -493,9 +556,10 @@ class WorkoutDatabase:
             print(f"Number of daily workouts: {len(summary['qualitative_feedback'])}")
             print(f"Average Daily Energy: {summary['avg_daily_energy']}")
             print(f"Average Sleep Quality: {summary['avg_sleep_quality']}")
+            print(f"Daily Sleep Quality: {summary['daily_sleep_quality']}")
             
             return summary
-            
+                
         except Exception as e:
             print(f"Error generating weekly summary: {str(e)}")
             import traceback
@@ -534,24 +598,14 @@ class WorkoutDatabase:
             conn.close()
 
     def save_weekly_summary(self, summary: Dict[str, Any]) -> bool:
+        print(f"DEBUG: Saving weekly summary with data:")
+        print(f"Sleep quality: {summary.get('avg_sleep_quality')}")
+        print(f"Daily sleep quality: {summary.get('daily_sleep_quality')}")
         """Save or update a weekly summary"""
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         
-        try:
-            # Separate qualitative data from summary data
-            qualitative_data = {
-                'sleep_notes': summary.get('sleep_notes'),
-                'equipment_issues': summary.get('equipment_issues'),
-                'nutrition_concerns': summary.get('nutrition_concerns'),
-                'other_factors': summary.get('other_factors')
-            }
-            
-            # Remove qualitative fields from main summary
-            summary_data = summary.copy()
-            for key in qualitative_data.keys():
-                summary_data.pop(key, None)
-            
+        try:  
             print(f"Saving summary for {summary['start_date']} to {summary['end_date']}")
             
             c.execute(
@@ -563,8 +617,7 @@ class WorkoutDatabase:
                 (
                     summary['start_date'],
                     summary['end_date'],
-                    json.dumps(summary_data),
-                    json.dumps(qualitative_data)
+                    json.dumps(summary),
                 )
             )
             conn.commit()
