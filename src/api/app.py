@@ -447,7 +447,6 @@ async def export_summary(start_date: str, end_date: str):
             f"• Number of Sessions Completed: {summary.get('sessions_completed', 0)}",
             f"• Average Sleep Quality (1-5): {format_value(summary.get('avg_sleep_quality'))}",
             f"• Average Daily Energy (1-5): {format_value(summary.get('avg_daily_energy'))}",
-            f"• Any schedule/weather challenges: {summary.get('schedule_challenges', 'None reported')}",
             "",
             "## Weekly Self-Assessment",
             "1. Overall Energy Trend:",
@@ -455,7 +454,7 @@ async def export_summary(start_date: str, end_date: str):
 
         # Add daily energy levels
         daily_energy = summary.get('daily_energy', {})
-        days_of_week = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        days_of_week = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
         for day in days_of_week:
             date_str = (pd.to_datetime(start_date) + pd.Timedelta(days=days_of_week.index(day))).strftime('%Y-%m-%d')
             energy_value = daily_energy.get(date_str, "N/A")
@@ -476,11 +475,7 @@ async def export_summary(start_date: str, end_date: str):
             "3. Recovery Quality:",
             f"   • Muscle soreness patterns: {format_value(summary.get('muscle_soreness_patterns'))}",
             f"   • General fatigue level: {format_value(summary.get('general_fatigue_level'))}",
-            "",
-            "4. Motivation/Engagement:",
-            f"   • Enjoyment of workouts (1-5): {format_value(summary.get('workout_enjoyment'))}",
-            f"   • Preferred workout types: {', '.join(summary.get('workout_types', []))}",
-            f"   • Challenging aspects: {format_value(summary.get('challenging_aspects'))}",
+
             "",
             "## Daily Workout Details"
         ])
@@ -559,14 +554,7 @@ async def export_summary(start_date: str, end_date: str):
                     f"- Recovery time needed: {format_value(workout.get('recovery_needed'))}",
                 ])
 
-        # Add final sections
-        content.extend([
-            "",
-            "## Additional Notes",
-            f"• Equipment issues: {format_value(summary.get('equipment_issues'))}",
-            f"• Nutrition concerns: {format_value(summary.get('nutrition_concerns'))}",
-            f"• Other relevant factors: {format_value(summary.get('other_factors'))}",
-        ])
+
 
         return {
             "content": "\n".join(content),

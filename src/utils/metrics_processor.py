@@ -14,9 +14,12 @@ class MetricsProcessor:
     def process_metrics_csv(self, metrics_data: str):
         """Process sleep and body battery metrics CSV data"""
         df = pd.read_csv(pd.StringIO(metrics_data))
-        
+        print("DEBUG: Initial metrics dataframe:")
+        print(df.head())
+
         for _, row in df.iterrows():
             date_str = row['Timestamp'].split()[0]  # Get just the date part
+            print(f"DEBUG: Processing metrics for date {date_str}")
             metric_type = row['Type']
             value = row['Value']
             
