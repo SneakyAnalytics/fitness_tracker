@@ -444,21 +444,21 @@ async def save_summary(summary: Dict[str, Any]):
         print("DEBUG: Cleaned summary data:", json.dumps(cleaned_summary, indent=2))
 
         db = WorkoutDatabase()
-        success = db.save_weekly_summary(summary)
+        success = db.save_weekly_summary(cleaned_summary)
         if success:
             return {"message": "Summary saved successfully"}
         else:
-            raise HTTPException(status_code=500, detail="Failed to save summary")
+            raise HTTPException(
+                status_code=500,
+                detail="Database save operation failed"
+            )
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))    
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-def format_value(value: Any) -> str:
-    """Format values consistently"""
-    if value is None or pd.isna(value):
-        return "N/A"
-    if isinstance(value, float):
-        return f"{value:.1f}"
-    return str(value)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unexpected error: {str(e)}"
+        )
 
 @app.get("/summary/export")
 async def export_summary(start_date: str, end_date: str):
@@ -468,6 +468,15 @@ async def export_summary(start_date: str, end_date: str):
         summary = db.generate_weekly_summary(start_date, end_date)
         if not summary:
             raise HTTPException(status_code=404, detail="No data found for the specified date range")
+
+        print("DEBUG: Raw summary data:", json.dumps(summary, indent=2))        
+
+        # Get the qualitative data from the database
+        qualitative_data = db.get_weekly_summary_qualitative_data(start_date, end_date)
+        if qualitative_data:
+            summary.update(qualitative_data)
+            
+        print("DEBUG: Summary with qualitative data:", json.dumps(summary, indent=2))
 
         # Start building content
         content = [
@@ -543,7 +552,7 @@ async def export_summary(start_date: str, end_date: str):
                 if isinstance(zones, dict):
                     for zone, value in zones.items():
                         if value and float(value) > 0:
-                            content.append(f"     * {zone}: {format_value(value)}%")
+                            content.append(f"     * {zone}: {format_value(value, is_percentage=True)}")
 
             # Heart Rate Analysis section
             hr_data = workout_data.get('heart_rate_data', {})
@@ -560,7 +569,7 @@ async def export_summary(start_date: str, end_date: str):
                 if isinstance(zones, dict):
                     for zone, value in zones.items():
                         if value and float(value) > 0:
-                            content.append(f"     * {zone}: {format_value(value)}%")
+                            content.append(f"     * {zone}: {format_value(value, is_percentage=True)}")
 
             # Key Observations section
             feedback = workout.get('feedback', {})
@@ -583,8 +592,6 @@ async def export_summary(start_date: str, end_date: str):
                     f"- Areas of soreness: {format_value(workout.get('areas_of_soreness'))}",
                     f"- Recovery time needed: {format_value(workout.get('recovery_needed'))}",
                 ])
-
-
 
         return {
             "content": "\n".join(content),

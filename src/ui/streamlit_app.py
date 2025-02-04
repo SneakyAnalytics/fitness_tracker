@@ -540,61 +540,164 @@ elif page == 'Weekly Summary':
                 display_weekly_summary(summary)
                 
                 # Additional Notes Form
-                st.subheader("Additional Notes")
-                with st.form("notes_form"):
-                    sleep_notes = st.text_area(
-                        "Sleep notes for the week",
-                        value=st.session_state.get('sleep_notes', ''),
-                        height=150
-                    )
+                st.subheader("Recovery Quality")
+                with st.form("recovery_form"):
+                    # Create two columns for a more organized layout
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+                        st.markdown("### Muscle Soreness Assessment")
+                        
+                        # Quick selection for common soreness areas
+                        st.markdown("##### Quick Select Sore Areas")
+                        soreness_areas = {
+                            "Quads": st.checkbox("Quads"),
+                            "Hamstrings": st.checkbox("Hamstrings"),
+                            "Calves": st.checkbox("Calves"),
+                            "Lower Back": st.checkbox("Lower Back"),
+                            "Upper Back": st.checkbox("Upper Back"),
+                            "Core": st.checkbox("Core"),
+                            "Other": st.checkbox("Other")
+                        }
+                        
+                        # Soreness severity slider
+                        soreness_severity = st.slider(
+                            "Overall Soreness Level",
+                            min_value=1,
+                            max_value=5,
+                            value=1,
+                            help="1 = No soreness, 5 = Severe soreness"
+                        )
+                        
+                        # Additional soreness details
+                        muscle_soreness_details = st.text_area(
+                            "Additional Soreness Details",
+                            help="Describe any specific patterns, triggers, or recovery observations",
+                            height=100
+                        )
+                        
+                        # Combine all soreness information
+                        sore_areas = [area for area, checked in soreness_areas.items() if checked]
+                        muscle_soreness = f"Severity: {soreness_severity}/5\n"
+                        if sore_areas:
+                            muscle_soreness += f"Areas: {', '.join(sore_areas)}\n"
+                        if muscle_soreness_details:
+                            muscle_soreness += f"Details: {muscle_soreness_details}"
                     
-                    equipment_issues = st.text_area(
-                        "Equipment Issues",
-                        value=st.session_state.get('equipment_issues', '')
-                    )
+                    with col2:
+                        st.markdown("### Fatigue Assessment")
+                        
+                        # Energy levels throughout the day
+                        st.markdown("##### Energy Pattern")
+                        energy_pattern = st.selectbox(
+                            "Select your typical energy pattern this week",
+                            options=[
+                                "Consistent energy throughout the day",
+                                "Strong in morning, declining later",
+                                "Low in morning, improving later",
+                                "Fluctuating throughout the day",
+                                "Consistently low energy",
+                                "Consistently high energy"
+                            ]
+                        )
+                        
+                        # Fatigue impact areas
+                        st.markdown("##### Fatigue Impact")
+                        fatigue_impacts = {
+                            "Sleep Quality": st.checkbox("Affected Sleep Quality", key="sleep_quality"),
+                            "Workout Performance": st.checkbox("Affected Workout Performance", key="workout_perf"),
+                            "Daily Activities": st.checkbox("Affected Daily Activities", key="daily_activities"),
+                            "Mental Focus": st.checkbox("Affected Mental Focus", key="mental_focus"),
+                            "Recovery Time": st.checkbox("Needed Extra Recovery Time", key="recovery_time")
+                        }
+                        
+                        # Additional fatigue details
+                        fatigue_details = st.text_area(
+                            "Additional Fatigue Details",
+                            help="Describe any specific patterns or observations about your energy levels",
+                            height=100
+                        )
+                        
+                        # Combine all fatigue information
+                        impact_areas = [area for area, checked in fatigue_impacts.items() if checked]
+                        general_fatigue = f"Energy Pattern: {energy_pattern}\n"
+                        if impact_areas:
+                            general_fatigue += f"Impact Areas: {', '.join(impact_areas)}\n"
+                        if fatigue_details:
+                            general_fatigue += f"Details: {fatigue_details}"
                     
-                    nutrition_concerns = st.text_area(
-                        "Nutrition Concerns",
-                        value=st.session_state.get('nutrition_concerns', '')
-                    )
+                    # Add a visual divider
+                    st.markdown("---")
                     
-                    other_factors = st.text_area(
-                        "Other Relevant Factors",
-                        value=st.session_state.get('other_factors', '')
-                    )
+                    # Preview section
+                    with st.expander("Preview Your Recovery Notes"):
+                        st.markdown("#### Muscle Soreness Patterns")
+                        st.text(muscle_soreness)
+                        st.markdown("#### General Fatigue Level")
+                        st.text(general_fatigue)
                     
-                    submitted = st.form_submit_button("Save Notes")
+                    # Save button and handling
+                    submitted = st.form_submit_button("Save Recovery Notes")
                     if submitted:
                         # Update session state
                         st.session_state.update({
-                            'sleep_notes': sleep_notes,
-                            'equipment_issues': equipment_issues,
-                            'nutrition_concerns': nutrition_concerns,
-                            'other_factors': other_factors,
+                            'muscle_soreness': muscle_soreness,
+                            'general_fatigue': general_fatigue,
                             'notes_saved': True
                         })
                         
                         # Add notes to current summary
                         current_summary = st.session_state.current_summary
-                        current_summary.update({
-                            'sleep_notes': sleep_notes,
-                            'equipment_issues': equipment_issues,
-                            'nutrition_concerns': nutrition_concerns,
-                            'other_factors': other_factors
-                        })
-                        
+
+                        # Debug: Print the current summary before modification
+                        st.write("Debug - Current Summary before modification:")
+                        st.write(current_summary)
+
+                        # Create a properly formatted summary object
+                        summary_data = {
+                            'start_date': start_date.isoformat(),
+                            'end_date': end_date.isoformat(),
+                            'total_tss': float(current_summary.get('total_tss', 0)),
+                            'total_training_hours': float(current_summary.get('total_training_hours', 0)),
+                            'sessions_completed': int(current_summary.get('sessions_completed', 0)),
+                            'avg_sleep_quality': float(current_summary.get('avg_sleep_quality', 0)),
+                            'avg_daily_energy': float(current_summary.get('avg_daily_energy', 0)),
+                            'daily_energy': current_summary.get('daily_energy', {}),
+                            'daily_sleep_quality': current_summary.get('daily_sleep_quality', {}),
+                            'muscle_soreness_patterns': muscle_soreness,
+                            'general_fatigue_level': general_fatigue,
+                            'qualitative_feedback': current_summary.get('qualitative_feedback', []),
+                            'workout_types': current_summary.get('workout_types', [])
+                        }
+
                         try:
                             save_response = requests.post(
                                 "http://localhost:8000/summary/save",
-                                json=current_summary
+                                json=summary_data
                             )
                             if save_response.status_code == 200:
-                                st.success("Notes saved successfully!")
+                                st.success("Recovery notes saved successfully!")
                             else:
-                                st.error("Failed to save notes")
+                                st.error(f"Failed to save notes. Status code: {save_response.status_code}")
+                                st.error(f"Error details: {save_response.text}")
                         except Exception as e:
                             st.error(f"Error saving notes: {str(e)}")
+                            st.write("Debug - Full error details:", str(e))
                 
+                # Help text at the bottom of the form
+                st.markdown("""
+                    <div style='background-color: #e6e9ef; padding: 15px; border-radius: 5px; margin-top: 20px; border: 1px solid #c0c6d2;'>
+                        <h4 style='color: #0e1117; margin-bottom: 10px;'>Tips for Detailed Recovery Assessment:</h4>
+                        <ul style='color: #0e1117; margin-left: 20px;'>
+                            <li style='margin-bottom: 5px;'>Use the checkboxes to quickly identify affected areas</li>
+                            <li style='margin-bottom: 5px;'>The severity slider helps track soreness intensity over time</li>
+                            <li style='margin-bottom: 5px;'>Add specific details in the text areas for better tracking</li>
+                            <li style='margin-bottom: 5px;'>Preview your notes before saving to ensure completeness</li>
+                        </ul>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+
                 # Only show export option if notes have been saved
                 if st.session_state.notes_saved:
                     try:

@@ -2,9 +2,8 @@
 • Total TSS: 344.2
 • Total Training Hours: 6.6
 • Number of Sessions Completed: 8
-• Average Sleep Quality (1-5): N/A
+• Average Sleep Quality (1-5): 4.1
 • Average Daily Energy (1-5): 2.9
-• Any schedule/weather challenges: None reported
 
 ## Weekly Self-Assessment
 1. Overall Energy Trend:
@@ -14,25 +13,22 @@
    • Thursday: 2.0
    • Friday: 3.2
    • Saturday: 3.6
-   • Sunday: N/A
 
 2. Sleep Quality Trend:
-   • Monday: N/A
+   • Monday: {'Sleep Hours': 8.12, 'Time In Deep Sleep': 0.933333337306976, 'Time In Light Sleep': 6.26666688919067, 'Time In REM Sleep': 0.916666686534882, 'sleep_quality_score': 4.2}
    • Tuesday: N/A
-   • Wednesday: N/A
-   • Thursday: N/A
-   • Friday: N/A
-   • Saturday: N/A
-   • Sunday: N/A
+   • Wednesday: {'Sleep Hours': 7.92, 'Time In Deep Sleep': 1.23333334922791, 'Time In Light Sleep': 5.19999980926514, 'Time In REM Sleep': 1.48333334922791, 'sleep_quality_score': 4.2}
+   • Thursday: {'Sleep Hours': 8.53, 'Time In Deep Sleep': 0.816666662693024, 'Time In Light Sleep': 5.68333339691162, 'Time In REM Sleep': 2.03333330154419, 'sleep_quality_score': 4.2}
+   • Friday: {'Sleep Hours': 8.03, 'Time In Deep Sleep': 1.14999997615814, 'Time In Light Sleep': 5.03333330154419, 'Time In REM Sleep': 1.85000002384186, 'sleep_quality_score': 4.2}
+   • Saturday: {'Sleep Hours': 9.58, 'Time In Deep Sleep': 0.75, 'Time In Light Sleep': 7.27916669845581, 'Time In REM Sleep': 1.54999995231628, 'sleep_quality_score': 3.6}
 
 3. Recovery Quality:
-   • Muscle soreness patterns: N/A
-   • General fatigue level: N/A
-
-4. Motivation/Engagement:
-   • Enjoyment of workouts (1-5): N/A
-   • Preferred workout types: Bike, Other, Strength
-   • Challenging aspects: N/A
+   • Muscle soreness patterns: Severity: 4/5
+Areas: Hamstrings, Lower Back
+Details: zxczxc
+   • General fatigue level: Energy Pattern: Consistent energy throughout the day
+Impact Areas: Sleep Quality
+Details: zxczc
 
 ## Daily Workout Details
 
@@ -242,8 +238,3 @@
    - Any unusual fatigue: N/A
    - Technical issues: N/A
    - Modifications made: N/A
-
-## Additional Notes
-• Equipment issues: N/A
-• Nutrition concerns: N/A
-• Other relevant factors: N/A
