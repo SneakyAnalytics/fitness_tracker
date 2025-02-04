@@ -10,7 +10,7 @@ class WorkoutDatabase:
     def __init__(self, db_path: str = "data/fitness_data.db"):
         self.db_path = db_path
         self._init_db()
-    
+
     def _init_db(self):
         """Initialize database with all required tables"""
         conn = sqlite3.connect(self.db_path)
@@ -153,6 +153,7 @@ class WorkoutDatabase:
     def save_daily_metric(self, date: str, metric_type: str, metric_data: Dict[str, Any]) -> bool:
         print(f"DEBUG: Saving metric {metric_type} for date {date}")
         print(f"DEBUG: Metric data: {json.dumps(metric_data, indent=2)}")
+        
         """Save or update daily metric data"""
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
@@ -557,7 +558,7 @@ class WorkoutDatabase:
             print(f"Average Daily Energy: {summary['avg_daily_energy']}")
             print(f"Average Sleep Quality: {summary['avg_sleep_quality']}")
             print(f"Daily Sleep Quality: {summary['daily_sleep_quality']}")
-            
+
             return summary
                 
         except Exception as e:
@@ -598,16 +599,26 @@ class WorkoutDatabase:
             conn.close()
 
     def save_weekly_summary(self, summary: Dict[str, Any]) -> bool:
-        print(f"DEBUG: Saving weekly summary with data:")
-        print(f"Sleep quality: {summary.get('avg_sleep_quality')}")
-        print(f"Daily sleep quality: {summary.get('daily_sleep_quality')}")
         """Save or update a weekly summary"""
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         
-        try:  
-            print(f"Saving summary for {summary['start_date']} to {summary['end_date']}")
-            
+        try:
+            # Separate qualitative data
+            qualitative_data = {
+                'muscle_soreness_patterns': summary.get('muscle_soreness_patterns'),
+                'general_fatigue_level': summary.get('general_fatigue_level')
+            }
+
+            # Create a copy of summary without qualitative data
+            summary_data = summary.copy()
+            summary_data.pop('muscle_soreness_patterns', None)
+            summary_data.pop('general_fatigue_level', None)
+
+            # Debug: Print the data being saved
+            print("DEBUG: Summary data to save:", json.dumps(summary_data, indent=2))
+            print("DEBUG: Qualitative data to save:", json.dumps(qualitative_data, indent=2))
+
             c.execute(
                 '''
                 INSERT OR REPLACE INTO weekly_summaries 
@@ -617,18 +628,70 @@ class WorkoutDatabase:
                 (
                     summary['start_date'],
                     summary['end_date'],
-                    json.dumps(summary),
+                    json.dumps(summary_data),
+                    json.dumps(qualitative_data)
                 )
             )
             conn.commit()
-            print("Summary saved successfully")
+
+            # Verify what was actually saved
+            c.execute(
+                '''
+                SELECT qualitative_data, summary_data 
+                FROM weekly_summaries 
+                WHERE start_date = ? AND end_date = ?
+                ''',
+                (summary['start_date'], summary['end_date'])
+            )
+            result = c.fetchone()
+
+            if result:
+                qual_verify = json.loads(result[0]) if result[0] else {}
+                print("DEBUG: Verification - Saved Qualitative Data:", json.dumps(qual_verify, indent=2))
+                summary_verify = json.loads(result[1]) if result[1] else {}
+                print("DEBUG: Verification - Saved Summary Data:", json.dumps(summary_verify, indent=2))
+
             return True
+        except Exception as e:
+            conn.rollback()
+            print(f"Error saving weekly summary: {e}")
+            return False
+        finally:
+            conn.close()
+
+    def get_weekly_summary_qualitative_data(self, start_date: str, end_date: str) -> Optional[Dict[str, Any]]:
+        """Retrieve qualitative data for a specific week"""
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        
+        try:
+            # Get the most recent qualitative data for the given date range
+            c.execute(
+                '''
+                SELECT qualitative_data
+                FROM weekly_summaries
+                WHERE start_date = ? AND end_date = ?
+                ORDER BY updated_at DESC
+                LIMIT 1
+                ''',
+                (start_date, end_date)
+            )
+            
+            result = c.fetchone()
+            if result and result[0]:
+                print("\nDEBUG: Retrieved qualitative data:", result[0])
+                qual_data = json.loads(result[0])
+                if qual_data.get('muscle_soreness_patterns') or qual_data.get('general_fatigue_level'):
+                    return qual_data
+            
+            print("DEBUG: No qualitative data found for date range")
+            return None
             
         except Exception as e:
-            print(f"Error saving weekly summary: {str(e)}")
+            print(f"Error retrieving qualitative data: {str(e)}")
             import traceback
             traceback.print_exc()
-            return False
+            return None
             
         finally:
             conn.close()

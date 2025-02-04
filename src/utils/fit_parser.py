@@ -52,7 +52,7 @@ class FitParser:
 
     
     def calculate_hr_zones(self, hr_data: List[int], max_hr: Optional[int] = None) -> Dict[str, float]:
-        """Calculate time spent in each heart rate zone"""
+        """Calculate time spent in each heart rate zone as a percentage of total workout duration"""
         if not hr_data:
             return {}
         
@@ -166,7 +166,7 @@ class FitParser:
             return None
     
     def _calculate_power_zones(self, power_array: np.ndarray, ftp: float) -> Dict[str, float]:
-        """Calculate time spent in each power zone"""
+        """Calculate time spent in each power zone as a percentage of total workout duration"""
         if len(power_array) == 0:
             return {}
             
