@@ -245,37 +245,49 @@ async def upload_workouts(file: UploadFile = File(...)):
         workouts = []
         for _, row in df.iterrows():
             print(f"Processing workout: {row['Title']} on {row['WorkoutDay']}")
+            
+            # Calculate zone percentages based on minutes
+            def calculate_zone_percentages(zone_minutes: Dict[str, float], total_minutes: float) -> Dict[str, float]:
+                if total_minutes > 0:
+                    return {
+                        k: (v / total_minutes) * 100 if pd.notna(v) else 0 
+                        for k, v in zone_minutes.items()
+                    }
+                return zone_minutes
+            
+            actual_duration = clean_float(row.get('TimeTotalInHours', 0) * 60) if pd.notna(row.get('TimeTotalInHours')) else None
+            
             workout = {
                 'title': str(row['Title']).strip(),
                 'type': str(row['WorkoutType']).strip(),
                 'workout_day': str(row['WorkoutDay']).strip(),
                 'metrics': {
                     'actual_tss': float(row['TSS']) if pd.notna(row.get('TSS')) else None,
-                    'actual_duration': float(row['TimeTotalInHours']) * 60 if pd.notna(row.get('TimeTotalInHours')) else None,
+                    'actual_duration': actual_duration,
                     'rpe': float(row['Rpe']) if pd.notna(row.get('Rpe')) else None,
                 },
                 'power_data': {
                     'average': float(row['PowerAverage']) if pd.notna(row.get('PowerAverage')) else None,
                     'max': float(row['PowerMax']) if pd.notna(row.get('PowerMax')) else None,
                     'if': float(row['IF']) if pd.notna(row.get('IF')) else None,
-                    'zones': {
+                    'zones': calculate_zone_percentages({
                         'zone1': float(row['PWRZone1Minutes']) if pd.notna(row.get('PWRZone1Minutes')) else 0,
                         'zone2': float(row['PWRZone2Minutes']) if pd.notna(row.get('PWRZone2Minutes')) else 0,
                         'zone3': float(row['PWRZone3Minutes']) if pd.notna(row.get('PWRZone3Minutes')) else 0,
                         'zone4': float(row['PWRZone4Minutes']) if pd.notna(row.get('PWRZone4Minutes')) else 0,
                         'zone5': float(row['PWRZone5Minutes']) if pd.notna(row.get('PWRZone5Minutes')) else 0,
-                    }
+                    }, actual_duration)
                 } if pd.notna(row.get('PowerAverage')) else None,
                 'heart_rate_data': {
                     'average': float(row['HeartRateAverage']) if pd.notna(row.get('HeartRateAverage')) else None,
                     'max': float(row['HeartRateMax']) if pd.notna(row.get('HeartRateMax')) else None,
-                    'zones': {
+                    'zones': calculate_zone_percentages({
                         'zone1': float(row['HRZone1Minutes']) if pd.notna(row.get('HRZone1Minutes')) else 0,
                         'zone2': float(row['HRZone2Minutes']) if pd.notna(row.get('HRZone2Minutes')) else 0,
                         'zone3': float(row['HRZone3Minutes']) if pd.notna(row.get('HRZone3Minutes')) else 0,
                         'zone4': float(row['HRZone4Minutes']) if pd.notna(row.get('HRZone4Minutes')) else 0,
                         'zone5': float(row['HRZone5Minutes']) if pd.notna(row.get('HRZone5Minutes')) else 0,
-                    }
+                    }, actual_duration)
                 } if pd.notna(row.get('HeartRateAverage')) else None,
             }
             
