@@ -413,6 +413,36 @@ async def generate_summary(start_date: str, end_date: str):
 async def save_summary(summary: Dict[str, Any]):
     """Save a weekly summary"""
     try:
+        # Validate required fields
+        required_fields = [
+            'start_date', 'end_date', 'total_tss', 'total_training_hours',
+            'sessions_completed', 'avg_sleep_quality', 'avg_daily_energy'
+        ]
+
+        missing_fields = [field for field in required_fields if field not in summary]
+        if missing_fields:
+            raise ValueError(f"Missing required fields: {', '.join(missing_fields)}")
+
+        # Clean the summary data to ensure it matches our model
+        cleaned_summary = {
+            'start_date': summary['start_date'],
+            'end_date': summary['end_date'],
+            'total_tss': float(summary['total_tss']),
+            'total_training_hours': float(summary['total_training_hours']),
+            'sessions_completed': int(summary['sessions_completed']),
+            'avg_sleep_quality': float(summary['avg_sleep_quality']),
+            'avg_daily_energy': float(summary['avg_daily_energy']),
+            'daily_energy': summary.get('daily_energy', {}),
+            'daily_sleep_quality': summary.get('daily_sleep_quality', {}),
+            'muscle_soreness_patterns': summary.get('muscle_soreness_patterns'),
+            'general_fatigue_level': summary.get('general_fatigue_level'),
+            'qualitative_feedback': summary.get('qualitative_feedback', []),
+            'workout_types': summary.get('workout_types', [])
+        }
+
+        # Debug: Print the cleaned summary data
+        print("DEBUG: Cleaned summary data:", json.dumps(cleaned_summary, indent=2))
+
         db = WorkoutDatabase()
         success = db.save_weekly_summary(summary)
         if success:
