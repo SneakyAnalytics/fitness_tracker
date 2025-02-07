@@ -13,7 +13,7 @@ import json
 
 from ..storage.database import WorkoutDatabase
 from ..models.workout import DailyWorkout, WeeklySummary
-from ..utils.helpers import format_value, clean_float
+from ..utils.helpers import format_value, clean_float, clean_workout_data
 from ..utils.fit_parser import FitParser
 from ..utils.metrics_processor import MetricsProcessor
 
@@ -202,6 +202,7 @@ class QualitativeData(BaseModel):
     how_it_felt: str
     technical_issues: Optional[str] = None
     modifications: Optional[str] = None
+    athlete_comments: Optional[str] = None
 
 @app.get("/")
 async def root():
@@ -264,7 +265,7 @@ async def upload_workouts(file: UploadFile = File(...)):
                 'metrics': {
                     'actual_tss': float(row['TSS']) if pd.notna(row.get('TSS')) else None,
                     'actual_duration': actual_duration,
-                    'rpe': float(row['Rpe']) if pd.notna(row.get('Rpe')) else None,
+                    'rpe': float(row['Rpe']) if pd.notna(row.get('Rpe')) else None,  # Include RPE value
                 },
                 'power_data': {
                     'average': float(row['PowerAverage']) if pd.notna(row.get('PowerAverage')) else None,
@@ -289,12 +290,16 @@ async def upload_workouts(file: UploadFile = File(...)):
                         'zone5': float(row['HRZone5Minutes']) if pd.notna(row.get('HRZone5Minutes')) else 0,
                     }, actual_duration)
                 } if pd.notna(row.get('HeartRateAverage')) else None,
+                'athlete_comments': str(row.get('AthleteComments')) if pd.notna(row.get('AthleteComments')) else None  # Ensure this field is included
             }
             
+            # Clean workout data
+            cleaned_workout = clean_workout_data(workout)
+
             # Save to database
             db = WorkoutDatabase()
-            if db.save_workout(workout):
-                workouts.append(workout)
+            if db.save_workout(cleaned_workout):
+                workouts.append(cleaned_workout)
                 print(f"Saved workout: {workout['title']} on {workout['workout_day']}")
             else:
                 print(f"Failed to save workout: {workout['title']} on {workout['workout_day']}")
@@ -387,7 +392,8 @@ async def save_qualitative_data(data: QualitativeData):
             qualitative_data={
                 'how_it_felt': data.how_it_felt,
                 'technical_issues': data.technical_issues,
-                'modifications': data.modifications
+                'modifications': data.modifications,
+                'athlete_comments': data.athlete_comments
             }
         )
         if success:
@@ -420,7 +426,7 @@ async def generate_summary(start_date: str, end_date: str):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
-    
+
 @app.post("/summary/save")
 async def save_summary(summary: Dict[str, Any]):
     """Save a weekly summary"""
@@ -545,7 +551,7 @@ async def export_summary(start_date: str, end_date: str):
                 "1. Basic Metrics:",
                 f"   - Planned TSS: {format_value(metrics.get('planned_tss'))} | Actual TSS: {format_value(metrics.get('actual_tss'))}",
                 f"   - Duration: Planned {format_value(metrics.get('planned_duration'))} | Actual {format_value(metrics.get('actual_duration'))}",
-                f"   - RPE (1-10): {format_value(metrics.get('rpe'))}",
+                f"   - RPE (1-10): {format_value(metrics.get('rpe'))}",  
             ])
 
             # Power Data section (for bike workouts)
@@ -555,6 +561,7 @@ async def export_summary(start_date: str, end_date: str):
                     "",
                     "2. Power Data:",
                     f"   - Average Power: {format_value(power_data.get('average'))}",
+                    f"   - Max Power: {format_value(power_data.get('max'))}",
                     f"   - Normalized Power: {format_value(power_data.get('normalized_power'))}",
                     f"   - Intensity Factor (IF): {format_value(power_data.get('intensity_factor'))}",
                     "   - Power Zone Distribution:",
@@ -583,15 +590,13 @@ async def export_summary(start_date: str, end_date: str):
                         if value and float(value) > 0:
                             content.append(f"     * {zone}: {format_value(value, is_percentage=True)}")
 
-            # Key Observations section
+            # Athlete Comments section
             feedback = workout.get('feedback', {})
+            athlete_comments = feedback.get('athlete_comments')
             content.extend([
                 "",
-                "4. Key Observations:",
-                f"   - How the workout felt: {format_value(feedback.get('how_it_felt'))}",
-                f"   - Any unusual fatigue: {format_value(feedback.get('unusual_fatigue'))}",
-                f"   - Technical issues: {format_value(feedback.get('technical_issues'))}",
-                f"   - Modifications made: {format_value(feedback.get('modifications'))}",
+                "4. Athlete Comments:",
+                f"   - {format_value(athlete_comments) if athlete_comments else 'No comments provided'}",
             ])
 
             # Additional section for strength workouts

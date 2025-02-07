@@ -23,12 +23,10 @@
    • Saturday: {'Sleep Hours': 9.58, 'Time In Deep Sleep': 0.75, 'Time In Light Sleep': 7.27916669845581, 'Time In REM Sleep': 1.54999995231628, 'sleep_quality_score': 3.6}
 
 3. Recovery Quality:
-   • Muscle soreness patterns: Severity: 4/5
-Areas: Hamstrings, Lower Back
-Details: zxczxc
+   • Muscle soreness patterns: Severity: 1/5
+
    • General fatigue level: Energy Pattern: Consistent energy throughout the day
-Impact Areas: Sleep Quality
-Details: zxczc
+
 
 ## Daily Workout Details
 
@@ -42,7 +40,7 @@ Details: zxczc
    - Average HR: 78.0
    - Max HR: 118.0
    - Time in HR Zones:
-     * zone1: 46.0%
+     * zone1: 99.7%
 
 4. Key Observations:
    - How the workout felt: N/A
@@ -61,16 +59,16 @@ Details: zxczc
    - Normalized Power: N/A
    - Intensity Factor (IF): N/A
    - Power Zone Distribution:
-     * zone1: 17.0%
-     * zone2: 28.0%
-     * zone3: 25.0%
+     * zone1: 26.1%
+     * zone2: 43.0%
+     * zone3: 38.4%
 
 3. Heart Rate Analysis:
    - Average HR: 132.0
    - Max HR: 149.0
    - Time in HR Zones:
-     * zone1: 38.0%
-     * zone2: 29.0%
+     * zone1: 58.3%
+     * zone2: 44.5%
 
 4. Key Observations:
    - How the workout felt: N/A
@@ -88,8 +86,8 @@ Details: zxczc
    - Average HR: 118.0
    - Max HR: 158.0
    - Time in HR Zones:
-     * zone1: 24.0%
-     * zone2: 5.0%
+     * zone1: 80.3%
+     * zone2: 16.7%
 
 4. Key Observations:
    - How the workout felt: N/A
@@ -114,15 +112,15 @@ Details: zxczc
    - Normalized Power: N/A
    - Intensity Factor (IF): N/A
    - Power Zone Distribution:
-     * zone1: 6.0%
-     * zone2: 46.0%
+     * zone1: 11.9%
+     * zone2: 91.6%
 
 3. Heart Rate Analysis:
    - Average HR: 129.0
    - Max HR: 150.0
    - Time in HR Zones:
-     * zone1: 43.0%
-     * zone2: 10.0%
+     * zone1: 85.6%
+     * zone2: 19.9%
 
 4. Key Observations:
    - How the workout felt: N/A
@@ -141,15 +139,15 @@ Details: zxczc
    - Normalized Power: N/A
    - Intensity Factor (IF): N/A
    - Power Zone Distribution:
-     * zone2: 52.0%
-     * zone3: 23.0%
+     * zone2: 69.1%
+     * zone3: 30.6%
 
 3. Heart Rate Analysis:
    - Average HR: 130.0
    - Max HR: 148.0
    - Time in HR Zones:
-     * zone1: 59.0%
-     * zone2: 20.0%
+     * zone1: 78.4%
+     * zone2: 26.6%
 
 4. Key Observations:
    - How the workout felt: N/A
@@ -167,7 +165,7 @@ Details: zxczc
    - Average HR: 83.0
    - Max HR: 140.0
    - Time in HR Zones:
-     * zone1: 44.0%
+     * zone1: 99.9%
 
 4. Key Observations:
    - How the workout felt: N/A
@@ -186,21 +184,21 @@ Details: zxczc
    - Normalized Power: N/A
    - Intensity Factor (IF): N/A
    - Power Zone Distribution:
-     * zone1: 5.0%
-     * zone2: 2.0%
-     * zone3: 10.0%
-     * zone4: 22.0%
-     * zone5: 30.0%
+     * zone1: 7.3%
+     * zone2: 2.9%
+     * zone3: 14.6%
+     * zone4: 32.1%
+     * zone5: 43.8%
 
 3. Heart Rate Analysis:
    - Average HR: 177.0
    - Max HR: 195.0
    - Time in HR Zones:
-     * zone1: 1.0%
-     * zone2: 3.0%
-     * zone3: 1.0%
-     * zone4: 6.0%
-     * zone5: 5.0%
+     * zone1: 1.5%
+     * zone2: 4.4%
+     * zone3: 1.5%
+     * zone4: 8.8%
+     * zone5: 7.3%
 
 4. Key Observations:
    - How the workout felt: N/A
@@ -219,19 +217,19 @@ Details: zxczc
    - Normalized Power: N/A
    - Intensity Factor (IF): N/A
    - Power Zone Distribution:
-     * zone1: 3.0%
-     * zone2: 11.0%
-     * zone3: 4.0%
-     * zone4: 1.0%
-     * zone5: 1.0%
+     * zone1: 15.6%
+     * zone2: 57.3%
+     * zone3: 20.8%
+     * zone4: 5.2%
+     * zone5: 5.2%
 
 3. Heart Rate Analysis:
    - Average HR: 141.0
    - Max HR: 160.0
    - Time in HR Zones:
-     * zone1: 4.0%
-     * zone2: 14.0%
-     * zone3: 3.0%
+     * zone1: 20.8%
+     * zone2: 72.9%
+     * zone3: 15.6%
 
 4. Key Observations:
    - How the workout felt: N/A

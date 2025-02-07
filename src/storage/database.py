@@ -26,6 +26,7 @@ class WorkoutDatabase:
                 qualitative_data TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                athlete_comments TEXT,
                 UNIQUE(workout_day, workout_title)
             )
         ''')
@@ -199,24 +200,26 @@ class WorkoutDatabase:
                 # Create a new workout dict that includes the qualitative data
                 workout_with_qual = workout.copy()
                 workout_with_qual.update(existing_qual)
-                workout_data = json.dumps(workout_with_qual)
-                qual_data = existing[1]  # Keep existing qualitative data
             else:
-                workout_data = json.dumps(workout)
-                qual_data = None
+                workout_with_qual = workout.copy()
+
+            athlete_comments = workout.get('athlete_comments')
+            workout_with_qual['athlete_comments'] = athlete_comments
+            workout_data = json.dumps(workout_with_qual)
             
             # Save workout with preserved qualitative data
             c.execute(
                 '''
-                INSERT OR REPLACE INTO workouts 
-                (workout_day, workout_title, workout_data, qualitative_data, updated_at)
-                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                INSERT OR REPLACE INTO workouts
+                (workout_day, workout_title, workout_data, qualitative_data, athlete_comments, updated_at)
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ''',
                 (
                     workout['workout_day'],
                     workout['title'],
                     workout_data,
-                    qual_data
+                    None,
+                    athlete_comments  # Ensure this field is saved
                 )
             )
             
@@ -271,19 +274,22 @@ class WorkoutDatabase:
                 # Create a new workout dict with qualitative data
                 updated_workout = workout_data.copy()
                 updated_workout.update(qualitative_data)
+                athlete_comments = qualitative_data.get('athlete_comments')
                 
                 # Save both the complete workout data and separate qualitative data
                 c.execute(
                     '''
-                    UPDATE workouts 
+                    UPDATE workouts
                     SET workout_data = ?,
                         qualitative_data = ?,
+                        athlete_comments = ?,
                         updated_at = CURRENT_TIMESTAMP
                     WHERE workout_day = ? AND workout_title = ?
                     ''',
                     (
                         json.dumps(updated_workout),
-                        json.dumps(qualitative_data),
+                        json.dumps({k: v for k, v in qualitative_data.items() if k != 'athlete_comments'}),
+                        athlete_comments,
                         standard_date,
                         workout_title
                     )
@@ -318,10 +324,11 @@ class WorkoutDatabase:
             rows = c.fetchall()
             
             workouts = []
-            for workout_data, qualitative_data in rows:
+            for workout_data, qualitative_data, athlete_comments in rows:
                 workout = json.loads(workout_data)
                 if qualitative_data:
                     workout.update(json.loads(qualitative_data))
+                workout['athlete_comments'] = athlete_comments
                 workouts.append(workout)
             
             return workouts
@@ -362,17 +369,44 @@ class WorkoutDatabase:
         try:
             # Get all workouts for the date range
             query = '''
-                SELECT w.workout_day, w.workout_title, w.workout_data, w.qualitative_data, f.fit_data
+                SELECT w.workout_day, w.workout_title, w.workout_data, w.qualitative_data, w.athlete_comments, f.fit_data
                 FROM workouts w
-                LEFT JOIN fit_files f 
-                    ON w.workout_day = f.workout_day 
+                LEFT JOIN fit_files f
+                    ON w.workout_day = f.workout_day
                     AND w.workout_title = f.workout_title
-                WHERE w.workout_day BETWEEN ? AND ?
+                WHERE w.workout_day >= ? AND w.workout_day <= ?
                 ORDER BY w.workout_day
             '''
             
             print(f"\nExecuting query with dates: {start_date}, {end_date}")
-            c.execute(query, (start_date, end_date))
+            
+            # Debug: Check available workout days and their formats
+            c.execute("SELECT workout_day, typeof(workout_day) FROM workouts ORDER BY workout_day")
+            available_dates = c.fetchall()
+            print("\nAvailable workout days in database:")
+            for date in available_dates:
+                print(f"  - {date[0]}")
+            
+            try:
+                formatted_start_date = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
+                formatted_end_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')
+                print(f"\nFormatted dates for query: {formatted_start_date} to {formatted_end_date}")
+                
+                # Debug: Test the date comparison directly
+                test_query = '''
+                    SELECT COUNT(*)
+                    FROM workouts
+                    WHERE DATE(workout_day) BETWEEN ? AND ?
+                '''
+                c.execute(test_query, (formatted_start_date, formatted_end_date))
+                count = c.fetchone()[0]
+                print(f"\nFound {count} workouts in date range")
+                
+                # Execute the original query
+                c.execute(query, (formatted_start_date, formatted_end_date))
+            except ValueError as e:
+                print(f"\nError parsing dates: {e}")
+                raise
             workout_rows = c.fetchall()
             
             print(f"Found {len(workout_rows)} workouts")
@@ -387,8 +421,9 @@ class WorkoutDatabase:
             daily_sleep_quality = {}
             
             # Process workouts
-            for day, title, workout_data, qual_data, fit_data in workout_rows:
+            for row in workout_rows:
                 try:
+                    day, title, workout_data, qual_data, athlete_comments, fit_data = row
                     print(f"\nProcessing workout: {title} on {day}")
                     
                     workout = json.loads(workout_data)
@@ -448,16 +483,26 @@ class WorkoutDatabase:
                                 'actual_duration': duration,
                                 'planned_tss': self._get_numeric_value(csv_metrics.get('planned_tss')),
                                 'planned_duration': self._get_numeric_value(csv_metrics.get('planned_duration')),
-                                'rpe': workout.get('Rpe')
+                                'rpe': self._get_numeric_value(csv_metrics.get('rpe'))
                             },
-                            'power_data': power_data if power_data else None,
+                            'power_data': {
+                                'average': power_data.get('average'),
+                                'max': power_data.get('max'),
+                                'intensity_factor': power_data.get('if'),
+                                'zones': power_data.get('zones', {})
+                            } if power_data else None,
                             'heart_rate_data': hr_data if hr_data else None
                         },
-                        'feedback': qualitative
+                        'feedback': {**qualitative, 'athlete_comments': athlete_comments}
                     }
-                    
+                    # Remove None values from power_data if it exists
+                    if workout_entry['workout_data']['power_data']:
+                        workout_entry['workout_data']['power_data'] = {
+                            k: v for k, v in workout_entry['workout_data']['power_data'].items() 
+                            if v is not None
+                        }
                     daily_workouts.append(workout_entry)
-                    print(f"Successfully added workout entry")
+                    print(f"Successfully added workout entry with power data: {json.dumps(workout_entry['workout_data'].get('power_data'), indent=2)}")
                     
                 except Exception as e:
                     print(f"Error processing workout: {str(e)}")
