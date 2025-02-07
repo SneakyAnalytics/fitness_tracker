@@ -187,12 +187,13 @@ class MetricsProcessor:
                 'actual_duration': row.get('TimeTotalInHours', 0) * 60 if pd.notna(row.get('TimeTotalInHours')) else None,
                 'tss': row.get('TSS'),
                 'if': row.get('IF'),
-                'rpe': row.get('Rpe'),
+                'rpe': row.get('Rpe'),  # Include RPE value
                 'feeling': row.get('Feeling'),
                 'power_avg': row.get('PowerAverage'),
                 'power_max': row.get('PowerMax'),
                 'hr_avg': row.get('HeartRateAverage'),
-                'hr_max': row.get('HeartRateMax')
+                'hr_max': row.get('HeartRateMax'),
+                'athlete_comments': row.get('AthleteComments')  # Ensure this field is processed
             })
 
     def add_fit_data(self, date: str, workout_title: str, fit_content: bytes):

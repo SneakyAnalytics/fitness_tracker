@@ -68,6 +68,9 @@ def display_fit_file_analysis(fit_file, workout_data):
         with col3:
             st.metric("Intensity Factor", 
                      safe_format(metrics.get('intensity'), "{:.2f}"))
+        with col3:
+            st.metric("RPE", 
+                     safe_format(metrics.get('rpe'), "{:.1f}"))  # Display RPE value
     
     # Determine available data types
     has_power = bool(workout_data.get('power_metrics'))
@@ -376,6 +379,12 @@ elif page == 'Import Data':
                         value=workout.get('modifications', ''),
                         key=f"mod_{unique_key}"
                     )
+
+                    athlete_comments = st.text_area(
+                        "Athlete Comments",
+                        value=workout.get('athlete_comments', ''),
+                        key=f"comments_{unique_key}"
+                    )
                     
                     # Show quantitative data for reference
                     st.write("Workout Details:")
@@ -401,7 +410,8 @@ elif page == 'Import Data':
                                     "workout_title": workout['title'],
                                     "how_it_felt": how_it_felt,
                                     "technical_issues": technical_issues,
-                                    "modifications": modifications
+                                    "modifications": modifications,
+                                    "athlete_comments": athlete_comments
                                 }
                             )
                             
@@ -503,7 +513,6 @@ elif page == 'Debug Upload':
             st.error(f"Error: {str(e)}")
 
 # In the Weekly Summary page section:
-# Update the Weekly Summary section
 elif page == 'Weekly Summary':
     st.header("Weekly Summary")
     
@@ -526,8 +535,8 @@ elif page == 'Weekly Summary':
             response = requests.get(
                 f"http://localhost:8000/summary/generate",
                 params={
-                    "start_date": start_date.isoformat(),
-                    "end_date": end_date.isoformat()
+                    "start_date": start_date.strftime('%Y-%m-%d'),
+                    "end_date": end_date.strftime('%Y-%m-%d')
                 }
             )
             

@@ -55,6 +55,7 @@ class DailyWorkout:
     unusual_fatigue: Optional[str] = None
     technical_issues: Optional[str] = None
     modifications: Optional[str] = None
+    athlete_comments:  Optional[str] = None
     exercises_completed: Optional[List[str]] = None
     weight_adjustments: Optional[str] = None
     areas_of_soreness: Optional[str] = None
