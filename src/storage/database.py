@@ -85,7 +85,7 @@ class WorkoutDatabase:
         if isinstance(value, dict):
             return default
         return default
-
+    
     def _calculate_sleep_quality_score(
         self, sleep_hours: float, deep_sleep: float, 
         light_sleep: float, rem_sleep: float
@@ -369,17 +369,19 @@ class WorkoutDatabase:
         try:
             # Get all workouts for the date range
             query = '''
-                SELECT w.workout_day, w.workout_title, w.workout_data, w.qualitative_data, w.athlete_comments, f.fit_data
-                FROM workouts w
-                LEFT JOIN fit_files f
-                    ON w.workout_day = f.workout_day
-                    AND w.workout_title = f.workout_title
-                WHERE w.workout_day >= ? AND w.workout_day <= ?
-                ORDER BY w.workout_day
-            '''
-            
+                    SELECT w.workout_day, w.workout_title, w.workout_data, w.qualitative_data, w.athlete_comments, f.fit_data
+                    FROM workouts w
+                    LEFT JOIN fit_files f ON w.workout_day = f.workout_day
+                    AND ABS(
+                        CAST(json_extract(w.workout_data, '$.metrics.actual_duration') AS REAL) -
+                        CAST(json_extract(f.fit_data, '$.metrics.duration') AS REAL)
+                    ) < 1
+                    WHERE w.workout_day >= ? AND w.workout_day <= ?
+                    ORDER BY w.workout_day
+                    '''
+
             print(f"\nExecuting query with dates: {start_date}, {end_date}")
-            
+
             # Debug: Check available workout days and their formats
             c.execute("SELECT workout_day, typeof(workout_day) FROM workouts ORDER BY workout_day")
             available_dates = c.fetchall()
@@ -430,7 +432,15 @@ class WorkoutDatabase:
                     print(f"Raw workout data: {json.dumps(workout, indent=2)}")
                     
                     qualitative = json.loads(qual_data) if qual_data else {}
-                    fit_metrics = json.loads(fit_data) if fit_data else {}
+                    
+                    # Safely load fit_data
+                    fit_metrics = {}
+                    if fit_data:
+                        try:
+                            fit_metrics = json.loads(fit_data)
+                        except json.JSONDecodeError as e:
+                            print(f"Error decoding fit_data: {e}")
+                            fit_metrics = {}
                     
                     # Get the workout type
                     workout_type = workout.get('type')
@@ -440,30 +450,41 @@ class WorkoutDatabase:
                     
                     # Get metrics from all sources
                     csv_metrics = workout.get('metrics', {})
-                    fit_metrics = fit_metrics.get('metrics', {}) if fit_metrics else {}
+                    fit_metrics_metrics = fit_metrics.get('metrics', {}) if fit_metrics else {}
                     
                     # Process TSS
                     workout_tss = (
                         self._get_numeric_value(workout.get('TSS')) or
                         self._get_numeric_value(csv_metrics.get('actual_tss')) or
-                        self._get_numeric_value(fit_metrics.get('tss'))
+                        self._get_numeric_value(fit_metrics_metrics.get('tss'))
                     )
                     print(f"TSS: {workout_tss}")
                     total_tss += workout_tss
                     
                     # Process duration
                     duration = (
-                        self._get_numeric_value(fit_metrics.get('duration')) or
+                        self._get_numeric_value(fit_metrics_metrics.get('duration')) or
                         self._get_numeric_value(csv_metrics.get('actual_duration')) or
                         self._get_numeric_value(workout.get('TimeTotalInHours', 0)) * 60
                     )
                     print(f"Duration: {duration}")
                     total_duration += duration
                     
-                    # Combine power data from all sources
+                    # Combine power data from all sources with FIT priority
                     power_data = workout.get('power_data', {})
                     if fit_metrics.get('power_metrics'):
-                        power_data.update(fit_metrics['power_metrics'])
+                        # Preserve normalized power from FIT files
+                        fit_power = fit_metrics['power_metrics']
+                        power_data.update({
+                            'normalized_power': fit_power.get('normalized_power'),
+                            # Explicitly map all power fields from FIT
+                            'average_power': fit_power.get('average_power'),
+                            'max_power': fit_power.get('max_power'),
+                            'intensity_factor': fit_power.get('intensity_factor'),
+                            'zones': fit_power.get('zones', {}),
+                            # Merge with existing workout data
+                            **power_data
+                        })
                     print(f"Power data: {json.dumps(power_data, indent=2)}")
                     
                     # Combine heart rate data
@@ -471,7 +492,16 @@ class WorkoutDatabase:
                     if fit_metrics.get('hr_metrics'):
                         hr_data.update(fit_metrics['hr_metrics'])
                     print(f"HR data: {json.dumps(hr_data, indent=2)}")
-                    
+
+                    # Extract normalized power from fit_data
+                    normalized_power = None
+                    if fit_data:
+                        try:
+                            fit_data_json = json.loads(fit_data)
+                            normalized_power = fit_data_json.get('power_metrics', {}).get('normalized_power')
+                        except (json.JSONDecodeError, AttributeError):
+                            print("Could not extract normalized_power from fit_data")
+
                     # Create workout entry
                     workout_entry = {
                         'day': day,
@@ -489,7 +519,8 @@ class WorkoutDatabase:
                                 'average': power_data.get('average'),
                                 'max': power_data.get('max'),
                                 'intensity_factor': power_data.get('if'),
-                                'zones': power_data.get('zones', {})
+                                'zones': power_data.get('zones', {}),
+                                'normalized_power': normalized_power
                             } if power_data else None,
                             'heart_rate_data': hr_data if hr_data else None
                         },
@@ -498,18 +529,17 @@ class WorkoutDatabase:
                     # Remove None values from power_data if it exists
                     if workout_entry['workout_data']['power_data']:
                         workout_entry['workout_data']['power_data'] = {
-                            k: v for k, v in workout_entry['workout_data']['power_data'].items() 
+                            k: v for k, v in workout_entry['workout_data']['power_data'].items()
                             if v is not None
                         }
                     daily_workouts.append(workout_entry)
                     print(f"Successfully added workout entry with power data: {json.dumps(workout_entry['workout_data'].get('power_data'), indent=2)}")
-                    
                 except Exception as e:
                     print(f"Error processing workout: {str(e)}")
                     import traceback
                     traceback.print_exc()
                     continue
-            
+
             # Calculate average daily energy
             c.execute(
                 '''
@@ -718,7 +748,7 @@ class WorkoutDatabase:
                 WHERE start_date = ? AND end_date = ?
                 ORDER BY updated_at DESC
                 LIMIT 1
-                ''',
+            ''',
                 (start_date, end_date)
             )
             

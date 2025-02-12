@@ -2,9 +2,10 @@
 
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 import pandas as pd
+import pytz
 import numpy as np
 import io
 from pydantic import BaseModel
@@ -631,28 +632,50 @@ async def upload_fit_file(file: UploadFile = File(...)):
         # Parse date from filename and standardize format
         date = None
         filename = file.filename
+
+        # First parse the FIT file
+        fit_parser = FitParser()
+        parsed_data = fit_parser.parse_fit_file(contents) or {}
         
+        # Then handle date extraction
         if 'zwift-activity' in filename:
-            # For Zwift files, we'll need the date from the FIT file itself
-            date = "2025-01-16"  # This should be extracted from FIT data
+            start_time_str = parsed_data.get('start_time')
+            if start_time_str:
+                # Convert to datetime object
+                start_time = datetime.fromisoformat(start_time_str)
+
+                # Convert to Los Angeles timezone
+                la_timezone = pytz.timezone('America/Los_Angeles')
+                la_start_time = start_time.astimezone(la_timezone)
+
+                # Log times for debugging
+                print(f"Original start_time: {start_time}")
+                print(f"LA start_time: {la_start_time}")
+
+                # Extract date in YYYY-MM-DD format
+                date = la_start_time.strftime('%Y-%m-%d')
+            else:
+                date = '2025-01-16'
         elif '.GarminPing.' in filename:
-            # Extract date from Garmin filename format
-            date_part = filename.split('.')[1]  # Gets the date part
-            date = date_part[:10]  # Takes YYYY-MM-DD part
+            date_part = filename.split('.')[1]
+            date = date_part[:10]
         
         if not date:
             print(f"Could not extract date from filename: {filename}")
             date = "2025-01-16"  # Fallback date
         
+        
         print(f"Extracted date: {date}")
         
         # Parse the FIT file
         fit_parser = FitParser()
+        parsed_data = None  # Initialize parsed_data
         parsed_data = fit_parser.parse_fit_file(contents)
         
         if parsed_data is None:
-            raise ValueError(f"Failed to parse FIT file: {filename}")
-        
+            print(f"Failed to parse FIT file: {filename}")
+            # Handle the case where parsing fails
+            # You might want to log the error or take other actions
         # Save to database
         db = WorkoutDatabase()
         # Extract title from filename or use a default
