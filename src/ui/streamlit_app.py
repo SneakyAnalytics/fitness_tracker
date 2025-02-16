@@ -225,7 +225,7 @@ def reset_form_state():
 
 # Sidebar navigation
 st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ['Dashboard', 'Import Data', 'Weekly Summary', 'View Data', 'Debug Upload'])
+page = st.sidebar.radio("Go to", ['Dashboard', 'Import Data', 'Weekly Summary', 'View Data'])
 
 # Main content
 st.title("Fitness Tracker")
@@ -472,45 +472,6 @@ elif page == 'View Data':
         except Exception as e:
             st.error(f"Could not connect to the API: {str(e)}")
 
-elif page == 'Debug Upload':
-    st.header("Debug CSV Upload")
-    st.write("Use this page to examine the data in your CSV file")
-    
-    uploaded_file = st.file_uploader("Upload workout CSV for analysis", type=['csv'])
-    
-    if uploaded_file:
-        try:
-            files = {'file': uploaded_file}
-            response = requests.post("http://localhost:8000/debug/workout_upload", files=files)
-            
-            if response.status_code == 200:
-                debug_data = response.json()
-                
-                st.subheader("CSV Overview")
-                st.write(f"Total columns: {len(debug_data['columns'])}")
-                st.write(f"Total rows: {debug_data['row_count']}")
-                
-                st.subheader("Column Analysis")
-                for column in debug_data['columns']:
-                    stats = debug_data['column_stats'][column]
-                    with st.expander(f"Column: {column}"):
-                        st.write(f"Data type: {stats['dtype']}")
-                        st.write(f"Non-null values: {stats['non_null_count']}")
-                        st.write(f"Unique values: {stats['unique_values']}")
-                        st.write(f"Has null values: {stats['has_nulls']}")
-                        st.write("Sample values:")
-                        for val in stats['sample_values']:
-                            st.write(f"  - {val}")
-                
-                st.subheader("Sample Rows")
-                df = pd.DataFrame(debug_data['sample_rows'])
-                st.dataframe(df)
-                
-            else:
-                st.error("Error analyzing CSV file")
-                
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
 
 # In the Weekly Summary page section:
 elif page == 'Weekly Summary':
