@@ -362,23 +362,6 @@ elif page == 'Import Data':
             with st.expander(f"{workout['workout_day']} - {workout['type']} ({workout['title']})"):
                 with st.form(key=f"form_{unique_key}"):
                     # Pre-fill any existing data
-                    how_it_felt = st.text_area(
-                        "How did it feel?",
-                        value=workout.get('how_it_felt', ''),
-                        key=f"felt_{unique_key}"
-                    )
-                    
-                    technical_issues = st.text_area(
-                        "Any technical issues?",
-                        value=workout.get('technical_issues', ''),
-                        key=f"tech_{unique_key}"
-                    )
-                    
-                    modifications = st.text_area(
-                        "Any modifications made?",
-                        value=workout.get('modifications', ''),
-                        key=f"mod_{unique_key}"
-                    )
 
                     athlete_comments = st.text_area(
                         "Athlete Comments",
@@ -408,9 +391,6 @@ elif page == 'Import Data':
                                 json={
                                     "workout_day": workout['workout_day'],
                                     "workout_title": workout['title'],
-                                    "how_it_felt": how_it_felt,
-                                    "technical_issues": technical_issues,
-                                    "modifications": modifications,
                                     "athlete_comments": athlete_comments
                                 }
                             )
