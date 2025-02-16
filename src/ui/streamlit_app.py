@@ -599,9 +599,6 @@ elif page == 'Weekly Summary':
                         # Add notes to current summary
                         current_summary = st.session_state.current_summary
 
-                        # Debug: Print the current summary before modification
-                        st.write("Debug - Current Summary before modification:")
-                        st.write(current_summary)
 
                         # Create a properly formatted summary object
                         summary_data = {
