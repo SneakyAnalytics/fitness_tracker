@@ -320,11 +320,12 @@ class WorkoutDatabase:
         c = conn.cursor()
         
         try:
-            c.execute('SELECT workout_data, qualitative_data FROM workouts ORDER BY workout_day DESC')
+            c.execute('SELECT workout_data, qualitative_data, athlete_comments FROM workouts ORDER BY workout_day DESC')
             rows = c.fetchall()
             
             workouts = []
-            for workout_data, qualitative_data, athlete_comments in rows:
+            for row in rows:
+                workout_data, qualitative_data, athlete_comments = row
                 workout = json.loads(workout_data)
                 if qualitative_data:
                     workout.update(json.loads(qualitative_data))
