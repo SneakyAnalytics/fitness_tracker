@@ -17,6 +17,7 @@ from ..models.workout import DailyWorkout, WeeklySummary
 from ..utils.helpers import format_value, clean_float, clean_workout_data
 from ..utils.fit_parser import FitParser
 from ..utils.metrics_processor import MetricsProcessor
+from ..utils.proposed_workouts_processor import process_proposed_workouts
 
 # Initialize metrics processor
 metrics_processor = MetricsProcessor()
@@ -735,5 +736,77 @@ async def debug_workout_upload(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error analyzing CSV: {str(e)}")
 
-# Make sure the app is available for import
 __all__ = ['app']
+
+@app.post("/upload/proposed_workouts")
+async def upload_proposed_workouts(file: UploadFile = File(...)):
+    try:
+        print(f"Processing proposed workouts file: {file.filename}")
+        json_contents = await file.read()
+        with open("temp_proposed_workouts.json", "wb") as f:
+            f.write(json_contents)
+
+        weekly_plan, daily_plans, proposed_workouts = process_proposed_workouts("temp_proposed_workouts.json")
+        db = WorkoutDatabase()
+
+        existing_weekly_plan = db.get_weekly_plan(weekly_plan.weekNumber)
+        if not existing_weekly_plan:
+            print(f"Creating weekly plan: {weekly_plan.weekNumber}, {weekly_plan.startDate}, {weekly_plan.plannedTSS_min}, {weekly_plan.plannedTSS_max}, {weekly_plan.notes}")
+            db.create_weekly_plan(
+                weekNumber=weekly_plan.weekNumber, 
+                startDate=weekly_plan.startDate, 
+                plannedTSS_min=weekly_plan.plannedTSS_min, 
+                plannedTSS_max=weekly_plan.plannedTSS_max, 
+                notes=weekly_plan.notes
+            )
+        else:
+            print(f"Weekly plan already exists for weekNumber: {weekly_plan.weekNumber}")
+
+        for daily_plan in daily_plans:
+            print(f"DEBUG: Before creating daily plan - weekNumber: {daily_plan.weekNumber}, dayNumber: {daily_plan.dayNumber}, date: {daily_plan.date}")
+            success = db.create_daily_plan(
+                weekNumber=daily_plan.weekNumber,
+                dayNumber=daily_plan.dayNumber,
+                date=daily_plan.date
+            )
+            if success:
+                daily_plan_id = db.get_daily_plan_id(
+                    weekNumber=daily_plan.weekNumber,
+                    dayNumber=daily_plan.dayNumber,
+                    date=daily_plan.date
+                )
+                daily_plan.id = daily_plan_id or 0
+            else:
+                raise Exception(f"Failed to save daily plan for {daily_plan.date}")
+
+        print(f"DEBUG: Daily plans after DB: {[dp.__dict__ for dp in daily_plans]}")
+        print(f"DEBUG: Proposed workouts before matching: {[(w.name, getattr(w, '_dayNumber', None)) for w in proposed_workouts]}")
+
+        for workout in proposed_workouts:
+            daily_plan_id = next(
+                (dp.id for dp in daily_plans if dp.dayNumber == getattr(workout, '_dayNumber', None)),
+                0
+            )
+            if daily_plan_id == 0:
+                print(f"DEBUG: Failed to match workout {workout.name} with _dayNumber {getattr(workout, '_dayNumber', None)}")
+                raise Exception(f"No daily plan found for workout {workout.name}")
+            workout.dailyPlanId = daily_plan_id
+
+            success = db.create_proposed_workout(
+                dailyPlanId=workout.dailyPlanId,
+                type=workout.type,
+                name=workout.name,
+                plannedDuration=workout.plannedDuration,
+                plannedTSS_min=workout.plannedTSS_min,
+                plannedTSS_max=workout.plannedTSS_max,
+                targetRPE_min=workout.targetRPE_min,
+                targetRPE_max=workout.targetRPE_max,
+                intervals=workout.intervals,
+                sections=workout.sections
+            )
+            if not success:
+                raise Exception(f"Failed to save proposed workout {workout.name}")
+
+        return {"message": "Successfully processed proposed workouts"}  # Moved outside loops
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error: {str(e)}")

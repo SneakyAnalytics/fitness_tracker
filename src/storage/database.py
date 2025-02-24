@@ -15,7 +15,12 @@ class WorkoutDatabase:
         """Initialize database with all required tables"""
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        
+
+        # Drop tables if they exist
+        c.execute("DROP TABLE IF EXISTS proposed_workouts")
+        c.execute("DROP TABLE IF EXISTS daily_plans")
+        c.execute("DROP TABLE IF EXISTS weekly_plans")
+
         # Create workouts table
         c.execute('''
             CREATE TABLE IF NOT EXISTS workouts (
@@ -30,7 +35,7 @@ class WorkoutDatabase:
                 UNIQUE(workout_day, workout_title)
             )
         ''')
-        
+
         # Create fit_files table
         c.execute('''
             CREATE TABLE IF NOT EXISTS fit_files (
@@ -43,7 +48,7 @@ class WorkoutDatabase:
                 UNIQUE(workout_day, workout_title)
             )
         ''')
-        
+
         # Create daily_metrics table
         c.execute('''
             CREATE TABLE IF NOT EXISTS daily_metrics (
@@ -55,7 +60,7 @@ class WorkoutDatabase:
                 UNIQUE(date, metric_type)
             )
         ''')
-        
+
         # Create weekly_summaries table (new)
         c.execute('''
             CREATE TABLE IF NOT EXISTS weekly_summaries (
@@ -69,7 +74,48 @@ class WorkoutDatabase:
                 UNIQUE(start_date, end_date)
             )
         ''')
-        
+
+        # Create weekly_plans table
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS weekly_plans (
+                weekNumber INTEGER PRIMARY KEY,
+                startDate TEXT NOT NULL,
+                plannedTSS_min INTEGER,
+                plannedTSS_max INTEGER,
+                notes TEXT NOT NULL
+            )
+        ''')
+
+        # Create daily_plans table
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS daily_plans (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                weekNumber INTEGER NOT NULL,
+                dayNumber INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                FOREIGN KEY (weekNumber) REFERENCES weekly_plans(weekNumber)
+            )
+        ''')
+
+        # Create proposed_workouts table
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS proposed_workouts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                dailyPlanId INTEGER NOT NULL,
+                type TEXT NOT NULL,
+                name TEXT NOT NULL,
+                plannedDuration INTEGER,
+                plannedTSS_min INTEGER,
+                plannedTSS_max INTEGER,
+                targetRPE_min INTEGER,
+                targetRPE_max INTEGER,
+                intervals TEXT,
+                sections TEXT,
+                FOREIGN KEY (dailyPlanId) REFERENCES daily_plans(id),
+                UNIQUE(dailyPlanId, name) ON CONFLICT IGNORE
+            )
+        ''')
+
         conn.commit()
         conn.close()
     
@@ -128,11 +174,11 @@ class WorkoutDatabase:
         """Save or update FIT file data"""
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
-        
+
         try:
             c.execute(
                 '''
-                INSERT OR REPLACE INTO fit_files 
+                INSERT OR REPLACE INTO fit_files
                 (workout_day, workout_title, fit_data, file_name)
                 VALUES (?, ?, ?, ?)
                 ''',
@@ -488,10 +534,11 @@ class WorkoutDatabase:
                         })
                     print(f"Power data: {json.dumps(power_data, indent=2)}")
                     
-                    # Combine heart rate data
+                    # Combine heart rate data: prioritize CSV data over FIT file data
                     hr_data = workout.get('heart_rate_data', {})
-                    if fit_metrics.get('hr_metrics'):
-                        hr_data.update(fit_metrics['hr_metrics'])
+                    # Commenting out the merging of fit file hr_metrics to keep CSV data intact
+                    # if fit_metrics.get('hr_metrics'):
+                    #     hr_data.update(fit_metrics['hr_metrics'])
                     print(f"HR data: {json.dumps(hr_data, indent=2)}")
 
                     # Extract normalized power from fit_data
@@ -732,6 +779,166 @@ class WorkoutDatabase:
             conn.rollback()
             print(f"Error saving weekly summary: {e}")
             return False
+        finally:
+            conn.close()
+
+    def create_weekly_plan(self, weekNumber: int, startDate: str, plannedTSS_min: int, plannedTSS_max: int, notes: str) -> bool:
+        """Create a new weekly plan"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                c = conn.cursor()
+                c.execute(
+                    '''
+                    INSERT INTO weekly_plans (weekNumber, startDate, plannedTSS_min, plannedTSS_max, notes)
+                    VALUES (?, ?, ?, ?, ?)
+                    ''',
+                    (weekNumber, startDate, plannedTSS_min, plannedTSS_max, notes)
+                )
+                conn.commit()
+                print(f"DEBUG: Successfully inserted weekly plan: {weekNumber}, {startDate}, {plannedTSS_min}, {plannedTSS_max}, {notes}")
+                return True
+        except Exception as e:
+            print(f"Error creating weekly plan: {e}")
+            return False
+
+    def create_daily_plan(self, weekNumber: int, dayNumber: int, date: str) -> bool:
+        """Create a new daily plan"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                c = conn.cursor()
+                c.execute(
+                    '''
+                    INSERT INTO daily_plans (weekNumber, dayNumber, date)
+                    VALUES (?, ?, ?)
+                    ''',
+                    (weekNumber, dayNumber, date)
+                )
+                conn.commit()
+                return True
+        except Exception as e:
+            print(f"Error creating daily plan: {e}")
+            return False
+
+    def create_proposed_workout(self, dailyPlanId: int, type: str, name: str, plannedDuration: int, plannedTSS_min: int, plannedTSS_max: int, targetRPE_min: int, targetRPE_max: int, intervals: str, sections: str) -> bool:
+        """Create a new proposed workout"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                c = conn.cursor()
+                c.execute(
+                    '''
+                    INSERT INTO proposed_workouts (dailyPlanId, type, name, plannedDuration, plannedTSS_min, plannedTSS_max, targetRPE_min, targetRPE_max, intervals, sections)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''',
+                    (dailyPlanId, type, name, plannedDuration, plannedTSS_min, plannedTSS_max, targetRPE_min, targetRPE_max, intervals, sections)
+                )
+                conn.commit()
+                return True
+        except Exception as e:
+            print(f"Error creating proposed workout: {e}")
+            return False
+
+    def get_daily_plan_id(self, weekNumber: int, dayNumber: int, date: str) -> Optional[int]:
+        """Retrieve a daily plan ID by weekNumber and dayNumber"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                c = conn.cursor()
+                c.execute(
+                    '''
+                    SELECT id
+                    FROM daily_plans
+                    WHERE weekNumber = ? AND dayNumber = ?
+                    ''',
+                    (weekNumber, dayNumber)
+                )
+                result = c.fetchone()
+
+                if result:
+                    return result[0]
+                else:
+                    return None
+        except Exception as e:
+            print(f"Error retrieving daily plan ID: {e}")
+            return None
+
+    def proposed_workout_exists(self, dailyPlanId: int, type: str, name: str) -> bool:
+        """Check if a proposed workout already exists"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                c = conn.cursor()
+                c.execute(
+                    '''
+                    SELECT 1
+                    FROM proposed_workouts
+                    WHERE dailyPlanId = ? AND type = ? AND name = ?
+                    ''',
+                    (dailyPlanId, type, name)
+                )
+                result = c.fetchone()
+                return result is not None
+        except Exception as e:
+            print(f"Error checking if proposed workout exists: {e}")
+            return False
+
+    def get_weekly_plan(self, weekNumber: int) -> Optional[Dict[str, Any]]:
+        """Retrieve a weekly plan by weekNumber"""
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+
+        try:
+            c.execute(
+                '''
+                SELECT weekNumber, startDate, plannedTSS_min, plannedTSS_max
+                FROM weekly_plans
+                WHERE weekNumber = ?
+                ''',
+                (weekNumber,)
+            )
+            row = c.fetchone()
+
+            if row:
+                return {
+                    'weekNumber': row[0],
+                    'startDate': row[1],
+                    'plannedTSS_min': row[2],
+                    'plannedTSS_max': row[3]
+                }
+            else:
+                return None
+        except Exception as e:
+            print(f"Error retrieving weekly plan: {e}")
+            return None
+        finally:
+            conn.close()
+
+    def get_proposed_workouts(self, weekNumber: int) -> List[Dict[str, Any]]:
+        """Retrieve proposed workouts for a specific week"""
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+
+        try:
+            c.execute(
+                '''
+                SELECT id, weekNumber, dayNumber, date, workouts
+                FROM proposed_workouts
+                WHERE weekNumber = ?
+                ''',
+                (weekNumber,)
+            )
+            rows = c.fetchall()
+
+            workouts = []
+            for row in rows:
+                workouts.append({
+                    'id': row[0],
+                    'weekNumber': row[1],
+                    'dayNumber': row[2],
+                    'date': row[3],
+                    'workouts': row[4]
+                })
+            return workouts
+        except Exception as e:
+            print(f"Error retrieving proposed workouts: {e}")
+            return []
         finally:
             conn.close()
 

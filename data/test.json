@@ -1,0 +1,233 @@
+{
+  "weekNumber": 14,
+  "startDate": "2025-02-17",
+  "plannedTSS": {
+    "min": 450,
+    "max": 500
+  },
+  "notes": {
+    "weekFocus": "Progressive Loading with Heat Study Integration",
+    "specialConsiderations": "Heat chamber study on Friday 8am"
+  },
+  "days": [
+    {
+      "dayNumber": 1,
+      "date": "2025-02-17",
+      "workouts": [
+        {
+          "type": "bike",
+          "name": "Progressive Base Development",
+          "plannedDuration": 70,
+          "plannedTSS": {
+            "min": 65,
+            "max": 70
+          },
+          "targetRPE": {
+            "min": 6,
+            "max": 7
+          },
+          "intervals": [
+            {
+              "name": "Warmup",
+              "duration": 900,
+              "powerTarget": {
+                "start": {
+                  "type": "percent_ftp",
+                  "value": 50
+                },
+                "end": {
+                  "type": "percent_ftp",
+                  "value": 70
+                }
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 95
+              }
+            },
+            {
+              "name": "Main Set 1",
+              "duration": 720,
+              "powerTarget": {
+                "type": "percent_ftp",
+                "value": 80
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 90
+              }
+            },
+            {
+              "name": "Recovery 1",
+              "duration": 240,
+              "powerTarget": {
+                "type": "watts",
+                "value": 150
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 95
+              }
+            },
+            {
+              "name": "Main Set 2",
+              "duration": 720,
+              "powerTarget": {
+                "type": "percent_ftp",
+                "value": 80
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 90
+              }
+            },
+            {
+              "name": "Recovery 2",
+              "duration": 240,
+              "powerTarget": {
+                "type": "watts",
+                "value": 150
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 95
+              }
+            },
+            {
+              "name": "Main Set 3",
+              "duration": 720,
+              "powerTarget": {
+                "type": "percent_ftp",
+                "value": 80
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 90
+              }
+            },
+            {
+              "name": "Cooldown",
+              "duration": 900,
+              "powerTarget": {
+                "start": {
+                  "type": "percent_ftp",
+                  "value": 65
+                },
+                "end": {
+                  "type": "percent_ftp",
+                  "value": 50
+                }
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 95
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dayNumber": 2,
+      "date": "2025-02-18",
+      "workouts": [
+        {
+          "type": "strength",
+          "name": "Progressive Strength",
+          "plannedDuration": 35,
+          "plannedTSS": {
+            "min": 25,
+            "max": 30
+          },
+          "targetRPE": {
+            "min": 5,
+            "max": 7
+          },
+          "sections": [
+            {
+              "name": "Warmup",
+              "duration": 360,
+              "exercises": [
+                {
+                  "name": "Arm Circles",
+                  "sets": [
+                    {
+                      "duration": 30,
+                      "direction": "forward",
+                      "notes": ["Full range of motion"]
+                    },
+                    {
+                      "duration": 30,
+                      "direction": "backward",
+                      "notes": ["Control movement"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Bodyweight Squats",
+                  "sets": [
+                    {
+                      "reps": 10,
+                      "tempo": "2-0-2-0",
+                      "cues": ["Full depth", "Knees track toes", "Chest up"]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Circuit 1",
+              "rounds": 2,
+              "exercises": [
+                {
+                  "name": "Goblet Squats",
+                  "sets": [
+                    {
+                      "workTime": 40,
+                      "restTime": 20,
+                      "weight": {
+                        "min": 25,
+                        "max": 30,
+                        "unit": "lbs"
+                      },
+                      "targetReps": {
+                        "min": 12,
+                        "max": 15
+                      },
+                      "cues": ["Power drive", "Full depth", "Core engaged"]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "bike",
+          "name": "Zone 2 Base",
+          "plannedDuration": 60,
+          "plannedTSS": {
+            "min": 45,
+            "max": 50
+          },
+          "intervals": [
+            {
+              "name": "Main Set",
+              "duration": 3600,
+              "powerTarget": {
+                "type": "range",
+                "min": 165,
+                "max": 175,
+                "unit": "watts"
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 95
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -105,3 +105,35 @@ class WeeklySummary:
         data['start_date'] = self.start_date.isoformat()
         data['end_date'] = self.end_date.isoformat()
         return data
+
+@dataclass
+class WeeklyPlan:
+    """Represents a weekly training plan"""
+    weekNumber: int
+    startDate: str
+    plannedTSS_min: int
+    plannedTSS_max: int
+    notes: str
+
+@dataclass
+class DailyPlan:
+    """Represents a daily training plan"""
+    id: int
+    weekNumber: int
+    dayNumber: int
+    date: str
+
+@dataclass
+class ProposedWorkout:
+    """Represents a proposed workout"""
+    id: int
+    dailyPlanId: int
+    type: str
+    name: str
+    plannedDuration: int
+    plannedTSS_min: int
+    plannedTSS_max: int
+    targetRPE_min: int
+    targetRPE_max: int
+    intervals: str
+    sections: str
