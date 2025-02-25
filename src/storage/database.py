@@ -16,11 +16,6 @@ class WorkoutDatabase:
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
 
-        # Drop tables if they exist
-        c.execute("DROP TABLE IF EXISTS proposed_workouts")
-        c.execute("DROP TABLE IF EXISTS daily_plans")
-        c.execute("DROP TABLE IF EXISTS weekly_plans")
-
         # Create workouts table
         c.execute('''
             CREATE TABLE IF NOT EXISTS workouts (
@@ -405,6 +400,60 @@ class WorkoutDatabase:
         finally:
             conn.close()
             
+    def _find_matching_proposed_workout(self, date: str, workout_type: str, actual_duration: float, 
+                                      proposed_workouts: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """Find matching proposed workout based on date, type, and duration"""
+        print(f"\nDEBUG: Looking for match - Date: {date}, Type: {workout_type}, Duration: {actual_duration}")
+        print(f"DEBUG: Available proposed workouts: {json.dumps(proposed_workouts, indent=2)}")
+        
+        # Convert both dates to ISO format for consistent comparison
+        iso_date = datetime.strptime(date, '%Y-%m-%d').date().isoformat()
+        matching_workouts = [
+            w for w in proposed_workouts
+            if datetime.strptime(w['date'], '%Y-%m-%d').date().isoformat() == iso_date
+            and w['type'].lower() == workout_type.lower()
+        ]
+        print(f"DEBUG: Matching workouts after date standardization: {len(matching_workouts)}")
+        
+        print(f"DEBUG: Found {len(matching_workouts)} potential matches by date and type")
+        if matching_workouts:
+            print(f"DEBUG: Matching workouts: {json.dumps(matching_workouts, indent=2)}")
+        
+        if not matching_workouts:
+            print(f"DEBUG: No matches for Date: {iso_date}, Type: {workout_type.lower()}")
+            for w in proposed_workouts:
+                print(f"DEBUG: Available - Date: {w['date']}, Type: {w['type'].lower()}")
+            return None
+            
+        # If multiple matches, use duration to find best match
+        best_match = None
+        min_duration_diff = float('inf')
+        
+        for workout in matching_workouts:
+            planned_duration = workout.get('plannedDuration')
+            if planned_duration is not None:
+                duration_diff = abs(actual_duration - workout['plannedDuration'])
+
+                duration_threshold = max(5, planned_duration * 0.15)
+
+                print(f"DEBUG: Comparing durations - Planned: {planned_duration}, Actual: {actual_duration}, "
+                      f"Diff: {duration_diff}, Threshold: {duration_threshold}")
+                
+                if duration_diff < min_duration_diff:
+                    min_duration_diff = duration_diff
+                    best_match = workout
+        
+        if best_match is None and matching_workouts:
+            best_match = matching_workouts[0]
+            print(f"DEBUG: No duration match found, selecting first match by date/type")
+
+        if best_match:
+            print(f"DEBUG: Best match found: {json.dumps(best_match, indent=2)}")
+        else:
+            print("DEBUG: No match found")
+            
+        return best_match
+
     def generate_weekly_summary(self, start_date: str, end_date: str) -> Dict[str, Any]:
         """Generate a comprehensive weekly summary integrating all data sources"""
         print(f"\nDEBUG: Generating weekly summary")
@@ -534,11 +583,10 @@ class WorkoutDatabase:
                         })
                     print(f"Power data: {json.dumps(power_data, indent=2)}")
                     
-                    # Combine heart rate data: prioritize CSV data over FIT file data
+                    # Combine heart rate data
                     hr_data = workout.get('heart_rate_data', {})
-                    # Commenting out the merging of fit file hr_metrics to keep CSV data intact
-                    # if fit_metrics.get('hr_metrics'):
-                    #     hr_data.update(fit_metrics['hr_metrics'])
+                    if fit_metrics.get('hr_metrics'):
+                        hr_data.update(fit_metrics['hr_metrics'])
                     print(f"HR data: {json.dumps(hr_data, indent=2)}")
 
                     # Extract normalized power from fit_data
@@ -658,6 +706,73 @@ class WorkoutDatabase:
             avg_sleep_quality = total_sleep_quality / sleep_count if sleep_count > 0 else None
             print(f"DEBUG: Final average sleep quality: {avg_sleep_quality}")
                 
+            # Get weekly plan first
+            c.execute(
+                '''
+                SELECT weekNumber, startDate, plannedTSS_min, plannedTSS_max, notes
+                FROM weekly_plans
+                WHERE startDate = ?
+                ''',
+                (start_date,)
+            )
+            week_plan = c.fetchone()
+            weekly_plan_data = {
+                'weekNumber': week_plan[0] if week_plan else None,
+                'startDate': week_plan[1] if week_plan else None,
+                'plannedTSS_min': week_plan[2] if week_plan else None,
+                'plannedTSS_max': week_plan[3] if week_plan else None,
+                'notes': week_plan[4] if week_plan else None
+            } if week_plan else None
+
+            # Get all proposed workouts for the week
+            print("\nDEBUG: Fetching proposed workouts")
+            c.execute(
+                '''
+                SELECT dp.date, p.type, p.plannedDuration, p.plannedTSS_min, p.plannedTSS_max, 
+                    p.targetRPE_min, p.targetRPE_max
+                FROM proposed_workouts p
+                JOIN daily_plans dp ON p.dailyPlanId = dp.id
+                WHERE dp.date BETWEEN ? AND ?
+                ''',
+                (start_date, end_date)
+            )
+            proposed_rows = c.fetchall()
+            print(f"DEBUG: Found {len(proposed_rows)} proposed workouts")
+            
+            proposed_workouts = [
+                {
+                    'date': row[0],
+                    'type': row[1],
+                    'plannedDuration': row[2],
+                    'plannedTSS_min': row[3],
+                    'plannedTSS_max': row[4],
+                    'targetRPE_min': row[5],
+                    'targetRPE_max': row[6]
+                }
+                for row in proposed_rows
+            ]
+            print(f"DEBUG: Proposed workouts data: {json.dumps(proposed_workouts, indent=2)}")
+
+            # When processing workouts, add debug logging
+            for workout_entry in daily_workouts:
+                print(f"\nDEBUG: Processing workout: {workout_entry['day']} - {workout_entry['type']}")
+                matching_proposed = self._find_matching_proposed_workout(
+                    workout_entry['day'],
+                    workout_entry['type'],
+                    workout_entry['workout_data']['metrics']['actual_duration'],
+                    proposed_workouts
+                )
+                
+                if matching_proposed:
+                    print(f"DEBUG: Updating workout with planned data: {json.dumps(matching_proposed, indent=2)}")
+                    workout_entry['workout_data']['metrics'].update({
+                        'planned_tss': f"{matching_proposed['plannedTSS_min']}-{matching_proposed['plannedTSS_max']}",
+                        'planned_duration': matching_proposed['plannedDuration'],
+                        'planned_rpe': f"{matching_proposed['targetRPE_min']}-{matching_proposed['targetRPE_max']}"
+                    })
+                else:
+                    print(f"DEBUG: No matching proposed workout found")
+
             summary = {
                 'start_date': start_date,
                 'end_date': end_date,
@@ -681,6 +796,12 @@ class WorkoutDatabase:
             print(f"Average Daily Energy: {summary['avg_daily_energy']}")
             print(f"Average Sleep Quality: {summary['avg_sleep_quality']}")
             print(f"Daily Sleep Quality: {summary['daily_sleep_quality']}")
+
+            # Add weekly plan and any unmatched proposed workouts to summary
+            summary.update({
+                'weekly_plan': weekly_plan_data,
+                'proposed_workouts': proposed_workouts
+            })
 
             return summary
                 

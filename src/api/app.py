@@ -498,19 +498,27 @@ async def export_summary(start_date: str, end_date: str):
             
         print("DEBUG: Summary with qualitative data:", json.dumps(summary, indent=2))
 
-        # Start building content
+        # Start building content with weekly plan details
         content = [
-            "## Overall Weekly Summary",
-            f"• Total TSS: {format_value(summary.get('total_tss'))}",
+            "## Overall Weekly Summary"
+        ]
+        
+        if summary.get('weekly_plan'):
+            wp = summary['weekly_plan']
+            content.extend([
+                f"• Planned Weekly TSS Range: {wp['plannedTSS_min']} - {wp['plannedTSS_max']}",
+                f"• Actual Total TSS: {format_value(summary.get('total_tss'))}",
+                f"• Weekly Plan Notes: {wp['notes']}"
+            ])
+        else:
+            content.append(f"• Total TSS: {format_value(summary.get('total_tss'))}")
+            
+        content.extend([
             f"• Total Training Hours: {format_value(summary.get('total_training_hours'))}",
             f"• Number of Sessions Completed: {summary.get('sessions_completed', 0)}",
             f"• Average Sleep Quality (1-5): {format_value(summary.get('avg_sleep_quality'))}",
             f"• Average Daily Energy (1-5): {format_value(summary.get('avg_daily_energy'))}",
-            "",
-            "## Weekly Self-Assessment",
-            "1. Overall Energy Trend:",
-        ]
-
+        ])
         # Add daily energy levels
         daily_energy = summary.get('daily_energy', {})
         days_of_week = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -551,9 +559,9 @@ async def export_summary(start_date: str, end_date: str):
             metrics = workout_data.get('metrics', {})
             content.extend([
                 "1. Basic Metrics:",
-                f"   - Planned TSS: {format_value(metrics.get('planned_tss'))} | Actual TSS: {format_value(metrics.get('actual_tss'))}",
-                f"   - Duration: Planned {format_value(metrics.get('planned_duration'))} | Actual {format_value(metrics.get('actual_duration'))}",
-                f"   - RPE (1-10): {format_value(metrics.get('rpe'))}",  
+                f"   - TSS: {format_value(metrics.get('planned_tss'))} (planned) | {format_value(metrics.get('actual_tss'))} (actual)",
+                f"   - Duration: {format_value(metrics.get('planned_duration'))} mins (planned) | {format_value(metrics.get('actual_duration'))} mins (actual)",
+                f"   - RPE: {metrics.get('planned_rpe', 'N/A')} (target) | {format_value(metrics.get('rpe'))} (actual)",
             ])
 
             # Power Data section (for bike workouts)
