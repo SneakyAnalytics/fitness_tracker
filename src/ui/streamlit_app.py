@@ -455,7 +455,6 @@ elif page == 'View Data':
         except Exception as e:
             st.error(f"Could not connect to the API: {str(e)}")
 
-
 # In the Weekly Summary page section:
 elif page == 'Proposed Workouts':
     st.header("Proposed Workouts")
@@ -465,14 +464,6 @@ elif page == 'Proposed Workouts':
     
     if uploaded_file is not None:
         try:
-            # Save the uploaded file to a temporary location
-            # with open("temp_proposed_workouts.json", "wb") as f:
-            #     f.write(uploaded_file.getbuffer())
-            
-            
-            # # Process the uploaded file
-            # weekly_plan, daily_plans, proposed_workouts = process_proposed_workouts("temp_proposed_workouts.json")
-
             response = requests.post(
                 "http://localhost:8000/upload/proposed_workouts",  # Adjust URL if needed
                 files={"file": (uploaded_file.name, uploaded_file, "application/json")}
@@ -485,37 +476,6 @@ elif page == 'Proposed Workouts':
                 st.error(f"Error processing the uploaded file: {response.json().get('detail', 'Unknown error')}")
         except requests.exceptions.RequestException as e:
             st.error(f"Error connecting to the API: {str(e)}")
-
-        #     # Display the weekly plan
-        #     st.subheader("Weekly Plan")
-        #     st.write(f"Week Number: {weekly_plan.weekNumber}")
-        #     st.write(f"Start Date: {weekly_plan.startDate}")
-        #     st.write(f"Planned TSS Min: {weekly_plan.plannedTSS_min}")
-        #     st.write(f"Planned TSS Max: {weekly_plan.plannedTSS_max}")
-        #     st.write(f"Notes: {weekly_plan.notes}")
-
-        #     # Display the daily plans
-        #     st.subheader("Daily Plans")
-        #     for daily_plan in daily_plans:
-        #         st.write(f"Day Number: {daily_plan.dayNumber}")
-        #         st.write(f"Date: {daily_plan.date}")
-
-        #     # Display the proposed workouts
-        #     st.subheader("Proposed Workouts")
-        #     for workout in proposed_workouts:
-        #         st.write(f"Type: {workout.type}")
-        #         st.write(f"Name: {workout.name}")
-        #         st.write(f"Planned Duration: {workout.plannedDuration}")
-        #         st.write(f"Planned TSS Min: {workout.plannedTSS_min}")
-        #         st.write(f"Planned TSS Max: {workout.plannedTSS_max}")
-        #         st.write(f"Target RPE Min: {workout.targetRPE_min}")
-        #         st.write(f"Target RPE Max: {workout.targetRPE_max}")
-        #         st.write(f"Intervals: {workout.intervals}")
-        #         st.write(f"Sections: {workout.sections}")
-        #         st.write("---")
-        # except Exception as e:
-        #     st.error(f"Error processing the uploaded file: {str(e)}")
-
 
 # In the Weekly Summary page section:
 elif page == 'Weekly Summary':
