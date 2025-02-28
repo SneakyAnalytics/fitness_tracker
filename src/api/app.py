@@ -1,7 +1,8 @@
 # src/api/app.py
 
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 import pandas as pd
@@ -818,3 +819,79 @@ async def upload_proposed_workouts(file: UploadFile = File(...)):
         return {"message": "Successfully processed proposed workouts"}  # Moved outside loops
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error: {str(e)}")
+    
+@app.get("/proposed_workouts/week")
+async def get_proposed_workouts_week(start_date: str, end_date: str):
+    """Get all proposed workouts for a specific week"""
+    try:
+        db = WorkoutDatabase()
+        result = db.get_proposed_workouts_for_week(start_date, end_date)
+        return result
+    except Exception as e:
+        print(f"Error retrieving proposed workouts: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving proposed workouts: {str(e)}"
+        )
+
+@app.post("/workout/performance")
+async def save_workout_performance(
+    workout_id: int = Form(...),
+    workout_date: str = Form(...),
+    actual_duration: int = Form(...),
+    performance_data: str = Form(...)
+):
+    """Save performance data for a specific workout"""
+    try:
+        # Parse performance_data JSON
+        perf_data_dict = None
+        if performance_data:
+            try:
+                perf_data_dict = json.loads(performance_data)
+            except json.JSONDecodeError:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid JSON in performance_data"
+                )
+        
+        db = WorkoutDatabase()
+        success = db.save_workout_performance(
+            workout_id=workout_id,
+            workout_date=workout_date,
+            actual_duration=actual_duration,
+            performance_data=perf_data_dict
+        )
+        
+        if success:
+            return {"message": "Performance data saved successfully"}
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to save performance data"
+            )
+    except Exception as e:
+        print(f"Error saving workout performance: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error saving workout performance data: {str(e)}"
+        )
+
+@app.get("/workout/performance")
+async def get_workout_performance(workout_id: int, workout_date: str):
+    """Get performance data for a specific workout"""
+    try:
+        db = WorkoutDatabase()
+        performance_data = db.get_workout_performance(workout_id, workout_date)
+        
+        if performance_data:
+            return performance_data
+        else:
+            return {"message": "No performance data found for this workout"}
+    except Exception as e:
+        print(f"Error retrieving workout performance: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving workout performance data: {str(e)}"
+        )

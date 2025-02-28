@@ -205,6 +205,554 @@ def display_fit_file_analysis(fit_file, workout_data):
         with st.expander("View Raw Data"):
             st.json(workout_data)
 
+def display_workout_calendar():
+    st.header("Workout Calendar")
+    
+    # Get current week number and date
+    today = datetime.now().date()
+    start_of_week = today - timedelta(days=today.weekday())
+    end_of_week = start_of_week + timedelta(days=6)
+    
+    # Date range selector with default to current week
+    col1, col2 = st.columns(2)
+    with col1:
+        selected_week_start = st.date_input(
+            "Week Start Date", 
+            value=start_of_week
+        )
+    with col2:
+        selected_week_end = st.date_input(
+            "Week End Date", 
+            value=end_of_week
+        )
+    
+    # Add help text about where data is stored
+    with st.expander("About Workout Tracking Data"):
+        st.markdown("""
+        ### Where is my workout data saved?
+        
+        When you track your workout performance and click "Save Workout Data":
+        
+        1. Your data is saved in the database in the `workout_performance` table
+        2. The data includes all sets, reps, weights, and notes you've entered
+        3. This data is linked to the specific workout by ID and date
+        4. Your saved workout performance data will be included in your weekly summaries
+        5. You can view past performance in the Weekly Summary section
+        
+        Data is saved locally in your SQLite database file and isn't sent to any external servers.
+        """)
+    
+    # Check if API is available
+    try:
+        # Simple check to see if API is up
+        test_response = requests.get("http://localhost:8000/")
+        if test_response.status_code != 200:
+            st.error("Cannot connect to API server. Please ensure it's running.")
+            return
+    except requests.exceptions.ConnectionError:
+        st.error("Cannot connect to API server. Please ensure it's running at http://localhost:8000/")
+        return
+    
+    # Fetch proposed workouts for the selected week
+    try:
+        response = requests.get(
+            "http://localhost:8000/proposed_workouts/week",
+            params={
+                "start_date": selected_week_start.strftime('%Y-%m-%d'),
+                "end_date": selected_week_end.strftime('%Y-%m-%d')
+            }
+        )
+        
+        if response.status_code != 200:
+            st.error(f"Error fetching workouts: {response.text}")
+            return
+        
+        workouts_data = response.json()
+        
+        # Display weekly overview
+        if 'weekly_plan' in workouts_data and workouts_data['weekly_plan']:
+            st.subheader("Weekly Plan Overview")
+            weekly_plan = workouts_data['weekly_plan']
+            
+            cols = st.columns(3)
+            with cols[0]:
+                st.metric("Week Number", weekly_plan.get('weekNumber', 'N/A'))
+            with cols[1]:
+                st.metric("Planned TSS", f"{weekly_plan.get('plannedTSS_min', 0)}-{weekly_plan.get('plannedTSS_max', 0)}")
+            with cols[2]:
+                st.metric("Week Start", weekly_plan.get('startDate', 'N/A'))
+            
+            if weekly_plan.get('notes'):
+                try:
+                    notes = json.loads(weekly_plan['notes'])
+                    st.info(f"**Weekly Focus:** {notes.get('weekFocus', '')}")
+                    if notes.get('specialConsiderations'):
+                        st.warning(f"**Special Considerations:** {notes.get('specialConsiderations', '')}")
+                except:
+                    st.text(weekly_plan['notes'])
+        
+        # Create a mapping of date to workouts
+        daily_workouts = {}
+        for workout in workouts_data.get('daily_workouts', []):
+            date_str = workout.get('date')
+            if date_str:
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+                if date_obj not in daily_workouts:
+                    daily_workouts[date_obj] = []
+                daily_workouts[date_obj].append(workout)
+        
+        # Create tabs for each day of the week
+        st.subheader("Daily Workouts")
+        
+        # Get all days in the selected range
+        current_date = selected_week_start
+        days = []
+        while current_date <= selected_week_end:
+            days.append(current_date)
+            current_date += timedelta(days=1)
+        
+        # Create tabs for each day with unique formatted labels
+        day_tabs = st.tabs([day.strftime("%a %d") for day in days])
+        
+        # Create the workout timer just once in the sidebar, outside of day tabs
+        # This ensures it's always visible regardless of which tab is active
+        create_workout_timer()
+        
+        # Fill each day tab with workout information
+        for i, day in enumerate(days):
+            with day_tabs[i]:
+                if day in daily_workouts:
+                    # Display all workouts for this day
+                    for j, workout in enumerate(daily_workouts[day]):
+                        # Generate unique keys for all interactive elements based on day and workout
+                        workout_id = workout.get('id', 0)
+                        day_str = day.strftime("%Y%m%d")
+                        unique_workout_key = f"{day_str}_{workout_id}_{j}"
+                        
+                        workout_type = workout.get('type', 'unknown').lower()
+                        
+                        # Different icons for different workout types
+                        icon = "🚴" if workout_type == "bike" else "💪" if workout_type == "strength" else "🏃" if workout_type == "run" else "🧘" if workout_type == "yoga" else "📝"
+                        
+                        # Create a section for each workout
+                        st.markdown(f"## {icon} {workout.get('name', 'Workout')}")
+                        
+                        # Basic workout info
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            # Create a unique container for each metric to avoid conflicts
+                            duration_container = st.container()
+                            duration_container.metric(
+                                label="Duration", 
+                                value=f"{workout.get('plannedDuration', 'N/A')} min"
+                            )
+                        with col2:
+                            if workout.get('plannedTSS_min') and workout.get('plannedTSS_max'):
+                                tss_container = st.container()
+                                tss_container.metric(
+                                    label="TSS",
+                                    value=f"{workout.get('plannedTSS_min')}-{workout.get('plannedTSS_max')}"
+                                )
+                        with col3:
+                            if workout.get('targetRPE_min') and workout.get('targetRPE_max'):
+                                rpe_container = st.container()
+                                rpe_container.metric(
+                                    label="Target RPE",
+                                    value=f"{workout.get('targetRPE_min')}-{workout.get('targetRPE_max')}"
+                                )
+                        
+                        # Check if we already have performance data for this workout
+                        try:
+                            perf_response = requests.get(
+                                "http://localhost:8000/workout/performance",
+                                params={
+                                    "workout_id": workout_id,
+                                    "workout_date": workout.get('date', '')
+                                }
+                            )
+                            
+                            if perf_response.status_code == 200 and 'performance_data' in perf_response.json():
+                                st.success("🔄 You've already tracked this workout!")
+                                view_key = f"view_{unique_workout_key}"
+                                if st.button("View/Edit Tracking Data", key=view_key):
+                                    # Just a placeholder
+                                    st.info("This feature is coming soon! Currently, you can add new tracking data.")
+                        except Exception as e:
+                            # Log error but continue
+                            print(f"Error checking performance data: {str(e)}")
+                        
+                        # Show workout details based on type with unique keys
+                        if workout_type == "bike":
+                            st.markdown(f"### Workout Details")
+                            display_bike_workout(workout)
+                        elif workout_type in ["strength", "yoga", "other"]:
+                            st.markdown(f"### Workout Details")
+                            # Pass unique key to avoid duplicate widget keys
+                            display_strength_workout_with_tracking(workout, unique_key=unique_workout_key)
+                        
+                        # Add a divider between workouts
+                        if j < len(daily_workouts[day]) - 1:
+                            st.divider()
+                else:
+                    st.info("Rest day")
+    
+    except Exception as e:
+        st.error(f"Error loading calendar: {str(e)}")
+        st.exception(e)  # This will show the full traceback
+
+def display_bike_workout(workout):
+    """Display bike workout intervals"""
+    st.subheader("Interval Structure")
+    
+    # Parse intervals from JSON string if needed
+    intervals = workout.get('intervals')
+    if isinstance(intervals, str):
+        try:
+            intervals = json.loads(intervals)
+        except:
+            st.warning("Could not parse intervals data")
+            return
+    
+    if not intervals:
+        st.info("No interval data available")
+        return
+    
+    # Display intervals as a table
+    intervals_data = []
+    for i, interval in enumerate(intervals):
+        interval_data = {
+            "Name": interval.get('name', f"Interval {i+1}"),
+            "Duration": f"{interval.get('duration', 0)/60:.1f} min" if interval.get('duration') else 'N/A',
+        }
+        
+        # Handle different power target formats
+        power_target = interval.get('powerTarget', {})
+        if isinstance(power_target, dict):
+            if power_target.get('type') == 'percent_ftp':
+                interval_data["Power"] = f"{power_target.get('value', 0)}% FTP"
+            elif power_target.get('type') == 'watts':
+                interval_data["Power"] = f"{power_target.get('value', 0)}W"
+            elif 'start' in power_target and 'end' in power_target:
+                start_value = power_target.get('start', {}).get('value', 0)
+                end_value = power_target.get('end', {}).get('value', 0)
+                interval_data["Power"] = f"{start_value}% → {end_value}% FTP"
+            elif power_target.get('type') == 'range':
+                min_val = power_target.get('min', 0)
+                max_val = power_target.get('max', 0)
+                unit = power_target.get('unit', 'watts')
+                interval_data["Power"] = f"{min_val}-{max_val} {unit}"
+            else:
+                interval_data["Power"] = "Custom"
+        
+        # Add cadence info
+        cadence = interval.get('cadenceTarget', {})
+        if cadence:
+            interval_data["Cadence"] = f"{cadence.get('min', 0)}-{cadence.get('max', 0)} rpm"
+        
+        intervals_data.append(interval_data)
+    
+    # Create DataFrame and display as table
+    if intervals_data:
+        intervals_df = pd.DataFrame(intervals_data)
+        st.table(intervals_df)
+
+def display_strength_workout_with_tracking(workout, unique_key=""):
+    """Display strength workout with integrated tracking for each exercise"""
+    st.subheader("Workout Routine")
+    
+    # Create a form for tracking data with a unique key
+    with st.form(key=f"workout_tracking_{unique_key}_{workout.get('id')}"):
+        # Parse sections from JSON string if needed
+        sections = workout.get('sections')
+        if isinstance(sections, str):
+            try:
+                sections = json.loads(sections)
+            except Exception as e:
+                st.warning(f"Could not parse workout sections data: {str(e)}")
+                return
+        
+        if not sections:
+            st.info("No section data available")
+            return
+        
+        # Store workout performance data
+        all_exercise_data = {}
+        
+        # Process each section
+        for section_idx, section in enumerate(sections):
+            section_name = section.get('name', f"Section {section_idx+1}")
+            
+            # Section header with clear visual distinction
+            st.markdown(f"### {section_name}")
+            
+            # Section info
+            if section.get('duration'):
+                st.write(f"**Duration:** {section.get('duration')/60:.1f} min")
+            if section.get('rounds'):
+                st.write(f"**Rounds:** {section.get('rounds')}")
+            
+            # Initialize section data
+            section_exercises = {}
+            
+            # Process exercises in this section
+            for ex_idx, exercise in enumerate(section.get('exercises', [])):
+                ex_name = exercise.get('name', f"Exercise {ex_idx+1}")
+                
+                # Create a unique key for this exercise including the outer unique key
+                ex_key = f"{unique_key}_s{section_idx}_e{ex_idx}"
+                
+                # Exercise header with strong visual distinction
+                st.markdown(f"#### {ex_name}")
+                
+                # Display any cues/notes first
+                if exercise.get('cues'):
+                    cues = exercise.get('cues')
+                    if isinstance(cues, list):
+                        st.markdown("**Cues:**")
+                        cue_text = ""
+                        for cue in cues:
+                            cue_text += f"- {cue}\n"
+                        st.markdown(cue_text)
+                    else:
+                        st.markdown(f"**Cues:** {cues}")
+                
+                # Initialize exercise data structure
+                exercise_data = {
+                    "name": ex_name,
+                    "sets": []
+                }
+                
+                # Process sets with interleaved tracking
+                sets = exercise.get('sets', [])
+                if sets:
+                    # Create columns for headers
+                    cols = st.columns([1, 1, 2])
+                    with cols[0]:
+                        st.write("**Set Details**")
+                    with cols[1]:
+                        st.write("**Target**")
+                    with cols[2]:
+                        st.write("**Your Performance**")
+                    
+                    # For each set, display prescribed info and tracking fields side by side
+                    for set_idx, set_info in enumerate(sets):
+                        set_key = f"{ex_key}_set{set_idx}"
+                        
+                        # Format target information
+                        target_desc = []
+                        if set_info.get('reps'):
+                            target_desc.append(f"Reps: {set_info.get('reps')}")
+                        elif set_info.get('targetReps'):
+                            target = set_info.get('targetReps', {})
+                            if isinstance(target, dict):
+                                target_reps = f"{target.get('min', 0)}-{target.get('max', 0)}"
+                                target_desc.append(f"Reps: {target_reps}")
+                        
+                        if set_info.get('weight'):
+                            weight = set_info.get('weight', {})
+                            if isinstance(weight, dict):
+                                target_weight = f"{weight.get('min', 0)}-{weight.get('max', 0)} {weight.get('unit', 'lbs')}"
+                                target_desc.append(f"Weight: {target_weight}")
+                            else:
+                                target_desc.append(f"Weight: {weight} lbs")
+                        
+                        if set_info.get('workTime'):
+                            target_desc.append(f"Work: {set_info.get('workTime')}s")
+                        if set_info.get('restTime'):
+                            target_desc.append(f"Rest: {set_info.get('restTime')}s")
+                        if set_info.get('tempo'):
+                            target_desc.append(f"Tempo: {set_info.get('tempo')}")
+                            
+                        target_text = "\n".join(target_desc)
+                        
+                        # Create a row with 3 columns for this set
+                        cols = st.columns([1, 1, 2])
+                        
+                        # Column 1: Set number
+                        with cols[0]:
+                            st.write(f"**Set {set_idx+1}**")
+                        
+                        # Column 2: Target details
+                        with cols[1]:
+                            st.text(target_text)
+                        
+                        # Column 3: Input fields
+                        with cols[2]:
+                            # Create 3 sub-columns for reps, weight, notes
+                            subcol1, subcol2, subcol3 = st.columns(3)
+                            
+                            with subcol1:
+                                actual_reps = st.number_input("Reps", 0, 100, 0, key=f"reps_{set_key}")
+                            
+                            with subcol2:
+                                actual_weight = st.number_input("Lbs", 0, 500, 0, step=5, key=f"weight_{set_key}")
+                            
+                            with subcol3:
+                                notes = st.text_input("Notes", key=f"notes_{set_key}")
+                        
+                        # Store the set data
+                        exercise_data["sets"].append({
+                            "set_number": set_idx + 1,
+                            "actual_reps": actual_reps,
+                            "actual_weight": actual_weight,
+                            "notes": notes
+                        })
+                
+                # Add this exercise to the section using a consistent key without the unique prefix
+                # (just for internal data organization)
+                section_exercises[f"s{section_idx}_e{ex_idx}"] = exercise_data
+            
+            # Add this section's exercises to the overall data
+            all_exercise_data[f"section_{section_idx}"] = {
+                "name": section_name,
+                "exercises": section_exercises
+            }
+        
+        # General workout notes
+        st.markdown("### Overall Workout Notes")
+        general_notes = st.text_area("Notes", height=100, key=f"notes_{unique_key}")
+        
+        # Submit button
+        submitted = st.form_submit_button("Save Workout Data")
+        if submitted:
+            # Prepare data for saving
+            performance_data = {
+                "sections": [
+                    {
+                        "name": section_data["name"],
+                        "exercises": list(section_data["exercises"].values())
+                    } for section_key, section_data in all_exercise_data.items()
+                ],
+                "general_notes": general_notes
+            }
+            
+            try:
+                with st.spinner("Saving workout data..."):
+                    # Call the API to save the data
+                    response = requests.post(
+                        "http://localhost:8000/workout/performance",
+                        data={
+                            "workout_id": workout.get('id', 0),
+                            "workout_date": workout.get('date', ''),
+                            "actual_duration": workout.get('plannedDuration', 0),
+                            "performance_data": json.dumps(performance_data)
+                        }
+                    )
+                
+                if response.status_code == 200:
+                    st.success("✅ Workout data saved successfully!")
+                else:
+                    st.error(f"Error saving data: {response.text}")
+                    
+            except Exception as e:
+                st.error(f"Error saving workout data: {str(e)}")
+
+def create_workout_timer():
+    """Create a persistent timer for workout tracking"""
+    # Initialize timer state if not already in session state
+    if 'timer_running' not in st.session_state:
+        st.session_state.timer_running = False
+        st.session_state.timer_duration = 60
+        st.session_state.rest_duration = 30
+        st.session_state.timer_mode = "Work"  # "Work" or "Rest"
+        st.session_state.timer_end_time = None
+        st.session_state.last_update = datetime.now()
+    
+    # Create a container that will always be visible and fixed at the top
+    with st.sidebar:
+        st.markdown("### 🕒 Workout Timer")
+        st.markdown("*Timer stays visible while you scroll*")
+        
+        # Work/Rest cycle settings
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            work_duration = st.number_input("Work (seconds)", min_value=5, max_value=600, 
+                                          value=st.session_state.timer_duration, step=5, 
+                                          key="work_duration_input")
+            st.session_state.timer_duration = work_duration
+        
+        with col2:
+            rest_duration = st.number_input("Rest (seconds)", min_value=5, max_value=600, 
+                                          value=st.session_state.rest_duration, step=5,
+                                          key="rest_duration_input")
+            st.session_state.rest_duration = rest_duration
+        
+        # Controls row
+        col1, col2 = st.columns(2)
+        with col1:
+            if not st.session_state.timer_running:
+                if st.button("▶️ Start", key="start_timer_button", use_container_width=True):
+                    st.session_state.timer_running = True
+                    st.session_state.timer_end_time = datetime.now() + timedelta(seconds=work_duration)
+                    st.session_state.timer_mode = "Work"
+                    st.session_state.last_update = datetime.now()
+                    st.rerun()
+            else:
+                if st.button("⏹️ Stop", key="stop_timer_button", use_container_width=True):
+                    st.session_state.timer_running = False
+                    st.rerun()
+        
+        with col2:
+            if st.button("🔄 Reset", key="reset_timer_button", use_container_width=True):
+                st.session_state.timer_running = False
+                st.session_state.timer_mode = "Work"
+                st.rerun()
+        
+        # Current mode indicator with color coding
+        mode_color = "#4CAF50" if st.session_state.timer_mode == "Work" else "#FF9800"
+        st.markdown(f"""
+            <div style='background-color: {mode_color}; padding: 10px; border-radius: 5px; text-align: center; color: white; font-weight: bold;'>
+                {st.session_state.timer_mode} MODE
+            </div>
+        """, unsafe_allow_html=True)
+            
+        # Calculate and display time remaining if timer is running
+        if st.session_state.timer_running and st.session_state.timer_end_time:
+            now = datetime.now()
+            time_remaining = max(0, (st.session_state.timer_end_time - now).total_seconds())
+            
+            # Check if timer has ended
+            if time_remaining <= 0:
+                # Switch modes
+                if st.session_state.timer_mode == "Work":
+                    st.session_state.timer_mode = "Rest"
+                    st.session_state.timer_end_time = datetime.now() + timedelta(seconds=rest_duration)
+                    # Show visual notification
+                    st.warning("⏰ Work period complete! Switching to REST mode")
+                else:
+                    st.session_state.timer_mode = "Work"
+                    st.session_state.timer_end_time = datetime.now() + timedelta(seconds=work_duration)
+                    # Show visual notification
+                    st.success("⏰ Rest period complete! Switching to WORK mode")
+                
+                # Calculate new time remaining
+                time_remaining = st.session_state.rest_duration if st.session_state.timer_mode == "Rest" else st.session_state.timer_duration
+                st.rerun()
+            
+            # Display progress bar and time
+            current_duration = st.session_state.timer_duration if st.session_state.timer_mode == "Work" else st.session_state.rest_duration
+            progress = 1.0 - (time_remaining / current_duration)
+            
+            # Only update UI if sufficient time has passed (to avoid excessive reruns)
+            time_since_update = (now - st.session_state.last_update).total_seconds()
+            if time_since_update >= 0.5:  # Update every half second
+                st.session_state.last_update = now
+                st.progress(progress)
+                st.markdown(f"<h2 style='text-align: center;'>{int(time_remaining)}s</h2>", unsafe_allow_html=True)
+                
+                # Automatic rerun to update the timer if more than 1 second remains
+                if st.session_state.timer_running and time_remaining > 1:
+                    st.rerun()
+        else:
+            # Show empty progress bar when not running
+            st.progress(0.0)
+            if not st.session_state.timer_running:
+                st.markdown("<p style='text-align: center; color: gray;'>Timer not running</p>", unsafe_allow_html=True)
+    
+    # Return the timer state for reference
+    return st.session_state.timer_running
+
 # Configure the page
 st.set_page_config(
     page_title="Fitness Tracker",
@@ -226,14 +774,16 @@ def reset_form_state():
     st.session_state.show_notes_form = False
     st.session_state.notes_saved = False
 
-# Sidebar navigation
 st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ['Dashboard', 'Import Data', 'Weekly Summary', 'View Data', 'Proposed Workouts'])
+page = st.sidebar.radio("Go to", ['Dashboard', 'Workout Calendar', 'Import Data', 'Weekly Summary', 'View Data', 'Proposed Workouts'])
 
 # Main content
 st.title("Fitness Tracker")
 
-if page == 'Dashboard':
+if page == 'Workout Calendar':
+    display_workout_calendar()
+
+elif page == 'Dashboard':
     st.header("Dashboard")
     col1, col2 = st.columns(2)
     

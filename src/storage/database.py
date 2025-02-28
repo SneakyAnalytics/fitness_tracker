@@ -1099,3 +1099,188 @@ class WorkoutDatabase:
             
         finally:
             conn.close()
+    
+    def get_proposed_workouts_for_week(self, start_date: str, end_date: str) -> Dict[str, Any]:
+        """Get all proposed workouts for a specific week"""
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        
+        try:
+            # First get the weekly plan
+            c.execute(
+                """
+                SELECT weekNumber, startDate, plannedTSS_min, plannedTSS_max, notes
+                FROM weekly_plans
+                WHERE startDate = ?
+                LIMIT 1
+                """,
+                (start_date,)
+            )
+            weekly_plan_row = c.fetchone()
+            weekly_plan = None
+            
+            if weekly_plan_row:
+                weekly_plan = {
+                    'weekNumber': weekly_plan_row[0],
+                    'startDate': weekly_plan_row[1],
+                    'plannedTSS_min': weekly_plan_row[2],
+                    'plannedTSS_max': weekly_plan_row[3],
+                    'notes': weekly_plan_row[4]
+                }
+            
+            # Get all daily plans and workouts for the week
+            c.execute(
+                """
+                SELECT dp.id, dp.weekNumber, dp.dayNumber, dp.date, 
+                    pw.id, pw.type, pw.name, pw.plannedDuration, 
+                    pw.plannedTSS_min, pw.plannedTSS_max, 
+                    pw.targetRPE_min, pw.targetRPE_max,
+                    pw.intervals, pw.sections
+                FROM daily_plans dp
+                LEFT JOIN proposed_workouts pw ON dp.id = pw.dailyPlanId
+                WHERE dp.date BETWEEN ? AND ?
+                ORDER BY dp.date, pw.id
+                """,
+                (start_date, end_date)
+            )
+            rows = c.fetchall()
+            
+            # Process rows into a structured format
+            daily_workouts = []
+            for row in rows:
+                if row[4] is not None:  # Only include rows that have a workout
+                    workout = {
+                        'id': row[4],
+                        'daily_plan_id': row[0],
+                        'week_number': row[1],
+                        'day_number': row[2],
+                        'date': row[3],
+                        'type': row[5],
+                        'name': row[6],
+                        'plannedDuration': row[7],
+                        'plannedTSS_min': row[8],
+                        'plannedTSS_max': row[9],
+                        'targetRPE_min': row[10],
+                        'targetRPE_max': row[11],
+                        'intervals': row[12],
+                        'sections': row[13]
+                    }
+                    daily_workouts.append(workout)
+            
+            return {
+                'weekly_plan': weekly_plan,
+                'daily_workouts': daily_workouts
+            }
+            
+        except Exception as e:
+            print(f"Error getting proposed workouts: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {'weekly_plan': None, 'daily_workouts': []}
+        finally:
+            conn.close()
+
+    def save_workout_performance(self, workout_id: int, workout_date: str, 
+                            actual_duration: int, performance_data: Dict[str, Any]) -> bool:
+        """Save performance data for a specific workout (especially for strength and yoga workouts)"""
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+
+        try:
+            # Create table if it doesn't exist
+            c.execute(
+                """
+                CREATE TABLE IF NOT EXISTS workout_performance (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    workout_id INTEGER NOT NULL,
+                    workout_date TEXT NOT NULL,
+                    actual_duration INTEGER,
+                    performance_data TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(workout_id, workout_date)
+                )
+                """
+            )
+            
+            # Check if performance data already exists
+            c.execute(
+                """
+                SELECT id FROM workout_performance
+                WHERE workout_id = ? AND workout_date = ?
+                """,
+                (workout_id, workout_date)
+            )
+            result = c.fetchone()
+            
+            performance_data_json = json.dumps(performance_data) if performance_data else None
+            
+            if result:
+                # Update existing performance data
+                c.execute(
+                    """
+                    UPDATE workout_performance
+                    SET actual_duration = ?, performance_data = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE workout_id = ? AND workout_date = ?
+                    """,
+                    (actual_duration, performance_data_json, workout_id, workout_date)
+                )
+            else:
+                # Insert new performance data
+                c.execute(
+                    """
+                    INSERT INTO workout_performance 
+                    (workout_id, workout_date, actual_duration, performance_data)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (workout_id, workout_date, actual_duration, performance_data_json)
+                )
+            
+            conn.commit()
+            return True
+            
+        except Exception as e:
+            conn.rollback()
+            print(f"Error saving workout performance: {str(e)}")
+            return False
+        finally:
+            conn.close()
+
+    def get_workout_performance(self, workout_id: int, workout_date: str) -> Optional[Dict[str, Any]]:
+        """Retrieve performance data for a specific workout"""
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+
+        try:
+            c.execute(
+                """
+                SELECT actual_duration, performance_data 
+                FROM workout_performance
+                WHERE workout_id = ? AND workout_date = ?
+                """,
+                (workout_id, workout_date)
+            )
+            result = c.fetchone()
+            
+            if result:
+                actual_duration, performance_data_json = result
+                
+                performance_data = None
+                if performance_data_json:
+                    try:
+                        performance_data = json.loads(performance_data_json)
+                    except json.JSONDecodeError:
+                        performance_data = None
+                
+                return {
+                    'actual_duration': actual_duration,
+                    'performance_data': performance_data
+                }
+            
+            return None
+            
+        except Exception as e:
+            print(f"Error retrieving workout performance: {str(e)}")
+            return None
+        finally:
+            conn.close()
