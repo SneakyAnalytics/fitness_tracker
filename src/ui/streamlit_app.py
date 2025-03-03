@@ -8,6 +8,7 @@ from datetime import datetime, date, timedelta
 import requests
 import json
 import plotly.express as px
+import os
 from src.utils.proposed_workouts_processor import process_proposed_workouts
 
 def display_weekly_summary(summary):
@@ -1009,23 +1010,104 @@ elif page == 'View Data':
 elif page == 'Proposed Workouts':
     st.header("Proposed Workouts")
     
-    # File uploader
-    uploaded_file = st.file_uploader("Upload Proposed Workouts JSON", type=["json"])
+    # Create tabs for different functionalities
+    upload_tab, zwift_tab = st.tabs(["Upload Workouts", "Generate Zwift Files"])
     
-    if uploaded_file is not None:
-        try:
-            response = requests.post(
-                "http://localhost:8000/upload/proposed_workouts",  # Adjust URL if needed
-                files={"file": (uploaded_file.name, uploaded_file, "application/json")}
-            )
+    with upload_tab:
+        # FTP Setting
+        with st.expander("FTP Settings", expanded=False):
+            st.info("Your FTP (Functional Threshold Power) is used when generating Zwift workouts from power data.")
+            current_ftp = st.number_input("Your current FTP (watts)", min_value=100, max_value=500, value=258, step=1,
+                                        help="This value will be used to convert absolute power values to percentages for Zwift workouts")
+            st.markdown("*Note: Zwift workouts will be automatically generated for any cycling workouts when you upload proposed workouts.*")
+    
+    with zwift_tab:
+        st.subheader("Generate Zwift Workout Files")
+        st.markdown("""
+        This tool generates Zwift workout (.zwo) files for your cycling workouts. The files will be saved to your Zwift workouts directory.
+        
+        Select a date range to generate workouts for all cycling workouts in that period:
+        """)
+        
+        # Date range selection
+        col1, col2 = st.columns(2)
+        with col1:
+            start_date = st.date_input("Start Date", value=datetime.now().date() - timedelta(days=7))
+        with col2:
+            end_date = st.date_input("End Date", value=datetime.now().date() + timedelta(days=7))
+            
+        # FTP value
+        ftp_value = st.number_input("Your current FTP (watts)", min_value=100, max_value=500, value=258, step=1)
+        
+        # Generate button
+        if st.button("Generate Zwift Files", key="generate_zwift_files"):
+            with st.spinner("Generating Zwift workout files..."):
+                try:
+                    # Call the API to generate the files
+                    response = requests.get(
+                        "http://localhost:8000/zwift/generate_workouts",
+                        params={
+                            "start_date": start_date.strftime("%Y-%m-%d"),
+                            "end_date": end_date.strftime("%Y-%m-%d"),
+                            "ftp": ftp_value
+                        }
+                    )
+                    
+                    if response.status_code == 200:
+                        result = response.json()
+                        st.success(result.get("message"))
+                        
+                        # Display details about generated files
+                        if "files" in result and result["files"]:
+                            with st.expander("Generated Files", expanded=True):
+                                for file_path in result["files"]:
+                                    file_name = os.path.basename(file_path)
+                                    st.markdown(f"- {file_name}")
+                        else:
+                            st.info("No cycling workouts found in the selected date range.")
+                    else:
+                        st.error(f"Error generating Zwift files: {response.text}")
+                except Exception as e:
+                    st.error(f"Failed to connect to the API: {str(e)}")
+    
+    with upload_tab:
+        # File uploader
+        st.subheader("Upload Workouts")
+        uploaded_file = st.file_uploader("Upload Proposed Workouts JSON", type=["json"])
+        
+        if uploaded_file is not None:
+            try:
+                # Show a progress message
+                with st.spinner("Processing workouts and generating Zwift files..."):
+                    response = requests.post(
+                        "http://localhost:8000/upload/proposed_workouts",
+                        files={"file": (uploaded_file.name, uploaded_file, "application/json")}
+                    )
 
-            if response.status_code == 200:
-                st.success("Successfully uploaded and saved proposed workouts!")
-                st.json(response.json())
-            else:
-                st.error(f"Error processing the uploaded file: {response.json().get('detail', 'Unknown error')}")
-        except requests.exceptions.RequestException as e:
-            st.error(f"Error connecting to the API: {str(e)}")
+                    if response.status_code == 200:
+                        response_data = response.json()
+                        st.success(response_data.get("message", "Successfully uploaded and saved proposed workouts!"))
+                        
+                        # Display info about generated Zwift files
+                        zwift_files = response_data.get("zwift_files", [])
+                        if zwift_files:
+                            st.subheader("Generated Zwift Workout Files")
+                            st.markdown(f"**{len(zwift_files)} Zwift workout files were created at:**")
+                            st.markdown("`/Users/jacobrobinson/Documents/Zwift/Workouts/6870291`")
+                            
+                            # Show the list of files
+                            with st.expander("Show generated files"):
+                                for file_path in zwift_files:
+                                    file_name = os.path.basename(file_path)
+                                    st.markdown(f"- {file_name}")
+                        
+                        # Display the raw response
+                        with st.expander("View API Response Details"):
+                            st.json(response_data)
+                    else:
+                        st.error(f"Error processing the uploaded file: {response.json().get('detail', 'Unknown error')}")
+            except requests.exceptions.RequestException as e:
+                st.error(f"Error connecting to the API: {str(e)}")
 
 # In the Weekly Summary page section:
 elif page == 'Weekly Summary':

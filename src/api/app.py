@@ -610,16 +610,51 @@ async def export_summary(start_date: str, end_date: str):
                 f"   - {format_value(athlete_comments) if athlete_comments else 'No comments provided'}",
             ])
 
-            # Additional section for strength workouts
-            if workout.get('type', '').lower() == 'strength':
-                content.extend([
-                    "",
-                    "### For Strength Sessions:",
-                    f"- Exercises completed: {format_value(workout.get('exercises_completed'))}",
-                    f"- Weight/rep adjustments: {format_value(workout.get('weight_adjustments'))}",
-                    f"- Areas of soreness: {format_value(workout.get('areas_of_soreness'))}",
-                    f"- Recovery time needed: {format_value(workout.get('recovery_needed'))}",
-                ])
+            # Additional section for strength or yoga workouts with performance data
+            if workout.get('type', '').lower() in ('strength', 'yoga', 'other'):
+                # Look for performance data
+                performance_data = workout.get('workout_data', {}).get('performance_data')
+                
+                if performance_data:
+                    content.extend([
+                        "",
+                        f"### Performance Data for {workout.get('type', '').capitalize()} Session:",
+                    ])
+                    
+                    # Add general notes if available
+                    if performance_data.get('general_notes'):
+                        content.append(f"**Overall Notes:** {performance_data.get('general_notes')}")
+                        content.append("")
+                    
+                    # Process sections with exercises
+                    for section_idx, section in enumerate(performance_data.get('sections', [])):
+                        section_name = section.get('name', f"Section {section_idx+1}")
+                        content.append(f"**{section_name}**")
+                        
+                        # Process exercises in this section
+                        for exercise in section.get('exercises', []):
+                            exercise_name = exercise.get('name', 'Exercise')
+                            content.append(f"- {exercise_name}:")
+                            
+                            # Process each set
+                            for set_idx, set_data in enumerate(exercise.get('sets', [])):
+                                set_notes = f" ({set_data.get('notes')})" if set_data.get('notes') else ""
+                                if set_data.get('actual_reps') > 0 or set_data.get('actual_weight') > 0:
+                                    set_text = f"  * Set {set_idx+1}: {set_data.get('actual_reps', 0)} reps @ {set_data.get('actual_weight', 0)} lbs{set_notes}"
+                                    content.append(set_text)
+                        
+                        content.append("")
+                else:
+                    # Legacy format for strength workouts without detailed performance data
+                    if workout.get('type', '').lower() == 'strength':
+                        content.extend([
+                            "",
+                            "### For Strength Sessions:",
+                            f"- Exercises completed: {format_value(workout.get('exercises_completed'))}",
+                            f"- Weight/rep adjustments: {format_value(workout.get('weight_adjustments'))}",
+                            f"- Areas of soreness: {format_value(workout.get('areas_of_soreness'))}",
+                            f"- Recovery time needed: {format_value(workout.get('recovery_needed'))}",
+                        ])
 
         return {
             "content": "\n".join(content),
@@ -815,8 +850,46 @@ async def upload_proposed_workouts(file: UploadFile = File(...)):
             )
             if not success:
                 raise Exception(f"Failed to save proposed workout {workout.name}")
+        
+        # Generate Zwift workout files for cycling workouts
+        zwift_files = []
+        try:
+            # Find daily plans that have a date
+            date_filtered_plans = [dp for dp in daily_plans if dp.date]
+            
+            if date_filtered_plans:
+                # Find earliest and latest dates in the uploaded plans
+                start_date = min(dp.date for dp in date_filtered_plans)
+                end_date = max(dp.date for dp in date_filtered_plans)
+                
+                # Generate Zwift workouts for these dates
+                zwift_output_dir = "/Users/jacobrobinson/Documents/Zwift/Workouts/6870291"
+                
+                # Use the module to generate files
+                from ..utils.zwift_workout_generator import generate_zwift_workouts_from_db
+                generated_files = generate_zwift_workouts_from_db(
+                    db_connection=db,
+                    start_date=start_date,
+                    end_date=end_date,
+                    output_dir=zwift_output_dir,
+                    week_number=weekly_plan.weekNumber
+                )
+                
+                if generated_files:
+                    zwift_files = generated_files
+                    print(f"Generated {len(generated_files)} Zwift workout files")
+        except Exception as e:
+            print(f"Error generating Zwift workouts: {str(e)}")
+            # Continue even if Zwift generation fails - we don't want to fail the whole upload
 
-        return {"message": "Successfully processed proposed workouts"}  # Moved outside loops
+        response_message = "Successfully processed proposed workouts"
+        if zwift_files:
+            response_message += f" and generated {len(zwift_files)} Zwift workout files"
+            
+        return {
+            "message": response_message,
+            "zwift_files": zwift_files
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error: {str(e)}")
     
@@ -834,6 +907,56 @@ async def get_proposed_workouts_week(start_date: str, end_date: str):
         raise HTTPException(
             status_code=500,
             detail=f"Error retrieving proposed workouts: {str(e)}"
+        )
+
+@app.get("/zwift/generate_workouts")
+async def generate_zwift_workouts(start_date: str, end_date: str, output_dir: Optional[str] = None, ftp: int = 258, week_number: Optional[int] = None):
+    """Generate Zwift workout files for all cycling workouts in the date range"""
+    try:
+        import os
+        from ..utils.zwift_workout_generator import generate_zwift_workouts_from_db
+        
+        db = WorkoutDatabase()
+        
+        # Set default output directory to the Zwift workouts directory if not specified
+        if not output_dir:
+            output_dir = "/Users/jacobrobinson/Documents/Zwift/Workouts/6870291"
+        
+        # If week number wasn't provided, try to get it from the database
+        if week_number is None:
+            # Try to get the weekly plan from the database
+            proposed_workouts_data = db.get_proposed_workouts_for_week(start_date, end_date)
+            weekly_plan = proposed_workouts_data.get('weekly_plan', {})
+            if weekly_plan and 'weekNumber' in weekly_plan:
+                week_number = weekly_plan.get('weekNumber')
+                print(f"Using week number from database: {week_number}")
+        
+        # Create weekly folders within the output directory
+        generated_files = generate_zwift_workouts_from_db(
+            db_connection=db,
+            start_date=start_date,
+            end_date=end_date,
+            ftp=ftp,
+            output_dir=output_dir,
+            week_number=week_number
+        )
+        
+        if generated_files:
+            return {
+                "message": f"Generated {len(generated_files)} Zwift workout files",
+                "files": generated_files
+            }
+        else:
+            return {
+                "message": "No Zwift workout files were generated. No cycling workouts found for the specified date range."
+            }
+    except Exception as e:
+        print(f"Error generating Zwift workouts: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generating Zwift workouts: {str(e)}"
         )
 
 @app.post("/workout/performance")

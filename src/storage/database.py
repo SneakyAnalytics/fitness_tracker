@@ -598,6 +598,41 @@ class WorkoutDatabase:
                         except (json.JSONDecodeError, AttributeError):
                             print("Could not extract normalized_power from fit_data")
 
+                    # Check for workout performance data (for strength and yoga workouts)
+                    performance_data = None
+                    if workout_type and workout_type.lower() in ('strength', 'yoga', 'other'):
+                        # Find the workout ID first
+                        c.execute(
+                            '''
+                            SELECT id FROM workouts 
+                            WHERE workout_day = ? AND workout_title = ?
+                            ''',
+                            (day, title)
+                        )
+                        workout_id_row = c.fetchone()
+                        if workout_id_row:
+                            workout_id = workout_id_row[0]
+                            
+                            # Get performance data for this workout
+                            c.execute(
+                                '''
+                                SELECT actual_duration, performance_data 
+                                FROM workout_performance
+                                WHERE workout_id = ? AND workout_date = ?
+                                ''',
+                                (workout_id, day)
+                            )
+                            performance_row = c.fetchone()
+                            
+                            if performance_row and performance_row[1]:
+                                actual_duration, performance_data_json = performance_row
+                                try:
+                                    performance_data = json.loads(performance_data_json)
+                                    print(f"Found performance data for workout {title} on {day}")
+                                except json.JSONDecodeError:
+                                    print(f"Error decoding performance data for workout {title} on {day}")
+                                    performance_data = None
+
                     # Create workout entry
                     workout_entry = {
                         'day': day,
@@ -618,7 +653,8 @@ class WorkoutDatabase:
                                 'zones': power_data.get('zones', {}),
                                 'normalized_power': normalized_power
                             } if power_data else None,
-                            'heart_rate_data': hr_data if hr_data else None
+                            'heart_rate_data': hr_data if hr_data else None,
+                            'performance_data': performance_data
                         },
                         'feedback': {**qualitative, 'athlete_comments': athlete_comments}
                     }
@@ -923,10 +959,52 @@ class WorkoutDatabase:
             return False
 
     def create_daily_plan(self, weekNumber: int, dayNumber: int, date: str) -> bool:
-        """Create a new daily plan"""
+        """Create a new daily plan or update an existing one, preventing duplicates"""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 c = conn.cursor()
+                
+                # First check if a plan with exact same weekNumber, dayNumber, date exists
+                c.execute(
+                    '''
+                    SELECT id FROM daily_plans 
+                    WHERE weekNumber = ? AND dayNumber = ? AND date = ?
+                    ''', 
+                    (weekNumber, dayNumber, date)
+                )
+                exact_match = c.fetchone()
+                
+                if exact_match:
+                    print(f"Exact daily plan already exists: {weekNumber}, {dayNumber}, {date}")
+                    return True
+                
+                # Check if a daily plan with this weekNumber and dayNumber exists but date is different
+                c.execute(
+                    '''
+                    SELECT id, date FROM daily_plans 
+                    WHERE weekNumber = ? AND dayNumber = ? 
+                    LIMIT 1
+                    ''', 
+                    (weekNumber, dayNumber)
+                )
+                existing_plan = c.fetchone()
+                
+                if existing_plan:
+                    # Update the date
+                    plan_id, current_date = existing_plan
+                    if current_date != date:
+                        c.execute(
+                            '''
+                            UPDATE daily_plans 
+                            SET date = ? 
+                            WHERE id = ?
+                            ''', 
+                            (date, plan_id)
+                        )
+                        print(f"Updated daily plan date from {current_date} to {date} for plan with ID {plan_id}")
+                    return True
+                
+                # No existing plan found, insert a new one
                 c.execute(
                     '''
                     INSERT INTO daily_plans (weekNumber, dayNumber, date)
@@ -934,35 +1012,86 @@ class WorkoutDatabase:
                     ''',
                     (weekNumber, dayNumber, date)
                 )
+                print(f"Created new daily plan: {weekNumber}, {dayNumber}, {date}")
+                
                 conn.commit()
                 return True
         except Exception as e:
-            print(f"Error creating daily plan: {e}")
+            print(f"Error creating/updating daily plan: {e}")
             return False
 
     def create_proposed_workout(self, dailyPlanId: int, type: str, name: str, plannedDuration: int, plannedTSS_min: int, plannedTSS_max: int, targetRPE_min: int, targetRPE_max: int, intervals: str, sections: str) -> bool:
-        """Create a new proposed workout"""
+        """Create a new proposed workout or update existing one"""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 c = conn.cursor()
+                
+                # Check if a proposed workout with this dailyPlanId and name already exists
                 c.execute(
                     '''
-                    INSERT INTO proposed_workouts (dailyPlanId, type, name, plannedDuration, plannedTSS_min, plannedTSS_max, targetRPE_min, targetRPE_max, intervals, sections)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    SELECT id FROM proposed_workouts 
+                    WHERE dailyPlanId = ? AND name = ?
                     ''',
-                    (dailyPlanId, type, name, plannedDuration, plannedTSS_min, plannedTSS_max, targetRPE_min, targetRPE_max, intervals, sections)
+                    (dailyPlanId, name)
                 )
+                existing_workout = c.fetchone()
+                
+                if existing_workout:
+                    # Update the existing workout with new values
+                    workout_id = existing_workout[0]
+                    c.execute(
+                        '''
+                        UPDATE proposed_workouts 
+                        SET type = ?, plannedDuration = ?, 
+                            plannedTSS_min = ?, plannedTSS_max = ?,
+                            targetRPE_min = ?, targetRPE_max = ?,
+                            intervals = ?, sections = ?
+                        WHERE id = ?
+                        ''',
+                        (type, plannedDuration, plannedTSS_min, plannedTSS_max, 
+                         targetRPE_min, targetRPE_max, intervals, sections, workout_id)
+                    )
+                    print(f"Updated existing proposed workout '{name}' for dailyPlanId {dailyPlanId}")
+                else:
+                    # Insert a new workout
+                    c.execute(
+                        '''
+                        INSERT INTO proposed_workouts 
+                        (dailyPlanId, type, name, plannedDuration, plannedTSS_min, plannedTSS_max, 
+                         targetRPE_min, targetRPE_max, intervals, sections)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''',
+                        (dailyPlanId, type, name, plannedDuration, plannedTSS_min, plannedTSS_max, 
+                         targetRPE_min, targetRPE_max, intervals, sections)
+                    )
+                    print(f"Created new proposed workout '{name}' for dailyPlanId {dailyPlanId}")
+                
                 conn.commit()
                 return True
         except Exception as e:
-            print(f"Error creating proposed workout: {e}")
+            print(f"Error creating/updating proposed workout: {e}")
             return False
 
     def get_daily_plan_id(self, weekNumber: int, dayNumber: int, date: str) -> Optional[int]:
-        """Retrieve a daily plan ID by weekNumber and dayNumber"""
+        """Retrieve a daily plan ID by weekNumber, dayNumber, and date"""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 c = conn.cursor()
+                # First try to get an exact match on all three fields
+                c.execute(
+                    '''
+                    SELECT id
+                    FROM daily_plans
+                    WHERE weekNumber = ? AND dayNumber = ? AND date = ?
+                    ''',
+                    (weekNumber, dayNumber, date)
+                )
+                result = c.fetchone()
+
+                if result:
+                    return result[0]
+                
+                # If no exact match, try with weekNumber and dayNumber
                 c.execute(
                     '''
                     SELECT id
@@ -974,6 +1103,17 @@ class WorkoutDatabase:
                 result = c.fetchone()
 
                 if result:
+                    # Update the date to match the correct one from the JSON
+                    c.execute(
+                        '''
+                        UPDATE daily_plans
+                        SET date = ?
+                        WHERE id = ?
+                        ''',
+                        (date, result[0])
+                    )
+                    conn.commit()
+                    print(f"Updated daily plan date to {date} for plan ID {result[0]}")
                     return result[0]
                 else:
                     return None
@@ -1225,6 +1365,7 @@ class WorkoutDatabase:
                     """,
                     (actual_duration, performance_data_json, workout_id, workout_date)
                 )
+                print(f"Updated workout performance data for workout ID {workout_id} on {workout_date}")
             else:
                 # Insert new performance data
                 c.execute(
@@ -1235,6 +1376,7 @@ class WorkoutDatabase:
                     """,
                     (workout_id, workout_date, actual_duration, performance_data_json)
                 )
+                print(f"Created new workout performance data for workout ID {workout_id} on {workout_date}")
             
             conn.commit()
             return True
