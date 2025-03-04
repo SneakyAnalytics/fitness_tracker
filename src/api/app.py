@@ -639,8 +639,10 @@ async def export_summary(start_date: str, end_date: str):
                             # Process each set
                             for set_idx, set_data in enumerate(exercise.get('sets', [])):
                                 set_notes = f" ({set_data.get('notes')})" if set_data.get('notes') else ""
+                                # Include round information if available
+                                round_info = f" (Round {set_data.get('round')})" if set_data.get('round') else ""
                                 if set_data.get('actual_reps') > 0 or set_data.get('actual_weight') > 0:
-                                    set_text = f"  * Set {set_idx+1}: {set_data.get('actual_reps', 0)} reps @ {set_data.get('actual_weight', 0)} lbs{set_notes}"
+                                    set_text = f"  * Set {set_idx+1}{round_info}: {set_data.get('actual_reps', 0)} reps @ {set_data.get('actual_weight', 0)} lbs{set_notes}"
                                     content.append(set_text)
                         
                         content.append("")
