@@ -28,7 +28,56 @@ Story Points:
 6. Add tests and validation (2 points) ✓
 7. Documentation and code cleanup (1 point) ✓
 
-[] Zwift workout automation
+[X] Enhance Workout Calendar Display for Strength, Yoga, and Mobility Workouts
+Description:
+
+- The workout calendar currently doesn't display all the detailed information present in the JSON files for Strength, Yoga, and Mobility workouts
+- Looking at Week 16 data, several important workout details are missing or not properly formatted in the UI
+- The Thursday mobility workout shows limited routine details compared to what's available in the JSON data
+- Need to enhance the display_strength_workout_with_tracking function to properly show all available workout data
+
+Implementation Notes:
+
+- Need to enhance weight information display to handle various formats:
+  - Round-specific weights (e.g., "round1": "bodyweight", "round2": { "min": 10, "max": 15, "unit": "lbs" })
+  - Simple value weights (e.g., "value": 10, "unit": "lbs")
+  - Bodyweight specification
+  - Min/max ranges with units
+- Improve exercise cue display to include:
+  - Proper formatting of cues as bullet points
+  - Display of "modifications" field separate from cues
+  - "perSide" indicators for exercises performed on each side
+- Enhance mobility workout display:
+  - Properly format longer instruction notes
+  - Better display of duration-based exercises vs. rep-based exercises
+  - Clear visual indication of different exercise types
+- Add missing field display:
+  - Exercise direction attributes
+  - Tempo guidance
+  - Focus information
+  - Round-specific instructions
+- Improve overall workout display formatting:
+  - Clearer visual hierarchy for workout sections with color-coded headers and section type indicators
+  - Better formatting of complex notes arrays
+  - Visual indicators for exercises with special attributes (per side, modifications, etc.)
+- Added exercise reference button:
+  - Quick access button next to each exercise name
+  - Links directly to Google image search for the exercise
+  - Makes it easy to see proper form and technique without leaving the app
+
+Story Points:
+
+1. Analyze current display_strength_workout_with_tracking function limitations (3 points)
+2. Enhance weight information display with support for all formats (4 points)
+3. Improve exercise cue and modification display (3 points)
+4. Add support for "perSide" indicators and direction attributes (2 points)
+5. Enhance formatting for mobility workouts and duration-based exercises (4 points)
+6. Add display for round-specific instructions and progressions (3 points)
+7. Improve overall visual formatting and hierarchy (3 points)
+8. Test with various workout types from Week 16 data (2 points)
+9. Documentation and code cleanup (1 point)
+
+[X] Zwift workout automation
 Description:
 
 - I want to use the json format that I upload into the proposed workout tables, also generate a .zwo file for cycling workouts, using the interval data, and place the created .zwo files in my Zwift application directory so I can access them in the application
@@ -57,9 +106,9 @@ Story Points:
 6. Implement automatic generation on workout upload (3 points) ✓
 7. Add validation and error handling (2 points) ✓
 8. Testing with various workout types (2 points) ✓
-9. Fix FAST API error that is now being caused from an edit done earlier to the app.py file, you can see this error in the Error_message_3_2.txt file (1 point)
-10. Setup zwift files to land in the appropriate user folder, creating a new folder within that folder for each week making it easy to know which folder I should open each week (2 points)
-11. Ensure that the processing of the intervals in biking workouts is correctly being calculated as a percentage of FTP as there are some issues in the users testing process, specifically with the second bike workout which is supposed to be a light effort (around 170-190 watts) but is registering as (400+ watts) (2 points)
+9. Fix FAST API error that is now being caused from an edit done earlier to the app.py file, you can see this error in the Error_message_3_2.txt file (1 point)✓
+10. Setup zwift files to land in the appropriate user folder, creating a new folder within that folder for each week making it easy to know which folder I should open each week (2 points)✓
+11. Ensure that the processing of the intervals in biking workouts is correctly being calculated as a percentage of FTP as there are some issues in the users testing process, specifically with the second bike workout which is supposed to be a light effort (around 170-190 watts) but is registering as (400+ watts) (2 points)✓
 
 [ ] AI Analysis of fit file results
 Description:

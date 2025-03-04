@@ -386,7 +386,7 @@ def display_workout_calendar():
                         if workout_type == "bike":
                             st.markdown(f"### Workout Details")
                             display_bike_workout(workout)
-                        elif workout_type in ["strength", "yoga", "other"]:
+                        elif workout_type in ["strength", "yoga", "mobility", "other"]:
                             st.markdown(f"### Workout Details")
                             # Pass unique key to avoid duplicate widget keys
                             display_strength_workout_with_tracking(workout, unique_key=unique_workout_key)
@@ -483,14 +483,47 @@ def display_strength_workout_with_tracking(workout, unique_key=""):
         for section_idx, section in enumerate(sections):
             section_name = section.get('name', f"Section {section_idx+1}")
             
-            # Section header with clear visual distinction
-            st.markdown(f"### {section_name}")
+            # Add visual distinction for section types (based on name heuristics)
+            section_type = ""
+            if "warm" in section_name.lower():
+                section_color = "#FFE1B4"  # Light orange for warmup
+                section_type = "🔥 WARMUP"
+            elif "cool" in section_name.lower():
+                section_color = "#D6EAF8"  # Light blue for cooldown
+                section_type = "❄️ COOLDOWN"
+            elif "circuit" in section_name.lower():
+                section_color = "#D5F5E3"  # Light green for circuit
+                section_type = "⚡ CIRCUIT"
+            elif "finish" in section_name.lower():
+                section_color = "#FADBD8"  # Light red for finisher
+                section_type = "🏁 FINISHER"
+            elif workout.get('type', '').lower() == "mobility":
+                section_color = "#E8DAEF"  # Light purple for mobility
+                section_type = "🧘 MOBILITY"
+            else:
+                section_color = "#F2F3F4"  # Light grey for other sections
+                section_type = "💪 STRENGTH"
+            
+            # Section header with clear visual distinction and icon (dark text on light background)
+            st.markdown(f"""
+            <div style="background-color: {section_color}; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+                <h3 style="margin:0; color: #333333;">{section_name} <span style="font-size:0.8em; font-weight:normal; color: #555555;">{section_type}</span></h3>
+            </div>
+            """, unsafe_allow_html=True)
             
             # Section info
-            if section.get('duration'):
-                st.write(f"**Duration:** {section.get('duration')/60:.1f} min")
-            if section.get('rounds'):
-                st.write(f"**Rounds:** {section.get('rounds')}")
+            info_cols = st.columns(2)
+            with info_cols[0]:
+                if section.get('duration'):
+                    duration_val = section.get('duration')
+                    # Handle seconds vs minutes formatting
+                    if duration_val > 300:  # If more than 5 minutes, assume seconds
+                        st.write(f"**Duration:** {duration_val/60:.1f} min")
+                    else:
+                        st.write(f"**Duration:** {duration_val} sec")
+            with info_cols[1]:
+                if section.get('rounds'):
+                    st.write(f"**Rounds:** {section.get('rounds')}")
             
             # Initialize section data
             section_exercises = {}
@@ -502,20 +535,72 @@ def display_strength_workout_with_tracking(workout, unique_key=""):
                 # Create a unique key for this exercise including the outer unique key
                 ex_key = f"{unique_key}_s{section_idx}_e{ex_idx}"
                 
-                # Exercise header with strong visual distinction
-                st.markdown(f"#### {ex_name}")
+                # Exercise header with strong visual distinction and lookup button
+                col1, col2 = st.columns([5, 1])
+                with col1:
+                    st.markdown(f"#### {ex_name}")
+                with col2:
+                    # Add a small button to look up the exercise
+                    lookup_key = f"lookup_{ex_key}"
+                    import urllib.parse
+                    search_query = urllib.parse.quote(f"{ex_name} exercise demonstration")
+                    search_url = f"https://www.google.com/search?q={search_query}&tbm=isch"
+                    st.markdown(f"<a href='{search_url}' target='_blank'><button style='font-size:0.8em; padding:2px 8px; border-radius:4px; border:1px solid #cccccc; background-color:#f0f0f0; color:#333333;'>🔍 Reference</button></a>", unsafe_allow_html=True)
                 
-                # Display any cues/notes first
-                if exercise.get('cues'):
-                    cues = exercise.get('cues')
-                    if isinstance(cues, list):
-                        st.markdown("**Cues:**")
-                        cue_text = ""
-                        for cue in cues:
-                            cue_text += f"- {cue}\n"
-                        st.markdown(cue_text)
-                    else:
-                        st.markdown(f"**Cues:** {cues}")
+                # Display exercise details in columns
+                detail_cols = st.columns([1, 1])
+                
+                # Column 1: Display exercise guidance
+                with detail_cols[0]:
+                    # Display cues with better formatting
+                    if exercise.get('cues'):
+                        cues = exercise.get('cues')
+                        st.markdown("**🎯 Cues:**")
+                        if isinstance(cues, list):
+                            cue_text = ""
+                            for cue in cues:
+                                cue_text += f"- {cue}\n"
+                            st.markdown(cue_text)
+                        else:
+                            st.markdown(f"- {cues}")
+                    
+                    # Display modifications if present
+                    if exercise.get('modifications'):
+                        mods = exercise.get('modifications')
+                        st.markdown("**🔄 Modifications:**")
+                        if isinstance(mods, list):
+                            mod_text = ""
+                            for mod in mods:
+                                mod_text += f"- {mod}\n"
+                            st.markdown(mod_text)
+                        else:
+                            st.markdown(f"- {mods}")
+                    
+                    # Display focus if present
+                    if exercise.get('focus'):
+                        focus = exercise.get('focus')
+                        st.markdown("**🔍 Focus:**")
+                        if isinstance(focus, list):
+                            focus_text = ""
+                            for f in focus:
+                                focus_text += f"- {f}\n"
+                            st.markdown(focus_text)
+                        else:
+                            st.markdown(f"- {focus}")
+                
+                # Column 2: Display any additional exercise notes
+                with detail_cols[1]:
+                    # Display general notes
+                    if exercise.get('notes'):
+                        notes = exercise.get('notes')
+                        st.markdown("**📝 Notes:**")
+                        if isinstance(notes, list):
+                            notes_text = ""
+                            for note in notes:
+                                notes_text += f"- {note}\n"
+                            st.markdown(notes_text)
+                        else:
+                            st.markdown(f"- {notes}")
                 
                 # Initialize exercise data structure
                 exercise_data = {
@@ -526,78 +611,167 @@ def display_strength_workout_with_tracking(workout, unique_key=""):
                 # Process sets with interleaved tracking
                 sets = exercise.get('sets', [])
                 if sets:
-                    # Create columns for headers
-                    cols = st.columns([1, 1, 2])
-                    with cols[0]:
-                        st.write("**Set Details**")
-                    with cols[1]:
-                        st.write("**Target**")
-                    with cols[2]:
-                        st.write("**Your Performance**")
+                    # Check for rounds at the section level
+                    rounds = section.get('rounds', 1)
                     
-                    # For each set, display prescribed info and tracking fields side by side
-                    for set_idx, set_info in enumerate(sets):
-                        set_key = f"{ex_key}_set{set_idx}"
+                    # Create columns for headers with better visual distinction and dark text
+                    st.markdown("""
+                    <div style="background-color: #f8f9fa; padding: 5px; border-radius: 3px; margin: 10px 0;">
+                        <div class="row-widget stRow">
+                            <div class="row" style="display: flex; align-items: center;">
+                                <div style="flex: 1; color: #333333;"><strong>Set Details</strong></div>
+                                <div style="flex: 1; color: #333333;"><strong>Target</strong></div>
+                                <div style="flex: 2; color: #333333;"><strong>Your Performance</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # For each round, display the sets
+                    for round_idx in range(rounds):
+                        # If we have multiple rounds, add a round header
+                        if rounds > 1:
+                            st.markdown(f"""
+                            <div style="background-color: #e6e6e6; padding: 5px; border-radius: 3px; margin: 8px 0;">
+                                <div style="color: #333333; font-weight: bold;">Round {round_idx + 1}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
                         
-                        # Format target information
-                        target_desc = []
-                        if set_info.get('reps'):
-                            target_desc.append(f"Reps: {set_info.get('reps')}")
-                        elif set_info.get('targetReps'):
-                            target = set_info.get('targetReps', {})
-                            if isinstance(target, dict):
-                                target_reps = f"{target.get('min', 0)}-{target.get('max', 0)}"
-                                target_desc.append(f"Reps: {target_reps}")
-                        
-                        if set_info.get('weight'):
-                            weight = set_info.get('weight', {})
-                            if isinstance(weight, dict):
-                                target_weight = f"{weight.get('min', 0)}-{weight.get('max', 0)} {weight.get('unit', 'lbs')}"
-                                target_desc.append(f"Weight: {target_weight}")
-                            else:
-                                target_desc.append(f"Weight: {weight} lbs")
-                        
-                        if set_info.get('workTime'):
-                            target_desc.append(f"Work: {set_info.get('workTime')}s")
-                        if set_info.get('restTime'):
-                            target_desc.append(f"Rest: {set_info.get('restTime')}s")
-                        if set_info.get('tempo'):
-                            target_desc.append(f"Tempo: {set_info.get('tempo')}")
+                        # For each set in this round, display prescribed info and tracking fields side by side
+                        for set_idx, set_info in enumerate(sets):
+                            # Generate a unique key for this set in this round
+                            set_key = f"{ex_key}_round{round_idx}_set{set_idx}"
                             
-                        target_text = "\n".join(target_desc)
-                        
-                        # Create a row with 3 columns for this set
-                        cols = st.columns([1, 1, 2])
-                        
-                        # Column 1: Set number
-                        with cols[0]:
-                            st.write(f"**Set {set_idx+1}**")
-                        
-                        # Column 2: Target details
-                        with cols[1]:
-                            st.text(target_text)
-                        
-                        # Column 3: Input fields
-                        with cols[2]:
-                            # Create 3 sub-columns for reps, weight, notes
-                            subcol1, subcol2, subcol3 = st.columns(3)
+                            # Format target information with comprehensive support for all formats
+                            target_desc = []
                             
-                            with subcol1:
-                                actual_reps = st.number_input("Reps", 0, 100, 0, key=f"reps_{set_key}")
+                            # Handle reps with perSide indicator
+                            if set_info.get('reps'):
+                                reps_text = f"Reps: {set_info.get('reps')}"
+                                if set_info.get('perSide', False):
+                                    reps_text += " (each side)"
+                                target_desc.append(reps_text)
+                            elif set_info.get('targetReps'):
+                                target = set_info.get('targetReps', {})
+                                if isinstance(target, dict):
+                                    # Handle different formats of targetReps
+                                    if target.get('value'):
+                                        target_reps = str(target.get('value'))
+                                    else:
+                                        target_reps = f"{target.get('min', 0)}-{target.get('max', 0)}"
+                                    
+                                    reps_text = f"Reps: {target_reps}"
+                                    if target.get('perSide', False):
+                                        reps_text += " (each side)"
+                                    target_desc.append(reps_text)
                             
-                            with subcol2:
-                                actual_weight = st.number_input("Lbs", 0, 500, 0, step=5, key=f"weight_{set_key}")
+                            # Handle duration-based sets
+                            if set_info.get('duration'):
+                                duration = set_info.get('duration')
+                                # Format based on value
+                                if duration >= 60:
+                                    target_desc.append(f"Duration: {duration//60}m {duration%60}s")
+                                else:
+                                    target_desc.append(f"Duration: {duration}s")
                             
-                            with subcol3:
-                                notes = st.text_input("Notes", key=f"notes_{set_key}")
-                        
-                        # Store the set data
-                        exercise_data["sets"].append({
-                            "set_number": set_idx + 1,
-                            "actual_reps": actual_reps,
-                            "actual_weight": actual_weight,
-                            "notes": notes
-                        })
+                            # Handle work/rest timing
+                            if set_info.get('workTime'):
+                                target_desc.append(f"Work: {set_info.get('workTime')}s")
+                            if set_info.get('restTime'):
+                                target_desc.append(f"Rest: {set_info.get('restTime')}s")
+                            
+                            # Handle various weight formats
+                            if set_info.get('weight'):
+                                weight = set_info.get('weight')
+                                weight_text = "Weight: "
+                                
+                                # For round-specific weights, select the appropriate round's weight
+                                if isinstance(weight, dict) and ('round1' in weight or 'round2' in weight):
+                                    current_round_key = f"round{round_idx+1}"
+                                    
+                                    # If we have a specific weight for this round, use it
+                                    if current_round_key in weight:
+                                        round_weight = weight.get(current_round_key)
+                                        
+                                        if isinstance(round_weight, dict):
+                                            if round_weight.get('value'):
+                                                weight_text += f"{round_weight.get('value')} {round_weight.get('unit', 'lbs')}"
+                                            else:
+                                                weight_text += f"{round_weight.get('min', 0)}-{round_weight.get('max', 0)} {round_weight.get('unit', 'lbs')}"
+                                        else:
+                                            weight_text += f"{round_weight}"
+                                    # Otherwise show all round weights for reference
+                                    else:
+                                        rounds_text = []
+                                        for round_key in sorted([k for k in weight.keys() if k.startswith('round')]):
+                                            round_weight = weight.get(round_key)
+                                            if isinstance(round_weight, dict):
+                                                if round_weight.get('value'):
+                                                    rounds_text.append(f"{round_key}: {round_weight.get('value')} {round_weight.get('unit', 'lbs')}")
+                                                else:
+                                                    rounds_text.append(f"{round_key}: {round_weight.get('min', 0)}-{round_weight.get('max', 0)} {round_weight.get('unit', 'lbs')}")
+                                            else:
+                                                rounds_text.append(f"{round_key}: {round_weight}")
+                                        weight_text += ", ".join(rounds_text)
+                                # Handle simple value with unit
+                                elif isinstance(weight, dict) and weight.get('value'):
+                                    weight_text += f"{weight.get('value')} {weight.get('unit', 'lbs')}"
+                                # Handle min-max range
+                                elif isinstance(weight, dict) and weight.get('min') is not None and weight.get('max') is not None:
+                                    weight_text += f"{weight.get('min')}-{weight.get('max')} {weight.get('unit', 'lbs')}"
+                                elif weight == "bodyweight":
+                                    weight_text += "Bodyweight"
+                                else:
+                                    weight_text += f"{weight}"
+                                    if not str(weight).endswith('lbs') and not str(weight).lower() == 'bodyweight':
+                                        weight_text += " lbs"
+                                
+                                target_desc.append(weight_text)
+                            
+                            # Handle tempo
+                            if set_info.get('tempo'):
+                                target_desc.append(f"Tempo: {set_info.get('tempo')}")
+                            
+                            # Handle direction
+                            if set_info.get('direction'):
+                                target_desc.append(f"Direction: {set_info.get('direction')}")
+                                
+                            # Join all formatted target descriptions
+                            target_text = "\n".join(target_desc)
+                            
+                            # Create a row with 3 columns for this set
+                            cols = st.columns([1, 1, 2])
+                            
+                            # Column 1: Set number
+                            with cols[0]:
+                                st.write(f"**Set {set_idx+1}**")
+                            
+                            # Column 2: Target details
+                            with cols[1]:
+                                st.text(target_text)
+                            
+                            # Column 3: Input fields
+                            with cols[2]:
+                                # Create 3 sub-columns for reps, weight, notes
+                                subcol1, subcol2, subcol3 = st.columns(3)
+                                
+                                with subcol1:
+                                    actual_reps = st.number_input("Reps", 0, 100, 0, key=f"reps_{set_key}")
+                                
+                                with subcol2:
+                                    actual_weight = st.number_input("Lbs", 0, 500, 0, step=5, key=f"weight_{set_key}")
+                                
+                                with subcol3:
+                                    notes = st.text_input("Notes", key=f"notes_{set_key}")
+                            
+                            # Store the set data
+                            exercise_data["sets"].append({
+                                "set_number": set_idx + 1,
+                                "round": round_idx + 1,
+                                "actual_reps": actual_reps,
+                                "actual_weight": actual_weight,
+                                "notes": notes
+                            })
                 
                 # Add this exercise to the section using a consistent key without the unique prefix
                 # (just for internal data organization)
@@ -662,7 +836,7 @@ def create_workout_timer():
     # Create a container that will always be visible and fixed at the top
     with st.sidebar:
         st.markdown("### 🕒 Workout Timer")
-        st.markdown("*Timer stays visible while you scroll*")
+        st.markdown("*The clock doesn't care about your excuses.*")
         
         # Work/Rest cycle settings
         col1, col2 = st.columns(2)
