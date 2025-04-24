@@ -1,0 +1,1406 @@
+{
+  "weekNumber": 18,
+  "startDate": "2025-03-17",
+  "plannedTSS": {
+    "min": 290,
+    "max": 350
+  },
+  "notes": {
+    "weekFocus": "Endurance Development with Blood Donation Accommodation",
+    "specialConsiderations": "Work 5K on Tuesday, Blood donation on Saturday"
+  },
+  "days": [
+    {
+      "dayNumber": 1,
+      "date": "2025-03-17",
+      "workouts": [
+        {
+          "type": "mobility",
+          "name": "Light Mobility - Running Recovery",
+          "plannedDuration": 40,
+          "plannedTSS": {
+            "min": 15,
+            "max": 20
+          },
+          "targetRPE": {
+            "min": 1,
+            "max": 2
+          },
+          "sections": [
+            {
+              "name": "Warmup Flow",
+              "duration": 8,
+              "exercises": [
+                {
+                  "name": "Diaphragmatic Breathing",
+                  "sets": [
+                    {
+                      "duration": 60,
+                      "notes": [
+                        "Hand on belly",
+                        "Full expansion",
+                        "5-6 second cycles"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Progressive Relaxation",
+                  "sets": [
+                    {
+                      "duration": 60,
+                      "notes": ["Tensing/releasing", "Start feet, move upward"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Seated Twists",
+                  "sets": [
+                    {
+                      "duration": 60,
+                      "notes": ["Gentle rotation", "Breath coordination"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Ankle Circles",
+                  "sets": [
+                    {
+                      "duration": 60,
+                      "notes": [
+                        "10 each direction, each foot",
+                        "Increase range progressively"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Knee Circles",
+                  "sets": [
+                    {
+                      "duration": 60,
+                      "notes": ["Hands on knees", "10 each direction"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Hip Circles",
+                  "sets": [
+                    {
+                      "duration": 60,
+                      "notes": ["Standing", "Full rotation"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Shoulder Rolls",
+                  "sets": [
+                    {
+                      "duration": 60,
+                      "notes": ["Forward/backward", "With arm extensions"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Neck Mobility",
+                  "sets": [
+                    {
+                      "duration": 60,
+                      "notes": ["Gentle tilts/rotations", "Ear to shoulder"]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Lower Body Care",
+              "duration": 10,
+              "exercises": [
+                {
+                  "name": "Calf & Achilles Release",
+                  "sets": [
+                    {
+                      "duration": 180,
+                      "notes": [
+                        "Foam rolling/ball work",
+                        "Progressive stretching"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Hamstring Flow",
+                  "sets": [
+                    {
+                      "duration": 180,
+                      "notes": [
+                        "Standing forward fold",
+                        "Single leg variations"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Quad & Hip Flexor",
+                  "sets": [
+                    {
+                      "duration": 240,
+                      "notes": ["Lunge variations", "Couch stretch progression"]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Upper Body Relief",
+              "duration": 8,
+              "exercises": [
+                {
+                  "name": "Chest & Shoulder Opening",
+                  "sets": [
+                    {
+                      "duration": 180,
+                      "notes": ["Doorway stretches", "Arm circles progression"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Back Mobilization",
+                  "sets": [
+                    {
+                      "duration": 180,
+                      "notes": ["Cat-cow variations", "Thread the needle"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Wrist & Forearm",
+                  "sets": [
+                    {
+                      "duration": 120,
+                      "notes": ["Extension/flexion", "Rotational movements"]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Integration",
+              "duration": 7,
+              "exercises": [
+                {
+                  "name": "Standing Flow Series",
+                  "sets": [
+                    {
+                      "duration": 420,
+                      "notes": [
+                        "Warrior variations",
+                        "Balance challenges",
+                        "Coordinated movement"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Cooldown",
+              "duration": 7,
+              "exercises": [
+                {
+                  "name": "Seated Forward Fold",
+                  "sets": [
+                    {
+                      "duration": 120
+                    }
+                  ]
+                },
+                {
+                  "name": "Supine Twist",
+                  "sets": [
+                    {
+                      "duration": 120
+                    }
+                  ]
+                },
+                {
+                  "name": "Final Relaxation",
+                  "sets": [
+                    {
+                      "duration": 180
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dayNumber": 2,
+      "date": "2025-03-18",
+      "workouts": [
+        {
+          "type": "run",
+          "name": "Work 5K Event",
+          "plannedDuration": 30,
+          "plannedTSS": {
+            "min": 25,
+            "max": 35
+          },
+          "targetRPE": {
+            "min": 3,
+            "max": 5
+          },
+          "sections": [
+            {
+              "name": "Warmup",
+              "duration": 5,
+              "targetPace": {
+                "description": "Very easy jog/walk",
+                "notes": ["Gentle preparation", "Low effort"]
+              }
+            },
+            {
+              "name": "Main Run",
+              "distance": {
+                "value": 5,
+                "unit": "km"
+              },
+              "targetPace": {
+                "description": "Comfortable pace",
+                "notes": [
+                  "Social pace",
+                  "Conversational effort",
+                  "Enjoy the event"
+                ]
+              }
+            },
+            {
+              "name": "Cooldown",
+              "duration": 5,
+              "targetPace": {
+                "description": "Easy walk",
+                "notes": ["Gradual reduction"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dayNumber": 3,
+      "date": "2025-03-19",
+      "workouts": [
+        {
+          "type": "bike",
+          "name": "Zone 2 Base Building",
+          "plannedDuration": 70,
+          "plannedTSS": {
+            "min": 55,
+            "max": 65
+          },
+          "targetRPE": {
+            "min": 3,
+            "max": 5
+          },
+          "intervals": [
+            {
+              "name": "Warmup",
+              "duration": 600,
+              "powerTarget": {
+                "start": {
+                  "type": "percent_ftp",
+                  "value": 50
+                },
+                "end": {
+                  "type": "percent_ftp",
+                  "value": 65
+                }
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 95
+              }
+            },
+            {
+              "name": "Main Set",
+              "duration": 3000,
+              "powerTarget": {
+                "type": "range",
+                "min": 180,
+                "max": 190,
+                "unit": "watts"
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 90
+              }
+            },
+            {
+              "name": "High Cadence 1",
+              "duration": 120,
+              "powerTarget": {
+                "type": "range",
+                "min": 180,
+                "max": 190,
+                "unit": "watts"
+              },
+              "cadenceTarget": {
+                "min": 100,
+                "max": 110
+              }
+            },
+            {
+              "name": "Recovery 1",
+              "duration": 180,
+              "powerTarget": {
+                "type": "range",
+                "min": 180,
+                "max": 190,
+                "unit": "watts"
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 90
+              }
+            },
+            {
+              "name": "High Cadence 2",
+              "duration": 120,
+              "powerTarget": {
+                "type": "range",
+                "min": 180,
+                "max": 190,
+                "unit": "watts"
+              },
+              "cadenceTarget": {
+                "min": 100,
+                "max": 110
+              }
+            },
+            {
+              "name": "Recovery 2",
+              "duration": 180,
+              "powerTarget": {
+                "type": "range",
+                "min": 180,
+                "max": 190,
+                "unit": "watts"
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 90
+              }
+            },
+            {
+              "name": "High Cadence 3",
+              "duration": 120,
+              "powerTarget": {
+                "type": "range",
+                "min": 180,
+                "max": 190,
+                "unit": "watts"
+              },
+              "cadenceTarget": {
+                "min": 100,
+                "max": 110
+              }
+            },
+            {
+              "name": "Recovery 3",
+              "duration": 180,
+              "powerTarget": {
+                "type": "range",
+                "min": 180,
+                "max": 190,
+                "unit": "watts"
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 90
+              }
+            },
+            {
+              "name": "High Cadence 4",
+              "duration": 120,
+              "powerTarget": {
+                "type": "range",
+                "min": 180,
+                "max": 190,
+                "unit": "watts"
+              },
+              "cadenceTarget": {
+                "min": 100,
+                "max": 110
+              }
+            },
+            {
+              "name": "Cooldown",
+              "duration": 600,
+              "powerTarget": {
+                "start": {
+                  "type": "percent_ftp",
+                  "value": 65
+                },
+                "end": {
+                  "type": "percent_ftp",
+                  "value": 50
+                }
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 95
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dayNumber": 4,
+      "date": "2025-03-20",
+      "workouts": [
+        {
+          "type": "bike",
+          "name": "Threshold Development",
+          "plannedDuration": 75,
+          "plannedTSS": {
+            "min": 75,
+            "max": 80
+          },
+          "targetRPE": {
+            "min": 6,
+            "max": 8
+          },
+          "intervals": [
+            {
+              "name": "Warmup",
+              "duration": 900,
+              "powerTarget": {
+                "start": {
+                  "type": "percent_ftp",
+                  "value": 50
+                },
+                "end": {
+                  "type": "percent_ftp",
+                  "value": 70
+                }
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 95
+              }
+            },
+            {
+              "name": "Main Set 1",
+              "duration": 720,
+              "powerTarget": {
+                "type": "percent_ftp",
+                "value": 85
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 90
+              }
+            },
+            {
+              "name": "Recovery 1",
+              "duration": 300,
+              "powerTarget": {
+                "type": "watts",
+                "value": 150
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 95
+              }
+            },
+            {
+              "name": "Main Set 2",
+              "duration": 720,
+              "powerTarget": {
+                "type": "percent_ftp",
+                "value": 85
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 90
+              }
+            },
+            {
+              "name": "Recovery 2",
+              "duration": 300,
+              "powerTarget": {
+                "type": "watts",
+                "value": 150
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 95
+              }
+            },
+            {
+              "name": "Main Set 3",
+              "duration": 720,
+              "powerTarget": {
+                "type": "percent_ftp",
+                "value": 85
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 90
+              }
+            },
+            {
+              "name": "Cooldown",
+              "duration": 900,
+              "powerTarget": {
+                "start": {
+                  "type": "percent_ftp",
+                  "value": 65
+                },
+                "end": {
+                  "type": "percent_ftp",
+                  "value": 50
+                }
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 95
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dayNumber": 5,
+      "date": "2025-03-21",
+      "workouts": [
+        {
+          "type": "strength",
+          "name": "Full Body Strength",
+          "plannedDuration": 40,
+          "plannedTSS": {
+            "min": 25,
+            "max": 30
+          },
+          "targetRPE": {
+            "min": 4,
+            "max": 6
+          },
+          "sections": [
+            {
+              "name": "Warmup",
+              "duration": 8,
+              "exercises": [
+                {
+                  "name": "Arm Circles",
+                  "sets": [
+                    {
+                      "duration": 30,
+                      "notes": ["Forward/backward", "Small to large"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Bodyweight Squats",
+                  "sets": [
+                    {
+                      "reps": 10,
+                      "notes": ["Focus on depth", "Feet shoulder width"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Hip Hinges",
+                  "sets": [
+                    {
+                      "reps": 10,
+                      "notes": ["Flat back", "Feel hamstrings"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Bird Dogs",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "perSide": true,
+                      "notes": ["Core engaged", "Stable position"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Walking Lunges",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "perSide": true,
+                      "notes": ["Vertical torso", "Step forward with control"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Pushup to Downdog Flow",
+                  "sets": [
+                    {
+                      "reps": 5,
+                      "notes": ["Smooth transition", "Full range of motion"]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Circuit 1 - Round 1",
+              "duration": 6,
+              "exercises": [
+                {
+                  "name": "Goblet Squats",
+                  "sets": [
+                    {
+                      "workTime": 40,
+                      "restTime": 20,
+                      "weight": {
+                        "min": 25,
+                        "max": 30,
+                        "unit": "lbs"
+                      },
+                      "targetReps": {
+                        "min": 12,
+                        "max": 15
+                      },
+                      "cues": ["Full depth", "Knees tracking", "Chest up"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Push-ups",
+                  "sets": [
+                    {
+                      "workTime": 40,
+                      "restTime": 20,
+                      "targetReps": {
+                        "min": 10,
+                        "max": 12
+                      },
+                      "cues": [
+                        "Core stability",
+                        "Elbows 45° angle",
+                        "Straight line"
+                      ],
+                      "modifications": ["On knees if needed"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Romanian Deadlifts",
+                  "sets": [
+                    {
+                      "workTime": 40,
+                      "restTime": 20,
+                      "weight": {
+                        "min": 25,
+                        "max": 30,
+                        "unit": "lbs"
+                      },
+                      "targetReps": {
+                        "min": 10,
+                        "max": 12
+                      },
+                      "cues": [
+                        "Hamstring loading",
+                        "Hinge pattern",
+                        "Flat back"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Renegade Rows",
+                  "sets": [
+                    {
+                      "workTime": 40,
+                      "restTime": 60,
+                      "weight": {
+                        "min": 15,
+                        "max": 20,
+                        "unit": "lbs"
+                      },
+                      "targetReps": {
+                        "value": 8,
+                        "perSide": true
+                      },
+                      "cues": ["Core stability", "Minimize hip rotation"]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Circuit 1 - Round 2",
+              "duration": 6,
+              "exercises": [
+                {
+                  "name": "Goblet Squats",
+                  "sets": [
+                    {
+                      "workTime": 40,
+                      "restTime": 20,
+                      "weight": {
+                        "min": 25,
+                        "max": 30,
+                        "unit": "lbs"
+                      },
+                      "targetReps": {
+                        "min": 12,
+                        "max": 15
+                      },
+                      "cues": ["Full depth", "Knees tracking", "Chest up"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Push-ups",
+                  "sets": [
+                    {
+                      "workTime": 40,
+                      "restTime": 20,
+                      "targetReps": {
+                        "min": 10,
+                        "max": 12
+                      },
+                      "cues": [
+                        "Core stability",
+                        "Elbows 45° angle",
+                        "Straight line"
+                      ],
+                      "modifications": ["On knees if needed"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Romanian Deadlifts",
+                  "sets": [
+                    {
+                      "workTime": 40,
+                      "restTime": 20,
+                      "weight": {
+                        "min": 25,
+                        "max": 30,
+                        "unit": "lbs"
+                      },
+                      "targetReps": {
+                        "min": 10,
+                        "max": 12
+                      },
+                      "cues": [
+                        "Hamstring loading",
+                        "Hinge pattern",
+                        "Flat back"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Renegade Rows",
+                  "sets": [
+                    {
+                      "workTime": 40,
+                      "restTime": 60,
+                      "weight": {
+                        "min": 15,
+                        "max": 20,
+                        "unit": "lbs"
+                      },
+                      "targetReps": {
+                        "value": 8,
+                        "perSide": true
+                      },
+                      "cues": ["Core stability", "Minimize hip rotation"]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Circuit 2 - Round 1",
+              "duration": 6,
+              "exercises": [
+                {
+                  "name": "Split Squats",
+                  "sets": [
+                    {
+                      "workTime": 40,
+                      "restTime": 20,
+                      "weight": "bodyweight or light",
+                      "targetReps": {
+                        "value": 10,
+                        "perSide": true
+                      },
+                      "cues": [
+                        "Balance & strength",
+                        "Vertical shin",
+                        "Upright torso"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Dumbbell Shoulder Press",
+                  "sets": [
+                    {
+                      "workTime": 40,
+                      "restTime": 20,
+                      "weight": {
+                        "min": 15,
+                        "max": 20,
+                        "unit": "lbs"
+                      },
+                      "targetReps": {
+                        "min": 10,
+                        "max": 12
+                      },
+                      "cues": [
+                        "Shoulder strength",
+                        "Neutral wrists",
+                        "Full lockout"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Plank with Shoulder Taps",
+                  "sets": [
+                    {
+                      "workTime": 40,
+                      "restTime": 20,
+                      "notes": [
+                        "30s continuous",
+                        "Anti-rotation",
+                        "Stable hips",
+                        "Controlled movement"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Single-Arm Dumbbell Rows",
+                  "sets": [
+                    {
+                      "workTime": 40,
+                      "restTime": 60,
+                      "weight": {
+                        "min": 20,
+                        "max": 25,
+                        "unit": "lbs"
+                      },
+                      "targetReps": {
+                        "min": 10,
+                        "max": 12,
+                        "perSide": true
+                      },
+                      "cues": ["Back strength", "Squeeze shoulder blade"]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Circuit 2 - Round 2",
+              "duration": 6,
+              "exercises": [
+                {
+                  "name": "Split Squats",
+                  "sets": [
+                    {
+                      "workTime": 40,
+                      "restTime": 20,
+                      "weight": "bodyweight or light",
+                      "targetReps": {
+                        "value": 10,
+                        "perSide": true
+                      },
+                      "cues": [
+                        "Balance & strength",
+                        "Vertical shin",
+                        "Upright torso"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Dumbbell Shoulder Press",
+                  "sets": [
+                    {
+                      "workTime": 40,
+                      "restTime": 20,
+                      "weight": {
+                        "min": 15,
+                        "max": 20,
+                        "unit": "lbs"
+                      },
+                      "targetReps": {
+                        "min": 10,
+                        "max": 12
+                      },
+                      "cues": [
+                        "Shoulder strength",
+                        "Neutral wrists",
+                        "Full lockout"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Plank with Shoulder Taps",
+                  "sets": [
+                    {
+                      "workTime": 40,
+                      "restTime": 20,
+                      "notes": [
+                        "30s continuous",
+                        "Anti-rotation",
+                        "Stable hips",
+                        "Controlled movement"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Single-Arm Dumbbell Rows",
+                  "sets": [
+                    {
+                      "workTime": 40,
+                      "restTime": 60,
+                      "weight": {
+                        "min": 20,
+                        "max": 25,
+                        "unit": "lbs"
+                      },
+                      "targetReps": {
+                        "min": 10,
+                        "max": 12,
+                        "perSide": true
+                      },
+                      "cues": ["Back strength", "Squeeze shoulder blade"]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Finisher",
+              "duration": 8,
+              "exercises": [
+                {
+                  "name": "Dead Bugs",
+                  "sets": [
+                    {
+                      "duration": 45,
+                      "notes": [
+                        "Focus on lower back contact",
+                        "Breath coordination"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Side Plank - Right",
+                  "sets": [
+                    {
+                      "duration": 30,
+                      "notes": [
+                        "Stacked hips and shoulders",
+                        "Controlled breathing"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Side Plank - Left",
+                  "sets": [
+                    {
+                      "duration": 30,
+                      "notes": [
+                        "Stacked hips and shoulders",
+                        "Controlled breathing"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Glute Bridge Marching",
+                  "sets": [
+                    {
+                      "duration": 45,
+                      "notes": [
+                        "Maintain stable pelvis",
+                        "Alternating leg lifts"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Rest",
+                  "sets": [
+                    {
+                      "duration": 30
+                    }
+                  ]
+                },
+                {
+                  "name": "Dead Bugs",
+                  "sets": [
+                    {
+                      "duration": 45,
+                      "notes": [
+                        "Focus on lower back contact",
+                        "Breath coordination"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Side Plank - Right",
+                  "sets": [
+                    {
+                      "duration": 30,
+                      "notes": [
+                        "Stacked hips and shoulders",
+                        "Controlled breathing"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Side Plank - Left",
+                  "sets": [
+                    {
+                      "duration": 30,
+                      "notes": [
+                        "Stacked hips and shoulders",
+                        "Controlled breathing"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Glute Bridge Marching",
+                  "sets": [
+                    {
+                      "duration": 45,
+                      "notes": [
+                        "Maintain stable pelvis",
+                        "Alternating leg lifts"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dayNumber": 6,
+      "date": "2025-03-22",
+      "workouts": [
+        {
+          "type": "mobility",
+          "name": "Light Mobility - Pre-Donation",
+          "plannedDuration": 30,
+          "plannedTSS": {
+            "min": 10,
+            "max": 15
+          },
+          "targetRPE": {
+            "min": 1,
+            "max": 2
+          },
+          "sections": [
+            {
+              "name": "Gentle Activation",
+              "duration": 8,
+              "exercises": [
+                {
+                  "name": "Diaphragmatic Breathing",
+                  "sets": [
+                    {
+                      "duration": 60,
+                      "notes": ["Hand on belly", "Full expansion"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Box Breathing",
+                  "sets": [
+                    {
+                      "duration": 60,
+                      "notes": ["4-4-4-4 pattern", "Complete cycles"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Lateral Breathing",
+                  "sets": [
+                    {
+                      "duration": 60,
+                      "notes": ["Side-lying position", "Ribcage expansion"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Neck & Shoulder Mobility",
+                  "sets": [
+                    {
+                      "duration": 75,
+                      "notes": ["Gentle circles", "Side tilts"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Arm Circles",
+                  "sets": [
+                    {
+                      "duration": 75,
+                      "notes": ["Forward/backward", "Progressive size"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Gentle Spinal Waves",
+                  "sets": [
+                    {
+                      "duration": 75,
+                      "notes": ["Cat-cow variations", "Side bending"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Standing Hip Circles",
+                  "sets": [
+                    {
+                      "duration": 75,
+                      "notes": ["Full circles", "Both directions"]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Lower Body Mobility",
+              "duration": 7,
+              "exercises": [
+                {
+                  "name": "Ankle Mobility Series",
+                  "sets": [
+                    {
+                      "duration": 105,
+                      "notes": ["Circles", "Point/flex", "Weight shifts"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Dynamic Calf Stretches",
+                  "sets": [
+                    {
+                      "duration": 105,
+                      "notes": ["Straight leg", "Bent knee", "Soleus focus"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Gentle Hamstring Work",
+                  "sets": [
+                    {
+                      "duration": 105,
+                      "notes": ["Standing folds", "Seated reaches"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Hip Mobility Flow",
+                  "sets": [
+                    {
+                      "duration": 105,
+                      "notes": ["Leg swings", "Hip circles", "Gentle lunges"]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Upper Body Circulation",
+              "duration": 8,
+              "exercises": [
+                {
+                  "name": "Shoulder Blade Squeezes",
+                  "sets": [
+                    {
+                      "duration": 120,
+                      "notes": [
+                        "Retraction/protraction",
+                        "Elevation/depression"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "Wall Angels",
+                  "sets": [
+                    {
+                      "duration": 120,
+                      "notes": ["Back against wall", "Full range"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Thoracic Rotations",
+                  "sets": [
+                    {
+                      "duration": 120,
+                      "notes": ["Seated twists", "Standing reaches"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Wrist & Forearm Mobility",
+                  "sets": [
+                    {
+                      "duration": 120,
+                      "notes": ["Circles", "Flexion/extension", "Rotations"]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "Cooldown & Preparation",
+              "duration": 7,
+              "exercises": [
+                {
+                  "name": "Seated Forward Fold",
+                  "sets": [
+                    {
+                      "duration": 105,
+                      "notes": ["Relaxed position", "Gentle stretch"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Child's Pose",
+                  "sets": [
+                    {
+                      "duration": 105,
+                      "notes": ["Arms forward", "Deep breathing"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Supine Relaxation",
+                  "sets": [
+                    {
+                      "duration": 105,
+                      "notes": ["Total release", "Body scan"]
+                    }
+                  ]
+                },
+                {
+                  "name": "Donation Mental Preparation",
+                  "sets": [
+                    {
+                      "duration": 105,
+                      "notes": ["Positive visualization", "Relaxed mindset"]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dayNumber": 7,
+      "date": "2025-03-23",
+      "workouts": [
+        {
+          "type": "bike",
+          "name": "Post-Donation Recovery Spin",
+          "plannedDuration": 50,
+          "plannedTSS": {
+            "min": 30,
+            "max": 40
+          },
+          "targetRPE": {
+            "min": 1,
+            "max": 3
+          },
+          "intervals": [
+            {
+              "name": "Warmup",
+              "duration": 600,
+              "powerTarget": {
+                "start": {
+                  "type": "percent_ftp",
+                  "value": 40
+                },
+                "end": {
+                  "type": "percent_ftp",
+                  "value": 50
+                }
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 95
+              }
+            },
+            {
+              "name": "Main Set",
+              "duration": 2400,
+              "powerTarget": {
+                "type": "range",
+                "min": 150,
+                "max": 160,
+                "unit": "watts"
+              },
+              "cadenceTarget": {
+                "min": 90,
+                "max": 100
+              }
+            },
+            {
+              "name": "Cooldown",
+              "duration": 600,
+              "powerTarget": {
+                "start": {
+                  "type": "percent_ftp",
+                  "value": 50
+                },
+                "end": {
+                  "type": "percent_ftp",
+                  "value": 40
+                }
+              },
+              "cadenceTarget": {
+                "min": 85,
+                "max": 95
+              }
+            }
+          ],
+          "notes": [
+            "Focus on blood circulation",
+            "Higher cadence, lower power",
+            "Monitor for dizziness",
+            "Stop if feeling unwell"
+          ]
+        }
+      ]
+    }
+  ]
+}

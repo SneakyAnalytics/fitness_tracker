@@ -9,6 +9,7 @@ import requests
 import json
 import plotly.express as px
 import os
+import math
 from src.utils.proposed_workouts_processor import process_proposed_workouts
 
 def display_weekly_summary(summary):
@@ -32,16 +33,34 @@ def display_weekly_summary(summary):
     # Qualitative Feedback
     st.subheader("Daily Notes")
     qualitative_feedback = summary.get('qualitative_feedback', [])
-    if qualitative_feedback:
+    if qualitative_feedback and isinstance(qualitative_feedback, list):
         for note in qualitative_feedback:
-            with st.expander(f"{note.get('day', 'Unknown Day')} - {note.get('type', 'Unknown Type')}"):
-                feedback = note.get('feedback', {})
-                if feedback.get('how_it_felt'):
-                    st.write("**How it felt:**", feedback['how_it_felt'])
-                if feedback.get('technical_issues'):
-                    st.write("**Technical issues:**", feedback['technical_issues'])
-                if feedback.get('modifications'):
-                    st.write("**Modifications:**", feedback['modifications'])
+            # Handle different data formats safely
+            if isinstance(note, dict):
+                # Get day and type with safe fallbacks
+                day_label = str(note.get('day', 'Unknown Day'))
+                type_label = str(note.get('type', 'Unknown Type'))
+                
+                with st.expander(f"{day_label} - {type_label}"):
+                    # Handle various formats of feedback data
+                    feedback = note.get('feedback', {})
+                    if isinstance(feedback, dict):
+                        # Process dictionary feedback
+                        for key, value in feedback.items():
+                            if value and key not in ('intervals', 'sections'):  # Skip special fields
+                                # Convert values to string for display
+                                if isinstance(value, (dict, list)):
+                                    value = str(value)
+                                st.write(f"**{key.replace('_', ' ').title()}:** {value}")
+                    elif isinstance(feedback, str):
+                        # If feedback is a plain string
+                        st.write(feedback)
+                    elif feedback is not None:
+                        # Any other format, convert to string
+                        st.write(str(feedback))
+            elif note is not None:
+                # Handle case where the note itself isn't a dictionary
+                st.write(str(note))
     else:
         st.info("No daily notes available for this period")
 
@@ -118,8 +137,17 @@ def display_fit_file_analysis(fit_file, workout_data):
             
             if metrics.get('zones'):
                 st.subheader("Power Zone Distribution")
+                # Function to standardize zone display format
+                def standardize_zone_key(key):
+                    """Convert any zone format to a consistent display format"""
+                    if isinstance(key, str) and key.lower().startswith('zone'):
+                        # Already in a good format, just ensure consistent capitalization
+                        return key
+                    return key
+                
+                # Create dataframe with standardized zone names
                 zones_df = pd.DataFrame(
-                    [(k, v) for k, v in metrics['zones'].items() if v is not None and v > 0],
+                    [(standardize_zone_key(k), v) for k, v in metrics['zones'].items() if v is not None and v > 0],
                     columns=['Zone', 'Time %']
                 )
                 if not zones_df.empty:
@@ -144,8 +172,30 @@ def display_fit_file_analysis(fit_file, workout_data):
             
             if metrics.get('zones'):
                 st.subheader("Heart Rate Zone Distribution")
+                # Function to standardize zone display format for heart rate zones
+                def standardize_hr_zone_key(key):
+                    """Convert any zone format to a consistent display format"""
+                    if isinstance(key, str):
+                        # Handle 'zone1' format
+                        if key.lower().startswith('zone'):
+                            if len(key) > 4 and key[4:5].isdigit() and key.lower() == f"zone{key[4:5]}":
+                                zone_num = key[4:5]
+                                # Map to standard format
+                                zone_names = {
+                                    '1': 'Zone 1 (Recovery)',
+                                    '2': 'Zone 2 (Endurance)',
+                                    '3': 'Zone 3 (Tempo)',
+                                    '4': 'Zone 4 (Threshold)',
+                                    '5': 'Zone 5 (Maximum)'
+                                }
+                                return zone_names.get(zone_num, f"Zone {zone_num}")
+                            # Already in a fully defined format
+                            return key
+                    return key
+                
+                # Create dataframe with standardized zone names
                 zones_df = pd.DataFrame(
-                    [(k, v) for k, v in metrics['zones'].items() if v is not None and v > 0],
+                    [(standardize_hr_zone_key(k), v) for k, v in metrics['zones'].items() if v is not None and v > 0],
                     columns=['Zone', 'Time %']
                 )
                 if not zones_df.empty:
@@ -162,9 +212,17 @@ def display_fit_file_analysis(fit_file, workout_data):
                 with col1:
                     st.subheader("Power Zones")
                     zones = workout_data['power_metrics']['zones']
+                    # Function to standardize zone display format
+                    def standardize_zone_key(key):
+                        """Convert any zone format to a consistent display format"""
+                        if isinstance(key, str) and key.lower().startswith('zone'):
+                            # Already in a good format, just ensure consistent capitalization
+                            return key
+                        return key
+                    
                     # Filter out None values and zeros
-                    valid_zones = {k: v for k, v in zones.items() 
-                                 if v is not None and v > 0}
+                    valid_zones = {standardize_zone_key(k): v for k, v in zones.items() 
+                                  if v is not None and v > 0}
                     if valid_zones:
                         fig = px.pie(
                             values=list(valid_zones.values()),
@@ -177,9 +235,30 @@ def display_fit_file_analysis(fit_file, workout_data):
                 with col2:
                     st.subheader("Heart Rate Zones")
                     zones = workout_data['hr_metrics']['zones']
-                    # Filter out None values and zeros
-                    valid_zones = {k: v for k, v in zones.items() 
-                                 if v is not None and v > 0}
+                    # Function to standardize zone display format for heart rate zones
+                    def standardize_hr_zone_key(key):
+                        """Convert any zone format to a consistent display format"""
+                        if isinstance(key, str):
+                            # Handle 'zone1' format
+                            if key.lower().startswith('zone'):
+                                if len(key) > 4 and key[4:5].isdigit() and key.lower() == f"zone{key[4:5]}":
+                                    zone_num = key[4:5]
+                                    # Map to standard format
+                                    zone_names = {
+                                        '1': 'Zone 1 (Recovery)',
+                                        '2': 'Zone 2 (Endurance)',
+                                        '3': 'Zone 3 (Tempo)',
+                                        '4': 'Zone 4 (Threshold)',
+                                        '5': 'Zone 5 (Maximum)'
+                                    }
+                                    return zone_names.get(zone_num, f"Zone {zone_num}")
+                                # Already in a fully defined format
+                                return key
+                        return key
+                    
+                    # Filter out None values and zeros with standardized keys
+                    valid_zones = {standardize_hr_zone_key(k): v for k, v in zones.items() 
+                                  if v is not None and v > 0}
                     if valid_zones:
                         fig = px.pie(
                             values=list(valid_zones.values()),
@@ -386,6 +465,9 @@ def display_workout_calendar():
                         if workout_type == "bike":
                             st.markdown(f"### Workout Details")
                             display_bike_workout(workout)
+                        elif workout_type == "run":
+                            st.markdown(f"### Workout Details")
+                            display_run_workout(workout)
                         elif workout_type in ["strength", "yoga", "mobility", "other"]:
                             st.markdown(f"### Workout Details")
                             # Pass unique key to avoid duplicate widget keys
@@ -404,6 +486,16 @@ def display_workout_calendar():
 def display_bike_workout(workout):
     """Display bike workout intervals"""
     st.subheader("Interval Structure")
+    
+    # Display overall workout notes if available
+    if workout.get('notes'):
+        st.markdown("### Workout Notes")
+        notes = workout.get('notes')
+        if isinstance(notes, list):
+            for note in notes:
+                st.markdown(f"- {note}")
+        else:
+            st.markdown(f"{notes}")
     
     # Parse intervals from JSON string if needed
     intervals = workout.get('intervals')
@@ -456,6 +548,98 @@ def display_bike_workout(workout):
     if intervals_data:
         intervals_df = pd.DataFrame(intervals_data)
         st.table(intervals_df)
+        
+    # Display interval details with descriptions and notes
+    st.subheader("Interval Details")
+    for i, interval in enumerate(intervals):
+        interval_name = interval.get('name', f"Interval {i+1}")
+        with st.expander(f"{interval_name}", expanded=True):
+            # Display notes if available
+            if interval.get('notes'):
+                st.markdown("**Notes:**")
+                notes = interval.get('notes')
+                if isinstance(notes, list):
+                    for note in notes:
+                        st.markdown(f"- {note}")
+                else:
+                    st.markdown(f"{notes}")
+                    
+            # Display description if available
+            if interval.get('description'):
+                st.markdown("**Description:**")
+                desc = interval.get('description')
+                if isinstance(desc, str):
+                    st.markdown(desc)
+                elif isinstance(desc, dict) and desc.get('notes'):
+                    notes = desc.get('notes')
+                    if isinstance(notes, list):
+                        for note in notes:
+                            st.markdown(f"- {note}")
+                    else:
+                        st.markdown(f"{notes}")
+
+def display_run_workout(workout):
+    """Display run workout with sections and detailed guidance"""
+    st.subheader("Run Structure")
+    
+    # Display overall workout notes if available
+    if workout.get('notes'):
+        st.markdown("### Workout Notes")
+        notes = workout.get('notes')
+        if isinstance(notes, list):
+            for note in notes:
+                st.markdown(f"- {note}")
+        else:
+            st.markdown(f"{notes}")
+    
+    # Parse sections from JSON string if needed
+    sections = workout.get('sections')
+    if isinstance(sections, str):
+        try:
+            sections = json.loads(sections)
+        except:
+            st.warning("Could not parse sections data")
+            return
+    
+    if not sections:
+        st.info("No section data available")
+        return
+    
+    # Display sections
+    st.markdown("### Run Sections")
+    for i, section in enumerate(sections):
+        section_name = section.get('name', f"Section {i+1}")
+        with st.expander(f"{section_name}", expanded=True):
+            # Display section duration/distance
+            if section.get('duration'):
+                st.markdown(f"**Duration:** {section.get('duration')} min")
+            if section.get('distance'):
+                distance = section.get('distance', {})
+                if isinstance(distance, dict):
+                    value = distance.get('value', 'N/A')
+                    unit = distance.get('unit', 'km')
+                    st.markdown(f"**Distance:** {value} {unit}")
+            
+            # Display target pace
+            target_pace = section.get('targetPace')
+            if target_pace:
+                st.markdown("**Target Pace:**")
+                if isinstance(target_pace, dict):
+                    if target_pace.get('description'):
+                        st.markdown(f"{target_pace.get('description')}")
+                    
+                    # Display detailed notes
+                    if target_pace.get('notes'):
+                        notes = target_pace.get('notes')
+                        st.markdown("**Guidance:**")
+                        if isinstance(notes, list):
+                            for note in notes:
+                                st.markdown(f"- {note}")
+                        else:
+                            st.markdown(f"- {notes}")
+                else:
+                    st.markdown(f"{target_pace}")
+
 
 def display_strength_workout_with_tracking(workout, unique_key=""):
     """Display strength workout with integrated tracking for each exercise"""
@@ -680,6 +864,18 @@ def display_strength_workout_with_tracking(workout, unique_key=""):
                             if set_info.get('restTime'):
                                 target_desc.append(f"Rest: {set_info.get('restTime')}s")
                             
+                            # Handle set-specific notes 
+                            if set_info.get('notes'):
+                                notes = set_info.get('notes')
+                                if isinstance(notes, list):
+                                    if len(notes) == 1:
+                                        target_desc.append(f"Note: {notes[0]}")
+                                    else:
+                                        notes_items = [f"• {note}" for note in notes]
+                                        target_desc.append("Notes:\n" + "\n".join(notes_items))
+                                else:
+                                    target_desc.append(f"Note: {notes}")
+                            
                             # Handle various weight formats
                             if set_info.get('weight'):
                                 weight = set_info.get('weight')
@@ -823,7 +1019,7 @@ def display_strength_workout_with_tracking(workout, unique_key=""):
                 st.error(f"Error saving workout data: {str(e)}")
 
 def create_workout_timer():
-    """Create a persistent timer for workout tracking"""
+    """Create a persistent timer for workout tracking with audio alerts"""
     # Initialize timer state if not already in session state
     if 'timer_running' not in st.session_state:
         st.session_state.timer_running = False
@@ -832,6 +1028,9 @@ def create_workout_timer():
         st.session_state.timer_mode = "Work"  # "Work" or "Rest"
         st.session_state.timer_end_time = None
         st.session_state.last_update = datetime.now()
+        st.session_state.should_play_audio = False
+        st.session_state.audio_type = None  # "work_complete" or "rest_complete"
+        st.session_state.cycles_completed = 0  # Track completed cycles
     
     # Create a container that will always be visible and fixed at the top
     with st.sidebar:
@@ -853,15 +1052,23 @@ def create_workout_timer():
                                           key="rest_duration_input")
             st.session_state.rest_duration = rest_duration
         
+        # Add audio option
+        enable_audio = st.checkbox("Enable sound alerts", value=True)
+        
         # Controls row
         col1, col2 = st.columns(2)
         with col1:
             if not st.session_state.timer_running:
                 if st.button("▶️ Start", key="start_timer_button", use_container_width=True):
+                    # Explicitly set all timer state
+                    current_time = datetime.now()
                     st.session_state.timer_running = True
-                    st.session_state.timer_end_time = datetime.now() + timedelta(seconds=work_duration)
+                    st.session_state.timer_end_time = current_time + timedelta(seconds=work_duration)
                     st.session_state.timer_mode = "Work"
-                    st.session_state.last_update = datetime.now()
+                    st.session_state.last_update = current_time
+                    st.session_state.should_play_audio = False
+                    st.session_state.cycles_completed = 0
+                    # Force immediate rerun to start the timer
                     st.rerun()
             else:
                 if st.button("⏹️ Stop", key="stop_timer_button", use_container_width=True):
@@ -872,7 +1079,13 @@ def create_workout_timer():
             if st.button("🔄 Reset", key="reset_timer_button", use_container_width=True):
                 st.session_state.timer_running = False
                 st.session_state.timer_mode = "Work"
+                st.session_state.should_play_audio = False
+                st.session_state.cycles_completed = 0
                 st.rerun()
+        
+        # Display cycles completed
+        if st.session_state.cycles_completed > 0:
+            st.caption(f"Completed cycles: {st.session_state.cycles_completed}")
         
         # Current mode indicator with color coding
         mode_color = "#4CAF50" if st.session_state.timer_mode == "Work" else "#FF9800"
@@ -881,44 +1094,77 @@ def create_workout_timer():
                 {st.session_state.timer_mode} MODE
             </div>
         """, unsafe_allow_html=True)
+        
+        # Audio element (browsers require user interaction to play audio on a page)
+        # We use a simple beep sound for now
+        if enable_audio and st.session_state.should_play_audio:
+            audio_type = st.session_state.audio_type
+            if audio_type == "work_complete":
+                st.markdown("""
+                <audio autoplay>
+                    <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVK7n77FdGAg+ltryxnMpBSl+zPLaizsIGGS57OihUBELTKXh8bllHgU2jdXzzn0vBSF1xe/glEILElyx6OyrWBUIQ5zd8sFuJAUuhM/z1YU2Bhxqvu7mnEoODlGq5PC1YBoGPJPY88p2KwUme8rx3I4+CRZiturqpVITC0mi4PK8aB8GM4nU8tGAMQYfcsLu45ZFDBFYr+ftrFoXCECY3PLEcSYELIHO8diJOQgZaLvt559NEAxPp+PwtmMcBjiP1/PMeS0GI3fH8N2RQAoUXrTp66hVFApGnt/yvmwhBTCG0fPTgjQGHW/A7eSaRw0PVK7m77BeGQc9ltvyxnUoBSh+zPDaizsIGGS57OihUBELTKXh8bllHgU1jdT0z30vBSJ0xe/glEILElyx6OyrWRUIRJve8sFuJAUug8/z1oU2Bhxqvu7mnEoPDVKq5PC1YRoGPJLY88p3KgUme8rx3I4+CRVht+rqpVMSC0mi4PG9aB8GMojU8tGAMQYfccPu45ZFDBBYr+ftrVkYB0CZ3PLEcSYGK4DN8tiIOQgZaLzt559NFAxPpuPxtmQcBjiP1/PMeywGI3fH8N2RQAoUXrTp66hWFApGnt/yv2wiBDCG0PTTgzQHHG/A7eSaSA0PVK3m77BeGQc9ltrzxnQpBSh+zPDaizsIF2S57OihUREKTKXh8blmHgY1jdT0z30vBSF0xe/glUILElyw6eyrWRYIRJzd8sFuJAUug8/z1oY2Bhxqvu3mnEoPDVKp5PC1YRoGOpPY88p3KwUmecnw3Y4+CRVht+rqpVMSC0mi4PG9aB8GM4jT89GAMgUfccPu45ZFDBBYr+ftrVkYB0CZ3PLEcScFLIHO8diJOAgZaLvt559NEAxPpuPxtmQdBTiP1/PMey0FI3fH8N2RQQkUXrTp66hWFApGnt/yv2wiBDCG0PTTgzQHHG3A7eSaSA0PVK3m77BeGQc+ltvyxnQpBSh9zPDbizsIF2W57OihUREKTKXh8blmHgY1jdT0z30vBSF0xO/glUILElyw6eyrWRYIRJzd8sFuJAUug8/z1oY2Bhxqvu3mnEoPDVKp5PC1YRoGOpPY88p3KwUmecnw3Y4+CRVht+rqpVQSCkmi4PG9aB8GM4jT89GAMgUfccPu45ZFDBBYr+ftrVkYB0CZ3PLEcScFLIHO8diJOAgYaLvt559OEAxPpuPxtmQdBTeP1/PMey0FI3fH8N2RQQkUXrTo66hWFQlGnt/yv2wiBDCG0PTTgzUGHG3A7eSaSA0PVK3m77BeGQc+ltrzyHQpBSh9zPDbizsIF2W57OiiUBAKTKXi8blmHgY1jdT0z34wBCF0xO/glUILElux6eyrWRYIRJzd8sFvJQQug8/z1oY3BRxqvu3mnEoPDVKp5PC1YRoGOpPY88p3KwUmecnw3Y4/CBVht+rqpVQSCkmi4PG9aSAFM4jT89GAMgUfccPu45ZFDBBYr+ftrVkYB0CZ3PLEcScFLIHO8diJOAgYaLvt559OEAxPpuPxtmQdBTeP1/PMey0FI3fH8N2RQQkUXrTo66hWFQlGnt/yv2wiBDCG0PTTgzUGHG3A7eSaSA4PVK3m77BeGQc+ltrzyHQpBSh9zPDbizsIF2W57OiiUBAKTKXi8blmHgY1jdT0z34wBCF0xO/glUILElux6eyrWRYIRJzd8sFvJQQug8/z1oY3BRxqvu3mnEoPDVKp5PC1YRoGOpPY88p3KwUmecnw3Y4/CBVht+rqpVQSCkmi4PG9aSAFM4jT89GAMgUfccPu45ZGCxBYr+ftrVkYB0CZ3PLEcScFLIHO8diJOAgYaLvt559OEAxPpuPxtmQdBTeP1/PMey0FI3fH8N2RQQkUXrTo66hWFQlGnt/yv2wiBDCG0PTTgzUGHG3A7eSaSA4PVK3m77BeGQc+ltrzyHQpBSh9zPDbi0MIFmS46+mjTw==">
+                </audio>
+                """, unsafe_allow_html=True)
+            elif audio_type == "rest_complete":
+                st.markdown("""
+                <audio autoplay>
+                    <source src="data:audio/wav;base64,UklGRl43AABXQVZFZm10IBAAAAABAAEARKwAAESsAAABAAgAZGF0YWY3AAAAAAEBAQECAgMEBQcICAoLDQ8SFBcaHSEkKCwvMzc7QEVKS09TVFZYXF9jZ2pucHN2eXt9f4GDhYaIioyOkZOWmZygo6eqrbCztbcwNjk7PD5AQkVKUVpkbnd4enuFiJGWm6Cio6WmqKqsra+wsbKys7S0tbW1tra1tLS0tLOysrGwsK+vrq6tra2trq6vsbK1t7q9wMPHys7S1tnc3+Ll6Ojs7fHy8/T09fX19fX19PPy8fDu7ezr6ejo5+fm5uXl5OTj4+Li4uHh4eHh4eHi4uPk5OXm5+jp6uvs7e3u7u/v7+/v7+7u7u3t7Ozr6urp6Ofm5eTj4uHg39/e3dzb2tnY19bV1NTT0tLR0dDQz9DO0M/Pz9DP0NHS0tPT1NTV1tfY2dna29vc3d3e39/g4ODh4eHi4uLi4uPj4+Pk5OTk5OXl5eXl5eXm5ubm5ubm5ubm5ebm5eXl5eXk5OTk4+Pj4+Pi4uLi4eHh4eHg4ODg4ODf39/f39/f39/f3+Df4ODg4ODg4ODg4eHh4eHh4eHi4uLi4uPj4+Pk5OTk5OTl5eXl5ebm5ubm5ubm5ubm5ubm5ubm5eXl5eXl5eXk5OTk5OTk4+Pj4+Pj4+Pi4uLi4uLi4uLi4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uPi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uPj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f4CAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCg=">
+                </audio>
+                """, unsafe_allow_html=True)
+            
+            # Reset audio state
+            st.session_state.should_play_audio = False
             
         # Calculate and display time remaining if timer is running
         if st.session_state.timer_running and st.session_state.timer_end_time:
             now = datetime.now()
             time_remaining = max(0, (st.session_state.timer_end_time - now).total_seconds())
             
-            # Check if timer has ended
-            if time_remaining <= 0:
-                # Switch modes
-                if st.session_state.timer_mode == "Work":
-                    st.session_state.timer_mode = "Rest"
-                    st.session_state.timer_end_time = datetime.now() + timedelta(seconds=rest_duration)
-                    # Show visual notification
-                    st.warning("⏰ Work period complete! Switching to REST mode")
-                else:
-                    st.session_state.timer_mode = "Work"
-                    st.session_state.timer_end_time = datetime.now() + timedelta(seconds=work_duration)
-                    # Show visual notification
-                    st.success("⏰ Rest period complete! Switching to WORK mode")
-                
-                # Calculate new time remaining
-                time_remaining = st.session_state.rest_duration if st.session_state.timer_mode == "Rest" else st.session_state.timer_duration
-                st.rerun()
-            
             # Display progress bar and time
             current_duration = st.session_state.timer_duration if st.session_state.timer_mode == "Work" else st.session_state.rest_duration
             progress = 1.0 - (time_remaining / current_duration)
+            st.progress(progress)
+            # Use ceiling instead of floor to show the current second we're in
+            time_display = math.ceil(time_remaining) if time_remaining > 0 else 0
+            st.markdown(f"<h2 style='text-align: center;'>{time_display}s</h2>", unsafe_allow_html=True)
+            
+            # Check if timer has ended
+            if time_remaining <= 0:
+                if st.session_state.timer_mode == "Work":
+                    # Switch from Work to Rest
+                    st.session_state.timer_mode = "Rest"
+                    st.session_state.timer_end_time = datetime.now() + timedelta(seconds=rest_duration)
+                    # Set audio to play on next update
+                    st.session_state.should_play_audio = enable_audio
+                    st.session_state.audio_type = "work_complete"
+                    # Show visual notification
+                    st.warning("⏰ Work period complete! Switching to REST mode")
+                else:
+                    # Switch from Rest to Work
+                    st.session_state.timer_mode = "Work"
+                    st.session_state.timer_end_time = datetime.now() + timedelta(seconds=work_duration)
+                    # Increment the cycle counter
+                    st.session_state.cycles_completed += 1
+                    # Set audio to play on next update
+                    st.session_state.should_play_audio = enable_audio
+                    st.session_state.audio_type = "rest_complete"
+                    # Show visual notification
+                    st.success("⏰ Rest period complete! Switching to WORK mode")
+                
+                # Force rerun immediately to update the timer
+                st.rerun()
+            
+            # Debug info to help troubleshoot
+            # st.caption(f"Time remaining: {time_remaining:.1f}s, Last update: {(now - st.session_state.last_update).total_seconds():.1f}s ago")
             
             # Only update UI if sufficient time has passed (to avoid excessive reruns)
+            # but ensure we always update at least once per second
             time_since_update = (now - st.session_state.last_update).total_seconds()
-            if time_since_update >= 0.5:  # Update every half second
+            if time_since_update >= 0.25:  # Update more frequently (4 times per second)
                 st.session_state.last_update = now
-                st.progress(progress)
-                st.markdown(f"<h2 style='text-align: center;'>{int(time_remaining)}s</h2>", unsafe_allow_html=True)
                 
-                # Automatic rerun to update the timer if more than 1 second remains
-                if st.session_state.timer_running and time_remaining > 1:
-                    st.rerun()
+                # Always rerun while timer is running (don't check time_remaining)
+                st.rerun()
         else:
             # Show empty progress bar when not running
             st.progress(0.0)
@@ -959,34 +1205,540 @@ if page == 'Workout Calendar':
     display_workout_calendar()
 
 elif page == 'Dashboard':
-    st.header("Dashboard")
-    col1, col2 = st.columns(2)
+    st.header("Training Dashboard")
     
-    with col1:
-        st.subheader("Recent Workouts")
-        try:
-            response = requests.get("http://localhost:8000/workouts")
-            workouts = response.json()
+    # Date range selector for the dashboard
+    st.sidebar.subheader("Time Period")
+    time_period = st.sidebar.radio("Select Time Period", 
+                                  ["Last 4 Weeks", "Last 8 Weeks", "Last 12 Weeks", "Custom"])
+    
+    today = datetime.now().date()
+    if time_period == "Last 4 Weeks":
+        end_date = today
+        start_date = end_date - timedelta(days=28)
+    elif time_period == "Last 8 Weeks":
+        end_date = today
+        start_date = end_date - timedelta(days=56)
+    elif time_period == "Last 12 Weeks":
+        end_date = today
+        start_date = end_date - timedelta(days=84)
+    else:  # Custom
+        col1, col2 = st.sidebar.columns(2)
+        with col1:
+            start_date = st.date_input("Start Date", today - timedelta(days=28))
+        with col2:
+            end_date = st.date_input("End Date", today)
+    
+    # Fetch data for selected time period
+    try:
+        # Fetch workouts
+        workouts_response = requests.get("http://localhost:8000/workouts")
+        if workouts_response.status_code != 200:
+            st.error("Error fetching workout data")
+            workouts_df = pd.DataFrame()
+        else:
+            workouts = workouts_response.json()
             if workouts:
-                df = pd.DataFrame(workouts)
-                st.dataframe(df)
+                workouts_df = pd.DataFrame(workouts)
+                # Convert dates to datetime
+                workouts_df['workout_day'] = pd.to_datetime(workouts_df['workout_day'])
+                # Filter by date range
+                workouts_df = workouts_df[(workouts_df['workout_day'].dt.date >= start_date) & 
+                                         (workouts_df['workout_day'].dt.date <= end_date)]
             else:
-                st.info("No workouts found")
-        except:
-            st.error("Could not connect to the API")
-    
-    with col2:
-        st.subheader("Weekly Summaries")
-        try:
-            response = requests.get("http://localhost:8000/summaries")
-            summaries = response.json()
+                workouts_df = pd.DataFrame()
+        
+        # Fetch weekly summaries
+        summaries_response = requests.get("http://localhost:8000/summaries")
+        if summaries_response.status_code != 200:
+            st.error("Error fetching summary data")
+            summaries_df = pd.DataFrame()
+        else:
+            summaries = summaries_response.json()
             if summaries:
-                df = pd.DataFrame(summaries)
-                st.dataframe(df)
+                summaries_df = pd.DataFrame(summaries)
+                # Convert dates to datetime
+                summaries_df['start_date'] = pd.to_datetime(summaries_df['start_date'])
+                summaries_df['end_date'] = pd.to_datetime(summaries_df['end_date'])
+                # Filter by date range
+                summaries_df = summaries_df[(summaries_df['end_date'].dt.date >= start_date) & 
+                                           (summaries_df['start_date'].dt.date <= end_date)]
             else:
-                st.info("No summaries found")
-        except:
-            st.error("Could not connect to the API")
+                summaries_df = pd.DataFrame()
+                
+        # Check if we have data
+        has_workout_data = not workouts_df.empty
+        has_summary_data = not summaries_df.empty
+                
+        if not has_workout_data and not has_summary_data:
+            st.warning(f"No training data found for the period {start_date} to {end_date}")
+            st.info("Try selecting a different time period or import workout data.")
+            # Skip the rest of the dashboard code if no data is available
+            
+        # ================== TOP OVERVIEW SECTION ==================
+        st.subheader("Key Training Metrics")
+        
+        # Prepare metrics for display
+        if has_workout_data:
+            # Extract metrics from workout data
+            total_workouts = len(workouts_df)
+            workout_types = workouts_df['type'].value_counts().to_dict() if 'type' in workouts_df.columns else {}
+            
+            # Calculate TSS and duration metrics
+            total_tss = 0
+            total_duration = 0
+            
+            # Check if metrics column exists and contains the expected data
+            if 'metrics' in workouts_df.columns:
+                for metrics in workouts_df['metrics']:
+                    if isinstance(metrics, dict):
+                        total_tss += metrics.get('actual_tss', 0) or 0
+                        total_duration += metrics.get('actual_duration', 0) or 0
+            
+            # Calculate averages
+            avg_tss_per_workout = total_tss / total_workouts if total_workouts > 0 else 0
+            training_hours = total_duration / 60  # Convert minutes to hours
+            
+            # Count workout types
+            bike_workouts = workout_types.get('bike', 0)
+            strength_workouts = workout_types.get('strength', 0)
+            run_workouts = workout_types.get('run', 0)
+            other_workouts = total_workouts - (bike_workouts + strength_workouts + run_workouts)
+            
+            # Additional metrics from summary data
+            avg_sleep_quality = None
+            avg_energy = None
+            
+            if has_summary_data and 'avg_sleep_quality' in summaries_df.columns and 'avg_daily_energy' in summaries_df.columns:
+                avg_sleep_quality = summaries_df['avg_sleep_quality'].mean()
+                avg_energy = summaries_df['avg_daily_energy'].mean()
+            
+            # Display key metrics in a 3x2 grid
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric(
+                    "Total Training Sessions", 
+                    f"{total_workouts}",
+                    delta=None
+                )
+                st.metric(
+                    "Training Hours", 
+                    f"{training_hours:.1f}",
+                    delta=None
+                )
+            
+            with col2:
+                st.metric(
+                    "Total TSS", 
+                    f"{total_tss:.0f}",
+                    delta=None
+                )
+                st.metric(
+                    "Avg TSS per Workout", 
+                    f"{avg_tss_per_workout:.0f}",
+                    delta=None
+                )
+            
+            with col3:
+                if avg_sleep_quality is not None:
+                    st.metric(
+                        "Avg Sleep Quality", 
+                        f"{avg_sleep_quality:.1f}/5",
+                        delta=None
+                    )
+                else:
+                    st.metric(
+                        "Bike Workouts", 
+                        f"{bike_workouts}",
+                        delta=None
+                    )
+                    
+                if avg_energy is not None:
+                    st.metric(
+                        "Avg Energy Level", 
+                        f"{avg_energy:.1f}/5",
+                        delta=None
+                    )
+                else:
+                    st.metric(
+                        "Strength Workouts", 
+                        f"{strength_workouts}",
+                        delta=None
+                    )
+            
+            # ================== TRENDS SECTION ==================
+            st.subheader("Training Trends")
+            
+            trend_tabs = st.tabs(["TSS & Intensity", "Workout Balance", "Sleep & Recovery"])
+            
+            with trend_tabs[0]:  # TSS & Intensity Tab
+                col1, col2 = st.columns([3, 2])
+                
+                with col1:
+                    # Weekly TSS Chart
+                    if has_summary_data and 'total_tss' in summaries_df.columns:
+                        # Create a formatted date label for each week
+                        summaries_df['week_label'] = summaries_df['start_date'].dt.strftime('%b %d')
+                        
+                        # Detect and remove duplicate weeks
+                        # Keep the entry with the most complete data (highest ID) for each week
+                        weekly_tss_df = summaries_df.sort_values(['week_label', 'id'], ascending=[True, False])
+                        weekly_tss_df = weekly_tss_df.drop_duplicates(subset=['week_label'], keep='first')
+                        
+                        # Sort by date for display
+                        weekly_tss_df = weekly_tss_df.sort_values('start_date')
+                        
+                        # Debug message
+                        st.caption(f"Showing data for {len(weekly_tss_df)} unique weeks")
+                        
+                        # Plot weekly TSS trend
+                        fig = px.bar(
+                            weekly_tss_df,
+                            x='week_label',
+                            y='total_tss',
+                            title="Weekly TSS Trend",
+                            labels={"week_label": "Week Starting", "total_tss": "Training Stress Score"},
+                            color_discrete_sequence=['#4CAF50'],
+                        )
+                        fig.update_layout(xaxis={'categoryorder':'array', 'categoryarray':weekly_tss_df['week_label']})
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.info("Not enough weekly summary data to display TSS trend")
+                
+                with col2:
+                    if has_workout_data:
+                        # Get data to calculate intensity distribution
+                        intensity_data = []
+                        labels = []
+                        
+                        # For bike workouts, get power zones (case insensitive)
+                        bike_workouts_df = workouts_df[workouts_df['type'].str.lower() == 'bike'] if 'type' in workouts_df.columns else pd.DataFrame()
+                        
+                        if not bike_workouts_df.empty:
+                            # Debug info
+                            st.caption(f"Found {len(bike_workouts_df)} bike workouts")
+                            
+                            # Create a mapping for zone names 
+                            zone_name_mapping = {
+                                'zone1': 'Zone 1 (Recovery)', 
+                                'zone2': 'Zone 2 (Endurance)', 
+                                'zone3': 'Zone 3 (Tempo)', 
+                                'zone4': 'Zone 4 (Threshold)', 
+                                'zone5': 'Zone 5 (VO2 Max)',
+                                'Zone 1 (Recovery)': 'Zone 1 (Recovery)',
+                                'Zone 2 (Endurance)': 'Zone 2 (Endurance)',
+                                'Zone 3 (Tempo)': 'Zone 3 (Tempo)',
+                                'Zone 4 (Threshold)': 'Zone 4 (Threshold)',
+                                'Zone 5 (VO2 Max)': 'Zone 5 (VO2 Max)'
+                            }
+                            
+                            zone_minutes = {
+                                'Zone 1 (Recovery)': 0, 
+                                'Zone 2 (Endurance)': 0, 
+                                'Zone 3 (Tempo)': 0, 
+                                'Zone 4 (Threshold)': 0, 
+                                'Zone 5 (VO2 Max)': 0
+                            }
+                            
+                            # Aggregate zone data across all workouts
+                            for _, workout in bike_workouts_df.iterrows():
+                                if isinstance(workout.get('power_data'), dict) and 'zones' in workout['power_data']:
+                                    power_zones = workout['power_data']['zones']
+                                    if isinstance(power_zones, dict):
+                                        for zone, percentage in power_zones.items():
+                                            if percentage is not None and percentage > 0:
+                                                # Map zone name to standard format
+                                                standard_zone = zone_name_mapping.get(zone)
+                                                if standard_zone in zone_minutes:
+                                                    zone_minutes[standard_zone] += percentage
+                            
+                            # Calculate averages
+                            num_workouts = len(bike_workouts_df)
+                            if num_workouts > 0:
+                                for zone, total in zone_minutes.items():
+                                    avg_percentage = total / num_workouts
+                                    if avg_percentage > 0:  # Only add non-zero values
+                                        intensity_data.append(avg_percentage)
+                                        labels.append(zone)
+                            
+                            # Create and display the chart
+                            if intensity_data:
+                                fig = px.pie(
+                                    values=intensity_data,
+                                    names=labels,
+                                    title="Power Zone Distribution",
+                                    hole=0.4,
+                                    color_discrete_sequence=px.colors.sequential.Viridis
+                                )
+                                fig.update_traces(textposition='inside', textinfo='percent+label')
+                                st.plotly_chart(fig, use_container_width=True)
+                            else:
+                                st.info("No power zone data available")
+                        else:
+                            st.info("No bike workout data with power metrics available")
+            
+            with trend_tabs[1]:  # Workout Balance Tab
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Workout type distribution
+                    if has_workout_data and 'type' in workouts_df.columns:
+                        workout_counts = workouts_df['type'].value_counts().reset_index()
+                        workout_counts.columns = ['Type', 'Count']
+                        
+                        # Create pie chart
+                        fig = px.pie(
+                            workout_counts, 
+                            values='Count', 
+                            names='Type',
+                            title="Workout Type Distribution",
+                            color_discrete_sequence=px.colors.qualitative.Bold
+                        )
+                        fig.update_traces(textposition='inside', textinfo='percent+label')
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.info("No workout type data available")
+                
+                with col2:
+                    # Weekly workout count
+                    if has_workout_data and 'workout_day' in workouts_df.columns:
+                        # Group by week and count workouts
+                        workouts_df['week'] = workouts_df['workout_day'].dt.isocalendar().week
+                        workouts_df['year'] = workouts_df['workout_day'].dt.isocalendar().year
+                        workouts_df['week_label'] = workouts_df['workout_day'].dt.strftime('%b %d')
+                        
+                        # Count by week and workout type
+                        workout_counts = workouts_df.groupby(['year', 'week', 'week_label', 'type']).size().reset_index(name='count')
+                        
+                        # Pivot the data for stacked bar chart
+                        pivot_df = workout_counts.pivot_table(
+                            index=['year', 'week', 'week_label'], 
+                            columns='type', 
+                            values='count',
+                            fill_value=0
+                        ).reset_index()
+                        
+                        # Sort by year and week
+                        pivot_df = pivot_df.sort_values(['year', 'week'])
+                        
+                        # Plot stacked bar chart
+                        fig = px.bar(
+                            pivot_df, 
+                            x='week_label',
+                            y=pivot_df.columns[3:],  # Skip year, week, week_label columns
+                            title="Weekly Workout Count by Type",
+                            labels={'value': 'Number of Workouts', 'week_label': 'Week'},
+                            color_discrete_sequence=px.colors.qualitative.Bold
+                        )
+                        fig.update_layout(legend_title="Workout Type")
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.info("No workout date data available")
+            
+            with trend_tabs[2]:  # Sleep & Recovery Tab
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    # Sleep quality trend
+                    if has_summary_data and 'avg_sleep_quality' in summaries_df.columns:
+                        # Create a formatted date label for each week if not already done
+                        if 'week_label' not in summaries_df.columns:
+                            summaries_df['week_label'] = summaries_df['start_date'].dt.strftime('%b %d')
+                        
+                        # Deduplicate weeks using the same approach as for TSS
+                        sleep_df = summaries_df.sort_values(['week_label', 'id'], ascending=[True, False])
+                        sleep_df = sleep_df.drop_duplicates(subset=['week_label'], keep='first')
+                        sleep_df = sleep_df.sort_values('start_date')
+                        
+                        fig = px.line(
+                            sleep_df,
+                            x='week_label',
+                            y='avg_sleep_quality',
+                            title="Sleep Quality Trend",
+                            labels={'week_label': 'Week', 'avg_sleep_quality': 'Sleep Quality (1-5)'},
+                            markers=True,
+                            color_discrete_sequence=['#9C27B0']
+                        )
+                        fig.update_layout(
+                            yaxis=dict(range=[1, 5]),
+                            xaxis={'categoryorder':'array', 'categoryarray':sleep_df['week_label']}
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.info("No sleep quality data available")
+                
+                with col2:
+                    # Energy level trend
+                    if has_summary_data and 'avg_daily_energy' in summaries_df.columns:
+                        # Create a formatted date label for each week if not already done
+                        if 'week_label' not in summaries_df.columns:
+                            summaries_df['week_label'] = summaries_df['start_date'].dt.strftime('%b %d')
+                        
+                        # Deduplicate weeks using the same approach as for TSS
+                        energy_df = summaries_df.sort_values(['week_label', 'id'], ascending=[True, False])
+                        energy_df = energy_df.drop_duplicates(subset=['week_label'], keep='first')
+                        energy_df = energy_df.sort_values('start_date')
+                        
+                        fig = px.line(
+                            energy_df,
+                            x='week_label',
+                            y='avg_daily_energy',
+                            title="Energy Level Trend",
+                            labels={'week_label': 'Week', 'avg_daily_energy': 'Energy Level (1-5)'},
+                            markers=True,
+                            color_discrete_sequence=['#FF9800']
+                        )
+                        fig.update_layout(
+                            yaxis=dict(range=[1, 5]),
+                            xaxis={'categoryorder':'array', 'categoryarray':energy_df['week_label']}
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.info("No energy level data available")
+                
+                # Recovery analysis
+                if has_summary_data and 'muscle_soreness_patterns' in summaries_df.columns and 'general_fatigue_level' in summaries_df.columns:
+                    # Get the most recent summary with recovery data
+                    recent_summary = summaries_df.sort_values('end_date', ascending=False).iloc[0]
+                    
+                    if pd.notna(recent_summary.get('muscle_soreness_patterns')) or pd.notna(recent_summary.get('general_fatigue_level')):
+                        st.subheader("Recent Recovery Analysis")
+                        
+                        recovery_cols = st.columns(2)
+                        with recovery_cols[0]:
+                            st.markdown("##### Muscle Soreness")
+                            if pd.notna(recent_summary.get('muscle_soreness_patterns')):
+                                st.text(recent_summary['muscle_soreness_patterns'])
+                            else:
+                                st.info("No recent muscle soreness data")
+                        
+                        with recovery_cols[1]:
+                            st.markdown("##### Fatigue Level")
+                            if pd.notna(recent_summary.get('general_fatigue_level')):
+                                st.text(recent_summary['general_fatigue_level'])
+                            else:
+                                st.info("No recent fatigue data")
+            
+            # ================== WORKOUT ANALYSIS SECTION ==================
+            st.subheader("Recent Workout Analysis")
+            
+            if has_workout_data:
+                # Get the most recent 5 workouts
+                recent_workouts = workouts_df.sort_values('workout_day', ascending=False).head(5)
+                
+                for i, (_, workout) in enumerate(recent_workouts.iterrows()):
+                    with st.expander(f"{workout['workout_day'].strftime('%Y-%m-%d')} - {workout.get('title', 'Workout')}", expanded=i==0):
+                        workout_cols = st.columns(2)
+                        
+                        with workout_cols[0]:
+                            # Basic workout info
+                            st.markdown(f"**Type:** {workout.get('type', 'Unknown')}")
+                            
+                            # Show metrics if available
+                            if isinstance(workout.get('metrics'), dict):
+                                metrics = workout['metrics']
+                                st.markdown("##### Metrics")
+                                metrics_str = ""
+                                if metrics.get('actual_tss'):
+                                    metrics_str += f"- TSS: {metrics['actual_tss']:.1f}\n"
+                                if metrics.get('actual_duration'):
+                                    metrics_str += f"- Duration: {metrics['actual_duration']:.1f} min\n"
+                                if metrics.get('rpe'):
+                                    metrics_str += f"- RPE: {metrics['rpe']}\n"
+                                
+                                st.markdown(metrics_str)
+                            
+                            # Show power data if available
+                            if isinstance(workout.get('power_data'), dict):
+                                power_data = workout['power_data']
+                                st.markdown("##### Power Data")
+                                power_str = ""
+                                if power_data.get('average'):
+                                    power_str += f"- Avg Power: {power_data['average']:.0f}W\n"
+                                if power_data.get('normalized_power'):
+                                    power_str += f"- NP: {power_data['normalized_power']:.0f}W\n"
+                                if power_data.get('intensity_factor'):
+                                    power_str += f"- IF: {power_data['intensity_factor']:.2f}\n"
+                                
+                                st.markdown(power_str)
+                        
+                        with workout_cols[1]:
+                            # Show heart rate data if available
+                            if isinstance(workout.get('heart_rate_data'), dict):
+                                hr_data = workout['heart_rate_data']
+                                st.markdown("##### Heart Rate Data")
+                                hr_str = ""
+                                if hr_data.get('average'):
+                                    hr_str += f"- Avg HR: {hr_data['average']:.0f} bpm\n"
+                                if hr_data.get('max'):
+                                    hr_str += f"- Max HR: {hr_data['max']:.0f} bpm\n"
+                                
+                                st.markdown(hr_str)
+                            
+                            # Show athlete comments if available
+                            if pd.notna(workout.get('athlete_comments')):
+                                st.markdown("##### Comments")
+                                st.markdown(f"_{workout['athlete_comments']}_")
+                        
+                        # Show zones visualization if available for power or heart rate
+                        zones_cols = st.columns(2)
+                        
+                        with zones_cols[0]:
+                            # Power zones
+                            if isinstance(workout.get('power_data'), dict) and isinstance(workout['power_data'].get('zones'), dict):
+                                zones = workout['power_data']['zones']
+                                if zones:
+                                    # Filter out zero values
+                                    zones = {k: v for k, v in zones.items() if v > 0}
+                                    
+                                    if zones:
+                                        fig = px.bar(
+                                            x=list(zones.keys()),
+                                            y=list(zones.values()),
+                                            title="Power Zones",
+                                            labels={'x': 'Zone', 'y': 'Time %'},
+                                            color_discrete_sequence=['#4CAF50']
+                                        )
+                                        fig.update_layout(showlegend=False)
+                                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        with zones_cols[1]:
+                            # Heart rate zones
+                            if isinstance(workout.get('heart_rate_data'), dict) and isinstance(workout['heart_rate_data'].get('zones'), dict):
+                                zones = workout['heart_rate_data']['zones']
+                                if zones:
+                                    # Filter out zero values
+                                    zones = {k: v for k, v in zones.items() if v > 0}
+                                    
+                                    if zones:
+                                        fig = px.bar(
+                                            x=list(zones.keys()),
+                                            y=list(zones.values()),
+                                            title="Heart Rate Zones",
+                                            labels={'x': 'Zone', 'y': 'Time %'},
+                                            color_discrete_sequence=['#F44336']
+                                        )
+                                        fig.update_layout(showlegend=False)
+                                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        # Show athlete comments if available
+                        if pd.notna(workout.get('athlete_comments')):
+                            st.markdown("##### Athlete Comments")
+                            st.info(workout['athlete_comments'])
+                
+                # Link to detailed views
+                st.markdown("---")
+                st.markdown("Need more details? View full workout history in the [View Data](#view-data) section or check [Weekly Summaries](#weekly-summary).")
+            else:
+                st.info("No recent workout data available for analysis")
+            
+        else:
+            st.warning("No workout data available for the selected time period")
+            
+    except Exception as e:
+        st.error(f"Error loading dashboard data: {str(e)}")
+        st.exception(e)
 
 elif page == 'Import Data':
     st.header("Import Workout Data")
@@ -1253,33 +2005,69 @@ elif page == 'Proposed Workouts':
             try:
                 # Show a progress message
                 with st.spinner("Processing workouts and generating Zwift files..."):
-                    response = requests.post(
-                        "http://localhost:8000/upload/proposed_workouts",
-                        files={"file": (uploaded_file.name, uploaded_file, "application/json")}
-                    )
+                    try:
+                        # Reset uploaded file to start position for reading
+                        uploaded_file.seek(0)
+                        
+                        # Log the file content for debugging if needed
+                        debug_mode = False  # Set to True to debug file content
+                        if debug_mode:
+                            file_content = uploaded_file.read().decode('utf-8')
+                            st.text("File content preview (first 500 chars):")
+                            st.text(file_content[:500] + "..." if len(file_content) > 500 else file_content)
+                            uploaded_file.seek(0)  # Reset position after reading
+                        
+                        # Send file to API
+                        response = requests.post(
+                            "http://localhost:8000/upload/proposed_workouts",
+                            files={"file": (uploaded_file.name, uploaded_file, "application/json")}
+                        )
 
-                    if response.status_code == 200:
-                        response_data = response.json()
-                        st.success(response_data.get("message", "Successfully uploaded and saved proposed workouts!"))
-                        
-                        # Display info about generated Zwift files
-                        zwift_files = response_data.get("zwift_files", [])
-                        if zwift_files:
-                            st.subheader("Generated Zwift Workout Files")
-                            st.markdown(f"**{len(zwift_files)} Zwift workout files were created at:**")
-                            st.markdown("`/Users/jacobrobinson/Documents/Zwift/Workouts/6870291`")
+                        if response.status_code == 200:
+                            try:
+                                response_data = response.json()
+                                st.success(response_data.get("message", "Successfully uploaded and saved proposed workouts!"))
+                                
+                                # Display info about generated Zwift files
+                                zwift_files = response_data.get("zwift_files", [])
+                                if zwift_files:
+                                    st.subheader("Generated Zwift Workout Files")
+                                    st.markdown(f"**{len(zwift_files)} Zwift workout files were created at:**")
+                                    st.markdown("`/Users/jacobrobinson/Documents/Zwift/Workouts/6870291`")
+                                    
+                                    # Show the list of files
+                                    with st.expander("Show generated files"):
+                                        for file_path in zwift_files:
+                                            file_name = os.path.basename(file_path)
+                                            st.markdown(f"- {file_name}")
+                                
+                                # Display the raw response
+                                with st.expander("View API Response Details"):
+                                    st.json(response_data)
+                            except ValueError as e:
+                                # Handle JSON parsing error
+                                st.success("File was processed but JSON response couldn't be parsed.")
+                                st.warning(f"Note: Response parsing error: {str(e)}")
+                                
+                                # Show raw response
+                                with st.expander("View Raw Response"):
+                                    st.text(response.text[:2000] + "..." if len(response.text) > 2000 else response.text)
+                        else:
+                            # Handle error response
+                            try:
+                                error_detail = response.json().get('detail', 'Unknown error')
+                            except:
+                                error_detail = response.text if response.text else "Unknown error"
                             
-                            # Show the list of files
-                            with st.expander("Show generated files"):
-                                for file_path in zwift_files:
-                                    file_name = os.path.basename(file_path)
-                                    st.markdown(f"- {file_name}")
-                        
-                        # Display the raw response
-                        with st.expander("View API Response Details"):
-                            st.json(response_data)
-                    else:
-                        st.error(f"Error processing the uploaded file: {response.json().get('detail', 'Unknown error')}")
+                            st.error(f"Error processing the uploaded file: {error_detail}")
+                            
+                            # Show detailed error info
+                            with st.expander("Error Details"):
+                                st.text(f"Status Code: {response.status_code}")
+                                st.text(f"Response: {response.text[:1000]}" + ("..." if len(response.text) > 1000 else ""))
+                    except Exception as e:
+                        st.error(f"Error uploading file: {str(e)}")
+                        st.info("Please check file format and try again.")
             except requests.exceptions.RequestException as e:
                 st.error(f"Error connecting to the API: {str(e)}")
 
@@ -1312,12 +2100,43 @@ elif page == 'Weekly Summary':
             )
             
             if response.status_code == 200:
-                summary = response.json()
+                try:
+                    # Handle potential JSON serialization errors
+                    summary = response.json()
+                except Exception as e:
+                    st.error(f"Error parsing API response: {str(e)}")
+                    # Try to recover by parsing only the text
+                    st.warning("Attempting to recover data with fallback parsing...")
+                    
+                    # Fallback: Create a minimal summary with only essential fields
+                    summary = {
+                        'total_tss': 0,
+                        'total_training_hours': 0,
+                        'sessions_completed': 0,
+                        'avg_sleep_quality': 0,
+                        'avg_daily_energy': 0,
+                        'workout_types': [],
+                        'qualitative_feedback': []
+                    }
+                    
+                    # Try to extract some text content
+                    try:
+                        text_content = response.text
+                        st.text("Raw API Response (truncated):")
+                        st.text(text_content[:1000] + "..." if len(text_content) > 1000 else text_content)
+                    except:
+                        pass
+                
+                # Store summary in session state for form processing
                 st.session_state.current_summary = summary
                 st.session_state.show_notes_form = True
                 
-                # Display summary using the display_weekly_summary function
-                display_weekly_summary(summary)
+                # Display summary with error handling
+                try:
+                    display_weekly_summary(summary)
+                except Exception as e:
+                    st.error(f"Error displaying summary: {str(e)}")
+                    st.warning("Some summary data could not be displayed properly.")
                 
                 # Additional Notes Form
                 st.subheader("Recovery Quality")
@@ -1430,21 +2249,89 @@ elif page == 'Weekly Summary':
                         current_summary = st.session_state.current_summary
 
 
-                        # Create a properly formatted summary object
+                        # Create a properly formatted summary object with safe type conversions
+                        try:
+                            # Convert numeric values safely
+                            total_tss = float(current_summary.get('total_tss', 0))
+                        except (ValueError, TypeError):
+                            total_tss = 0.0
+                            
+                        try:
+                            total_training_hours = float(current_summary.get('total_training_hours', 0))
+                        except (ValueError, TypeError):
+                            total_training_hours = 0.0
+                            
+                        try:
+                            sessions_completed = int(current_summary.get('sessions_completed', 0))
+                        except (ValueError, TypeError):
+                            sessions_completed = 0
+                            
+                        try:
+                            avg_sleep_quality = float(current_summary.get('avg_sleep_quality', 0))
+                        except (ValueError, TypeError):
+                            avg_sleep_quality = 0.0
+                            
+                        try:
+                            avg_daily_energy = float(current_summary.get('avg_daily_energy', 0))
+                        except (ValueError, TypeError):
+                            avg_daily_energy = 0.0
+                        
+                        # Handle qualitative_feedback more carefully
+                        qualitative_feedback = current_summary.get('qualitative_feedback', [])
+                        if not isinstance(qualitative_feedback, list):
+                            qualitative_feedback = []
+                        
+                        # Create sanitized version of each feedback entry
+                        sanitized_feedback = []
+                        for entry in qualitative_feedback:
+                            if isinstance(entry, dict):
+                                # Only keep essential string fields
+                                sanitized_entry = {
+                                    'day': str(entry.get('day', '')),
+                                    'type': str(entry.get('type', '')),
+                                    'feedback': {}
+                                }
+                                
+                                # Handle the feedback field
+                                feedback = entry.get('feedback', {})
+                                if isinstance(feedback, dict):
+                                    sanitized_feedback_data = {}
+                                    # Only keep string values for reliability
+                                    for key, value in feedback.items():
+                                        if value is not None:
+                                            if isinstance(value, (str, int, float, bool)):
+                                                sanitized_feedback_data[key] = str(value)
+                                            else:
+                                                # Convert complex types to string
+                                                sanitized_feedback_data[key] = str(value)
+                                    sanitized_entry['feedback'] = sanitized_feedback_data
+                                else:
+                                    # If feedback is not a dict, convert to string
+                                    sanitized_entry['feedback'] = {'text': str(feedback) if feedback is not None else ''}
+                                
+                                sanitized_feedback.append(sanitized_entry)
+                        
+                        # Create workout types list safely
+                        workout_types = current_summary.get('workout_types', [])
+                        if not isinstance(workout_types, list):
+                            workout_types = []
+                        sanitized_workout_types = [str(wt) for wt in workout_types if wt is not None]
+                        
+                        # The final sanitized summary data
                         summary_data = {
                             'start_date': start_date.isoformat(),
                             'end_date': end_date.isoformat(),
-                            'total_tss': float(current_summary.get('total_tss', 0)),
-                            'total_training_hours': float(current_summary.get('total_training_hours', 0)),
-                            'sessions_completed': int(current_summary.get('sessions_completed', 0)),
-                            'avg_sleep_quality': float(current_summary.get('avg_sleep_quality', 0)),
-                            'avg_daily_energy': float(current_summary.get('avg_daily_energy', 0)),
+                            'total_tss': total_tss,
+                            'total_training_hours': total_training_hours,
+                            'sessions_completed': sessions_completed,
+                            'avg_sleep_quality': avg_sleep_quality,
+                            'avg_daily_energy': avg_daily_energy,
                             'daily_energy': current_summary.get('daily_energy', {}),
                             'daily_sleep_quality': current_summary.get('daily_sleep_quality', {}),
                             'muscle_soreness_patterns': muscle_soreness,
                             'general_fatigue_level': general_fatigue,
-                            'qualitative_feedback': current_summary.get('qualitative_feedback', []),
-                            'workout_types': current_summary.get('workout_types', [])
+                            'qualitative_feedback': sanitized_feedback,
+                            'workout_types': sanitized_workout_types
                         }
 
                         try:

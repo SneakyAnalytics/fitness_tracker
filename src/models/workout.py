@@ -32,11 +32,11 @@ class HeartRateData:
     def __post_init__(self):
         if self.zone_distribution is None:
             self.zone_distribution = {
-                "Zone 1": 0,
-                "Zone 2": 0,
-                "Zone 3": 0,
-                "Zone 4": 0,
-                "Zone 5": 0
+                "Zone 1 (Recovery)": 0,
+                "Zone 2 (Endurance)": 0,
+                "Zone 3 (Tempo)": 0, 
+                "Zone 4 (Threshold)": 0,
+                "Zone 5 (Maximum)": 0
             }
 
 @dataclass

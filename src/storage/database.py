@@ -534,9 +534,20 @@ class WorkoutDatabase:
                     if fit_data:
                         try:
                             fit_metrics = json.loads(fit_data)
+                            # Ensure all expected fields exist as at least empty dictionaries
+                            if not isinstance(fit_metrics.get('metrics'), dict):
+                                fit_metrics['metrics'] = {}
+                            if not isinstance(fit_metrics.get('power_metrics'), dict):
+                                fit_metrics['power_metrics'] = {}
+                            if not isinstance(fit_metrics.get('hr_metrics'), dict):
+                                fit_metrics['hr_metrics'] = {}
                         except json.JSONDecodeError as e:
                             print(f"Error decoding fit_data: {e}")
-                            fit_metrics = {}
+                            fit_metrics = {
+                                'metrics': {},
+                                'power_metrics': {},
+                                'hr_metrics': {}
+                            }
                     
                     # Get the workout type
                     workout_type = workout.get('type')
@@ -583,20 +594,105 @@ class WorkoutDatabase:
                         })
                     print(f"Power data: {json.dumps(power_data, indent=2)}")
                     
-                    # Combine heart rate data
+                    # Helper function to standardize heart rate zone format
+                    def standardize_hr_zones(zones_data):
+                        """Standardize heart rate zone format to use 'Zone X (Name)' format"""
+                        if zones_data is None:
+                            return {}
+                            
+                        if not isinstance(zones_data, dict):
+                            print(f"Warning: zones_data is not a dictionary, got {type(zones_data)}: {zones_data}")
+                            return {}
+
+                        if not zones_data:  # Empty dict
+                            return {}
+
+                        # Mapping from different formats to standardized format
+                        zone_name_mapping = {
+                            'zone1': 'Zone 1 (Recovery)',
+                            'zone2': 'Zone 2 (Endurance)',
+                            'zone3': 'Zone 3 (Tempo)',
+                            'zone4': 'Zone 4 (Threshold)',
+                            'zone5': 'Zone 5 (Maximum)',
+                            'Zone 1': 'Zone 1 (Recovery)',
+                            'Zone 2': 'Zone 2 (Endurance)',
+                            'Zone 3': 'Zone 3 (Tempo)',
+                            'Zone 4': 'Zone 4 (Threshold)',
+                            'Zone 5': 'Zone 5 (Maximum)',
+                            'Zone 1 (Easy)': 'Zone 1 (Recovery)',
+                            'Zone 2 (Moderate)': 'Zone 2 (Endurance)',
+                            'Zone 3 (Hard)': 'Zone 3 (Tempo)',
+                            'Zone 4 (Very Hard)': 'Zone 4 (Threshold)'
+                        }
+
+                        # Create a new standardized dictionary
+                        standardized_zones = {}
+                        
+                        # Process each zone
+                        try:
+                            for zone_key, value in zones_data.items():
+                                if zone_key is None or value is None:
+                                    continue
+                                    
+                                # Convert numeric values safely
+                                try:
+                                    if isinstance(value, str):
+                                        value = float(value)
+                                except (ValueError, TypeError):
+                                    # Skip invalid values
+                                    print(f"Warning: Skipping invalid zone value: {value} for zone {zone_key}")
+                                    continue
+                                    
+                                # Convert zone name to standard format if a mapping exists
+                                standard_zone_name = zone_name_mapping.get(str(zone_key), zone_key)
+                                standardized_zones[standard_zone_name] = value
+                        except Exception as e:
+                            print(f"Error standardizing zones: {str(e)}, zones_data: {zones_data}")
+                            return {}
+                                
+                        return standardized_zones
+
+                    # Combine heart rate data - prioritize workout CSV data over FIT file data
                     hr_data = workout.get('heart_rate_data', {})
-                    if fit_metrics.get('hr_metrics'):
-                        hr_data.update(fit_metrics['hr_metrics'])
-                    print(f"HR data: {json.dumps(hr_data, indent=2)}")
+                    
+                    # Extract and standardize zones from workout CSV data
+                    csv_hr_zones = standardize_hr_zones(hr_data.get('zones', {}))
+                    
+                    # Only update with FIT metrics if workout CSV data doesn't have these fields
+                    fit_hr = fit_metrics.get('hr_metrics', {})
+                    if fit_hr:   # Check if fit_hr is a non-empty dictionary
+                        # Keep original CSV data values if present
+                        if 'average_hr' not in hr_data and fit_hr.get('average_hr'):
+                            hr_data['average_hr'] = fit_hr.get('average_hr')
+                        if 'max_hr' not in hr_data and fit_hr.get('max_hr'):
+                            hr_data['max_hr'] = fit_hr.get('max_hr')
+                        if 'min_hr' not in hr_data and fit_hr.get('min_hr'):
+                            hr_data['min_hr'] = fit_hr.get('min_hr')
+                        
+                        # For zones, only use FIT data if we don't have CSV zone data
+                        fit_hr_zones = fit_hr.get('zones', {})
+                        if not csv_hr_zones and fit_hr_zones and isinstance(fit_hr_zones, dict):
+                            hr_data['zones'] = standardize_hr_zones(fit_hr_zones)
+                        else:
+                            hr_data['zones'] = csv_hr_zones
+                    else:
+                        # No FIT data, just use CSV data
+                        hr_data['zones'] = csv_hr_zones
+                        
+                    print(f"HR data after standardization: {json.dumps(hr_data, indent=2)}")
 
                     # Extract normalized power from fit_data
                     normalized_power = None
                     if fit_data:
                         try:
-                            fit_data_json = json.loads(fit_data)
-                            normalized_power = fit_data_json.get('power_metrics', {}).get('normalized_power')
-                        except (json.JSONDecodeError, AttributeError):
-                            print("Could not extract normalized_power from fit_data")
+                            # We already loaded fit_data into fit_metrics earlier
+                            power_metrics = fit_metrics.get('power_metrics')
+                            if isinstance(power_metrics, dict):
+                                normalized_power = power_metrics.get('normalized_power')
+                                if normalized_power is not None:
+                                    print(f"Successfully extracted normalized_power: {normalized_power}")
+                        except Exception as e:
+                            print(f"Could not extract normalized_power from fit_data: {str(e)}")
 
                     # Check for workout performance data (for strength and yoga workouts)
                     performance_data = None
@@ -939,6 +1035,57 @@ class WorkoutDatabase:
         finally:
             conn.close()
 
+    def delete_weekly_plan_cascade(self, weekNumber: int) -> bool:
+        """Delete a weekly plan and all associated daily plans and proposed workouts"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                c = conn.cursor()
+                
+                # First get all daily plan IDs for this week
+                c.execute(
+                    '''
+                    SELECT id FROM daily_plans WHERE weekNumber = ?
+                    ''',
+                    (weekNumber,)
+                )
+                daily_plan_ids = [row[0] for row in c.fetchall()]
+                
+                # Delete associated proposed workouts
+                if daily_plan_ids:
+                    placeholders = ', '.join(['?'] * len(daily_plan_ids))
+                    c.execute(
+                        f'''
+                        DELETE FROM proposed_workouts
+                        WHERE dailyPlanId IN ({placeholders})
+                        ''',
+                        daily_plan_ids
+                    )
+                    print(f"DEBUG: Deleted proposed workouts for week {weekNumber}")
+                
+                # Delete daily plans
+                c.execute(
+                    '''
+                    DELETE FROM daily_plans WHERE weekNumber = ?
+                    ''',
+                    (weekNumber,)
+                )
+                print(f"DEBUG: Deleted daily plans for week {weekNumber}")
+                
+                # Delete weekly plan
+                c.execute(
+                    '''
+                    DELETE FROM weekly_plans WHERE weekNumber = ?
+                    ''',
+                    (weekNumber,)
+                )
+                print(f"DEBUG: Deleted weekly plan {weekNumber}")
+                
+                conn.commit()
+                return True
+        except Exception as e:
+            print(f"Error deleting weekly plan cascade: {e}")
+            return False
+    
     def create_weekly_plan(self, weekNumber: int, startDate: str, plannedTSS_min: int, plannedTSS_max: int, notes: str) -> bool:
         """Create a new weekly plan"""
         try:

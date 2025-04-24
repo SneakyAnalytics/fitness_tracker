@@ -597,8 +597,47 @@ async def export_summary(start_date: str, end_date: str):
                 
                 zones = hr_data.get('zones', {})
                 if isinstance(zones, dict):
-                    for zone, value in zones.items():
-                        if value and float(value) > 0:
+                    # Standardize zone names for display
+                    def standardize_hr_zone_key(key):
+                        """Convert any zone format to a consistent display format"""
+                        if isinstance(key, str):
+                            # Handle 'zone1' format
+                            if key.lower().startswith('zone'):
+                                if len(key) > 4 and key[4:5].isdigit() and key.lower() == f"zone{key[4:5]}":
+                                    zone_num = key[4:5]
+                                    # Map to standard format
+                                    zone_names = {
+                                        '1': 'Zone 1 (Recovery)',
+                                        '2': 'Zone 2 (Endurance)',
+                                        '3': 'Zone 3 (Tempo)',
+                                        '4': 'Zone 4 (Threshold)',
+                                        '5': 'Zone 5 (Maximum)'
+                                    }
+                                    return zone_names.get(zone_num, f"Zone {zone_num}")
+                                # Already in a fully defined format
+                                return key
+                        return key
+                    
+                    # Create a standardized dictionary
+                    standardized_zones = {standardize_hr_zone_key(k): v for k, v in zones.items()}
+                    
+                    # Add zones in order for better readability (if they exist)
+                    ordered_zone_names = [
+                        'Zone 1 (Recovery)', 
+                        'Zone 2 (Endurance)', 
+                        'Zone 3 (Tempo)', 
+                        'Zone 4 (Threshold)', 
+                        'Zone 5 (Maximum)'
+                    ]
+                    
+                    # First try to show zones in the standard order
+                    for zone_name in ordered_zone_names:
+                        if zone_name in standardized_zones and standardized_zones[zone_name] and float(standardized_zones[zone_name]) > 0:
+                            content.append(f"     * {zone_name}: {format_value(standardized_zones[zone_name], is_percentage=True)}")
+                    
+                    # Then show any remaining zones not in the standard format
+                    for zone, value in standardized_zones.items():
+                        if zone not in ordered_zone_names and value and float(value) > 0:
                             content.append(f"     * {zone}: {format_value(value, is_percentage=True)}")
 
             # Athlete Comments section
@@ -682,25 +721,37 @@ async def upload_fit_file(file: UploadFile = File(...)):
 
         # First parse the FIT file
         fit_parser = FitParser()
-        parsed_data = fit_parser.parse_fit_file(contents) or {}
+        try:
+            parsed_data = fit_parser.parse_fit_file(contents)
+            # Ensure we always have a dictionary, even if parsing fails
+            if parsed_data is None:
+                print(f"Warning: FIT file parsing returned None for {file.filename}")
+                parsed_data = {}
+        except Exception as e:
+            print(f"Error parsing FIT file {file.filename}: {str(e)}")
+            parsed_data = {}
         
         # Then handle date extraction
         if 'zwift-activity' in filename:
             start_time_str = parsed_data.get('start_time')
             if start_time_str:
-                # Convert to datetime object
-                start_time = datetime.fromisoformat(start_time_str)
-
-                # Convert to Los Angeles timezone
-                la_timezone = pytz.timezone('America/Los_Angeles')
-                la_start_time = start_time.astimezone(la_timezone)
-
-                # Log times for debugging
-                print(f"Original start_time: {start_time}")
-                print(f"LA start_time: {la_start_time}")
-
-                # Extract date in YYYY-MM-DD format
-                date = la_start_time.strftime('%Y-%m-%d')
+                try:
+                    # Convert to datetime object
+                    start_time = datetime.fromisoformat(start_time_str)
+    
+                    # Convert to Los Angeles timezone
+                    la_timezone = pytz.timezone('America/Los_Angeles')
+                    la_start_time = start_time.astimezone(la_timezone)
+    
+                    # Log times for debugging
+                    print(f"Original start_time: {start_time}")
+                    print(f"LA start_time: {la_start_time}")
+    
+                    # Extract date in YYYY-MM-DD format
+                    date = la_start_time.strftime('%Y-%m-%d')
+                except Exception as e:
+                    print(f"Error processing start time {start_time_str}: {str(e)}")
+                    date = None
             else:
                 date = '2025-01-16'
         elif '.GarminPing.' in filename:
@@ -796,17 +847,21 @@ async def upload_proposed_workouts(file: UploadFile = File(...)):
         db = WorkoutDatabase()
 
         existing_weekly_plan = db.get_weekly_plan(weekly_plan.weekNumber)
-        if not existing_weekly_plan:
-            print(f"Creating weekly plan: {weekly_plan.weekNumber}, {weekly_plan.startDate}, {weekly_plan.plannedTSS_min}, {weekly_plan.plannedTSS_max}, {weekly_plan.notes}")
-            db.create_weekly_plan(
-                weekNumber=weekly_plan.weekNumber, 
-                startDate=weekly_plan.startDate, 
-                plannedTSS_min=weekly_plan.plannedTSS_min, 
-                plannedTSS_max=weekly_plan.plannedTSS_max, 
-                notes=weekly_plan.notes
-            )
-        else:
-            print(f"Weekly plan already exists for weekNumber: {weekly_plan.weekNumber}")
+        if existing_weekly_plan:
+            print(f"Weekly plan already exists for weekNumber: {weekly_plan.weekNumber}. Deleting existing data...")
+            # Delete existing weekly plan and all associated data
+            db.delete_weekly_plan_cascade(weekly_plan.weekNumber)
+            print(f"Successfully deleted existing data for week {weekly_plan.weekNumber}")
+            
+        # Create new weekly plan
+        print(f"Creating weekly plan: {weekly_plan.weekNumber}, {weekly_plan.startDate}, {weekly_plan.plannedTSS_min}, {weekly_plan.plannedTSS_max}, {weekly_plan.notes}")
+        db.create_weekly_plan(
+            weekNumber=weekly_plan.weekNumber, 
+            startDate=weekly_plan.startDate, 
+            plannedTSS_min=weekly_plan.plannedTSS_min, 
+            plannedTSS_max=weekly_plan.plannedTSS_max, 
+            notes=weekly_plan.notes
+        )
 
         for daily_plan in daily_plans:
             print(f"DEBUG: Before creating daily plan - weekNumber: {daily_plan.weekNumber}, dayNumber: {daily_plan.dayNumber}, date: {daily_plan.date}")

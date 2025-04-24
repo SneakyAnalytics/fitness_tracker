@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workout_file>
+  <author/>
+  <name>03/15 Pre-Race Light Spin</name>
+  <description></description>
+  <sportType>bike</sportType>
+  <durationType>time</durationType>
+  <tags/>
+  <workout>
+    <SteadyState Duration="300" Power="0.5232558139534884" pace="0"/>
+    <SteadyState Duration="900" Power="0.562015503875969" pace="0"/>
+    <SteadyState Duration="15" Power="1.1627906976744187" pace="0"/>
+    <SteadyState Duration="120" Power="0.562015503875969" pace="0"/>
+    <SteadyState Duration="15" Power="1.1627906976744187" pace="0"/>
+    <SteadyState Duration="120" Power="0.562015503875969" pace="0"/>
+    <Ramp Duration="300" PowerLow="0.55" PowerHigh="0.45" pace="0"/>
+  </workout>
+</workout_file>

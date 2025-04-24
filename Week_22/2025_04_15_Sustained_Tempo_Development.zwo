@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workout_file>
+  <author/>
+  <name>04/15 Sustained Tempo Development</name>
+  <description></description>
+  <sportType>bike</sportType>
+  <durationType>time</durationType>
+  <tags/>
+  <workout>
+    <Ramp Duration="900" PowerLow="0.5" PowerHigh="0.7" pace="0"/>
+    <SteadyState Duration="2400" Power="0.7558139534883721" pace="0"/>
+    <Ramp Duration="600" PowerLow="0.65" PowerHigh="0.5" pace="0"/>
+  </workout>
+</workout_file>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workout_file>
+  <author/>
+  <name>04/22 Zone 2 Endurance Foundation</name>
+  <description></description>
+  <sportType>bike</sportType>
+  <durationType>time</durationType>
+  <tags/>
+  <workout>
+    <Ramp Duration="600" PowerLow="0.5" PowerHigh="0.65" pace="0"/>
+    <SteadyState Duration="3300" Power="0.6976744186046512" pace="0"/>
+    <Ramp Duration="300" PowerLow="0.65" PowerHigh="0.5" pace="0"/>
+  </workout>
+</workout_file>

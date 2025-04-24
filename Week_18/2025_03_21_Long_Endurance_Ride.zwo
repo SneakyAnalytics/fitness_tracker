@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workout_file>
+  <author/>
+  <name>03/21 Long Endurance Ride</name>
+  <description></description>
+  <sportType>bike</sportType>
+  <durationType>time</durationType>
+  <tags/>
+  <workout>
+    <Ramp Duration="600" PowerLow="0.5" PowerHigh="0.7" pace="0"/>
+    <SteadyState Duration="4200" Power="0.6976744186046512" pace="0"/>
+    <Ramp Duration="900" PowerLow="0.65" PowerHigh="0.5" pace="0"/>
+  </workout>
+</workout_file>
