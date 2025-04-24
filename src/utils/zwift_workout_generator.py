@@ -58,6 +58,26 @@ def generate_zwift_workout(workout_date: str, workout_name: str, intervals: List
     # Full path for the output file
     output_path = os.path.join(weekly_output_dir, filename)
     
+    # Generate a more detailed description if none provided
+    if not description:
+        description = f"{workout_name} - {formatted_date}\n"
+        for interval in intervals:
+            interval_name = interval.get('name', '')
+            duration = interval.get('duration', 0)
+            power_target = interval.get('powerTarget', {})
+            cadence_target = interval.get('cadenceTarget', {})
+            
+            # Add interval details to description
+            description += f"\n{interval_name}: {duration//60}min"
+            if power_target:
+                power_str = format_power_target(power_target, ftp)
+                description += f" @ {power_str}"
+            if cadence_target:
+                cadence_min = cadence_target.get('min')
+                cadence_max = cadence_target.get('max')
+                if cadence_min and cadence_max:
+                    description += f" ({cadence_min}-{cadence_max} RPM)"
+    
     # Start building the XML content with the correct name tag
     xml_content = [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -111,91 +131,54 @@ def fix_xml_tag_in_file(file_path: str) -> None:
     except Exception as e:
         print(f"Warning: Could not fix XML tag in {file_path}: {str(e)}")
 
-def convert_interval_to_zwift(interval: Dict[str, Any], ftp: int = DEFAULT_FTP) -> Tuple[str, str]:
+def convert_interval_to_zwift(interval: Dict[str, Any], ftp: int) -> Tuple[str, str]:
     """
-    Convert a workout interval to Zwift XML format.
+    Convert an interval dictionary to Zwift XML format.
     
     Args:
-        interval: Dictionary with interval data
-        ftp: FTP value in watts to use for calculations
+        interval: Dictionary containing interval data
+        ftp: FTP value in watts for power calculations
         
     Returns:
-        Tuple of (interval_type, xml_element_string)
+        Tuple of (interval_type, xml_element)
     """
-    # Default values
-    duration = interval.get('duration', 0)  # Duration in seconds
-    interval_type = "unknown"
-    xml_element = ""
-    
-    # Get power target information
+    interval_type = interval.get('name', '')
+    duration = interval.get('duration', 0)
     power_target = interval.get('powerTarget', {})
+    cadence_target = interval.get('cadenceTarget', {})
     
-    # Handle different power target types
+    # Handle different power target formats
     if isinstance(power_target, dict):
-        power_value = 0.5  # Default to 50% FTP
-        
-        # Check power target type
-        if power_target.get('type') == 'percent_ftp':
-            power_value = float(power_target.get('value', 50)) / 100.0
-            interval_type = "steady"
-            xml_element = f'<SteadyState Duration="{duration}" Power="{power_value}" pace="0"/>'
-            
-        elif power_target.get('type') == 'watts':
-            # Convert absolute watts to % of FTP using the provided FTP value
-            power_value = float(power_target.get('value', 125)) / ftp
-            interval_type = "steady"
-            xml_element = f'<SteadyState Duration="{duration}" Power="{power_value}" pace="0"/>'
-            
-        elif 'start' in power_target and 'end' in power_target:
-            # Handle ramp intervals - check if values are watts or percentages
-            start_type = power_target.get('start', {}).get('type', 'percent_ftp')
-            end_type = power_target.get('end', {}).get('type', 'percent_ftp')
-            
-            start_value = float(power_target.get('start', {}).get('value', 50))
-            end_value = float(power_target.get('end', {}).get('value', 50))
-            
-            # Convert to percentage of FTP if needed
-            if start_type == 'watts':
-                start_value = start_value / ftp
-            else:  # percent_ftp
-                start_value = start_value / 100.0
-                
-            if end_type == 'watts':
-                end_value = end_value / ftp
-            else:  # percent_ftp
-                end_value = end_value / 100.0
-                
-            interval_type = "ramp"
-            xml_element = f'<Ramp Duration="{duration}" PowerLow="{start_value}" PowerHigh="{end_value}" pace="0"/>'
-            
-        elif power_target.get('type') == 'range':
-            # Check if range values are watts or percentages
-            range_unit = power_target.get('unit', 'percent_ftp')
-            min_val = float(power_target.get('min', 50))
-            max_val = float(power_target.get('max', 50))
-            
-            # Convert to percentage of FTP if needed
-            if range_unit == 'watts':
-                min_percent = min_val / ftp
-                max_percent = max_val / ftp
-                # Use the middle of the range for steady state
-                power_value = (min_percent + max_percent) / 2
-            else:  # percent_ftp
-                # Use the middle of the range for steady state
-                power_value = ((min_val + max_val) / 2) / 100.0
-                
-            interval_type = "steady"
-            xml_element = f'<SteadyState Duration="{duration}" Power="{power_value}" pace="0"/>'
-            
-        elif power_target.get('type', '').lower() == 'free':
-            # Free ride interval
-            interval_type = "freeride"
-            xml_element = f'<FreeRide Duration="{duration}" FlatRoad="0"/>'
-            
-    elif not power_target and interval.get('type', '').lower() == 'rest':
-        # Rest interval (low power)
-        interval_type = "rest"
-        xml_element = f'<SteadyState Duration="{duration}" Power="0.40" pace="0"/>'
+        if 'start' in power_target and 'end' in power_target:
+            # Ramp interval
+            start_power = calculate_power(power_target['start'], ftp)
+            end_power = calculate_power(power_target['end'], ftp)
+            xml_element = f'<Ramp Duration="{duration}" PowerLow="{start_power}" PowerHigh="{end_power}" pace="0"'
+        else:
+            # Steady state interval
+            power = calculate_power(power_target, ftp)
+            xml_element = f'<SteadyState Duration="{duration}" Power="{power}" pace="0"'
+    else:
+        # Default to steady state if power format is unknown
+        power = calculate_power(power_target, ftp)
+        xml_element = f'<SteadyState Duration="{duration}" Power="{power}" pace="0"'
+    
+    # Add cadence target if specified
+    if cadence_target:
+        cadence_min = cadence_target.get('min')
+        cadence_max = cadence_target.get('max')
+        if cadence_min and cadence_max:
+            xml_element += f' Cadence="{cadence_min}-{cadence_max}"'
+    
+    # Add interval description as text event
+    if interval_type:
+        xml_element += '>'
+        # Add text event at 10% of the interval duration
+        time_offset = max(10, int(duration * 0.1))
+        xml_element += f'\n      <textevent timeoffset="{time_offset}" message="{interval_type}"/>'
+        xml_element += '\n    </SteadyState>' if 'SteadyState' in xml_element else '\n    </Ramp>'
+    else:
+        xml_element += '/>'
     
     return interval_type, xml_element
 
@@ -268,3 +251,19 @@ def generate_zwift_workouts_from_db(db_connection, start_date: str, end_date: st
         print(f"Error processing workouts from database: {str(e)}")
     
     return generated_files
+
+def format_power_target(power_target: Dict[str, Any], ftp: int) -> str:
+    """Format power target for description"""
+    if isinstance(power_target, dict):
+        if 'start' in power_target and 'end' in power_target:
+            start_power = calculate_power(power_target['start'], ftp)
+            end_power = calculate_power(power_target['end'], ftp)
+            return f"{start_power*100:.0f}-{end_power*100:.0f}% FTP"
+        elif 'type' in power_target:
+            power = calculate_power(power_target, ftp)
+            return f"{power*100:.0f}% FTP"
+        elif 'min' in power_target and 'max' in power_target:
+            return f"{power_target['min']}-{power_target['max']} watts"
+        elif 'value' in power_target:
+            return f"{power_target['value']} watts"
+    return "Unknown power target"
