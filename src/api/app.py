@@ -719,7 +719,7 @@ async def upload_fit_file(file: UploadFile = File(...)):
         date = None
         filename = file.filename
 
-        # First parse the FIT file
+        # Parse the FIT file once
         fit_parser = FitParser()
         try:
             parsed_data = fit_parser.parse_fit_file(contents)
@@ -731,7 +731,7 @@ async def upload_fit_file(file: UploadFile = File(...)):
             print(f"Error parsing FIT file {file.filename}: {str(e)}")
             parsed_data = {}
         
-        # Then handle date extraction
+        # Handle date extraction based on filename patterns
         if 'zwift-activity' in filename:
             start_time_str = parsed_data.get('start_time')
             if start_time_str:
@@ -757,27 +757,41 @@ async def upload_fit_file(file: UploadFile = File(...)):
         elif '.GarminPing.' in filename:
             date_part = filename.split('.')[1]
             date = date_part[:10]
+        elif filename.endswith('.fit') or filename.endswith('.FIT'):
+            # Handle standard Garmin FIT files - try to extract date from filename
+            # Common patterns: YYYY-MM-DD_HH-MM-SS.fit, Activity_YYYY-MM-DD.fit, etc.
+            import re
+            date_match = re.search(r'(\d{4}-\d{2}-\d{2})', filename)
+            if date_match:
+                date = date_match.group(1)
+            else:
+                # Try to get date from FIT file start_time
+                start_time_str = parsed_data.get('start_time')
+                if start_time_str:
+                    try:
+                        start_time = datetime.fromisoformat(start_time_str)
+                        date = start_time.strftime('%Y-%m-%d')
+                    except Exception as e:
+                        print(f"Error extracting date from start_time {start_time_str}: {str(e)}")
+                        date = None
         
         if not date:
             print(f"Could not extract date from filename: {filename}")
             date = "2025-01-16"  # Fallback date
         
-        
         print(f"Extracted date: {date}")
         
-        # Parse the FIT file
-        fit_parser = FitParser()
-        parsed_data = None  # Initialize parsed_data
-        parsed_data = fit_parser.parse_fit_file(contents)
-        
-        if parsed_data is None:
-            print(f"Failed to parse FIT file: {filename}")
-            # Handle the case where parsing fails
-            # You might want to log the error or take other actions
         # Save to database
         db = WorkoutDatabase()
         # Extract title from filename or use a default
-        title = filename.split('.')[0].replace('zwift-activity-', 'Zwift Workout ')
+        if 'zwift-activity' in filename:
+            title = filename.split('.')[0].replace('zwift-activity-', 'Zwift Workout ')
+        elif '.GarminPing.' in filename:
+            title = filename.split('.')[0].replace('.GarminPing', 'Garmin Workout')
+        else:
+            # For other FIT files, use a more generic title
+            title = filename.split('.')[0] + ' Workout'
+            
         saved = db.save_fit_data(date, title, parsed_data, filename)
         
         if not saved:
@@ -840,10 +854,10 @@ async def upload_proposed_workouts(file: UploadFile = File(...)):
     try:
         print(f"Processing proposed workouts file: {file.filename}")
         json_contents = await file.read()
-        with open("temp_proposed_workouts.json", "wb") as f:
+        with open("data/temp/temp_proposed_workouts.json", "wb") as f:
             f.write(json_contents)
 
-        weekly_plan, daily_plans, proposed_workouts = process_proposed_workouts("temp_proposed_workouts.json")
+        weekly_plan, daily_plans, proposed_workouts = process_proposed_workouts("data/temp/temp_proposed_workouts.json")
         db = WorkoutDatabase()
 
         existing_weekly_plan = db.get_weekly_plan(weekly_plan.weekNumber)
@@ -1074,4 +1088,20 @@ async def get_workout_performance(workout_id: int, workout_date: str):
         raise HTTPException(
             status_code=500,
             detail=f"Error retrieving workout performance data: {str(e)}"
+        )
+
+@app.get("/workouts/week")
+async def get_workouts_week(start_date: str, end_date: str):
+    """Get all completed and proposed workouts for a specific week"""
+    try:
+        db = WorkoutDatabase()
+        result = db.get_all_workouts_for_week(start_date, end_date)
+        return result
+    except Exception as e:
+        print(f"Error retrieving workouts: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error retrieving workouts: {str(e)}"
         )

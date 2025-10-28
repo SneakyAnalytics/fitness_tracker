@@ -7,6 +7,33 @@ from typing import Dict, Any, List, Tuple, Optional
 # Default user FTP in watts - adjust this as your fitness changes
 DEFAULT_FTP = 258
 
+def calculate_power(power_target: Dict[str, Any], ftp: int) -> float:
+    """
+    Calculate power as a fraction of FTP from various power target formats.
+    
+    Args:
+        power_target: Dictionary containing power target information
+        ftp: FTP value in watts
+        
+    Returns:
+        Power as a fraction of FTP (e.g., 0.65 for 65% FTP)
+    """
+    if not isinstance(power_target, dict):
+        return 0.5  # Default to 50% FTP if format is unknown
+    
+    if 'type' in power_target:
+        if power_target['type'] == 'percent_ftp':
+            return float(power_target.get('value', 50)) / 100.0
+        elif power_target['type'] == 'watts':
+            return float(power_target.get('value', 125)) / ftp
+        elif power_target['type'] == 'range':
+            # For range type, use the min value as the target
+            return float(power_target.get('min', 125)) / ftp
+    elif 'value' in power_target:
+        return float(power_target['value']) / ftp
+    
+    return 0.5  # Default to 50% FTP if format is unknown
+
 def generate_zwift_workout(workout_date: str, workout_name: str, intervals: List[Dict[str, Any]], 
                           description: str = "", ftp: int = DEFAULT_FTP, output_dir: Optional[str] = None, 
                           week_number: Optional[int] = None) -> str:
@@ -25,90 +52,103 @@ def generate_zwift_workout(workout_date: str, workout_name: str, intervals: List
     Returns:
         Path to the generated .zwo file
     """
+    print(f"DEBUG: Starting workout generation for {workout_name} on {workout_date}")
+    print(f"DEBUG: Number of intervals: {len(intervals)}")
+    
     # Parse the date for filename and folder organization
-    workout_date_obj = datetime.strptime(workout_date, "%Y-%m-%d")
-    date_prefix = workout_date_obj.strftime("%Y_%m_%d")
-    
-    # Make sure the date is correct and properly formatted in the workout name
-    formatted_date = workout_date_obj.strftime('%m/%d')
-    display_name = f"{formatted_date} {workout_name}"
-    
-    # Clean workout name for filename
-    clean_name = ''.join(c if c.isalnum() or c in ' -_' else '_' for c in workout_name)
-    clean_name = clean_name.replace(' ', '_')
-    
-    # Create filename
-    filename = f"{date_prefix}_{clean_name}.zwo"
-    
-    # Determine output directory and create weekly folders
-    if not output_dir:
-        output_dir = os.getcwd()
-    
-    # Create weekly folder based on provided week number or fallback to ISO week
-    if week_number is not None:
-        week_folder = f"Week_{week_number}"
-    else:
-        week_of_year = workout_date_obj.isocalendar()[1]
-        week_folder = f"Week_{week_of_year}"
-    weekly_output_dir = os.path.join(output_dir, week_folder)
-    
-    # Create the weekly directory if it doesn't exist
-    os.makedirs(weekly_output_dir, exist_ok=True)
-    
-    # Full path for the output file
-    output_path = os.path.join(weekly_output_dir, filename)
-    
-    # Generate a more detailed description if none provided
-    if not description:
-        description = f"{workout_name} - {formatted_date}\n"
+    try:
+        workout_date_obj = datetime.strptime(workout_date, "%Y-%m-%d")
+        date_prefix = workout_date_obj.strftime("%Y_%m_%d")
+        
+        # Make sure the date is correct and properly formatted in the workout name
+        formatted_date = workout_date_obj.strftime('%m/%d')
+        display_name = f"{formatted_date} {workout_name}"
+        
+        # Clean workout name for filename
+        clean_name = ''.join(c if c.isalnum() or c in ' -_' else '_' for c in workout_name)
+        clean_name = clean_name.replace(' ', '_')
+        
+        # Create filename
+        filename = f"{date_prefix}_{clean_name}.zwo"
+        
+        # Determine output directory and create weekly folders
+        if not output_dir:
+            output_dir = os.getcwd()
+        
+        # Create weekly folder based on provided week number or fallback to ISO week
+        if week_number is not None:
+            week_folder = f"Week_{week_number}"
+        else:
+            week_of_year = workout_date_obj.isocalendar()[1]
+            week_folder = f"Week_{week_of_year}"
+        weekly_output_dir = os.path.join(output_dir, week_folder)
+        
+        # Create the weekly directory if it doesn't exist
+        os.makedirs(weekly_output_dir, exist_ok=True)
+        
+        # Full path for the output file
+        output_path = os.path.join(weekly_output_dir, filename)
+        
+        print(f"DEBUG: Output path: {output_path}")
+        
+        # Generate a more detailed description if none provided
+        if not description:
+            description = f"{workout_name} - {formatted_date}\n"
+            for interval in intervals:
+                interval_name = interval.get('name', '')
+                duration = interval.get('duration', 0)
+                power_target = interval.get('powerTarget', {})
+                cadence_target = interval.get('cadenceTarget', {})
+                
+                # Add interval details to description
+                description += f"\n{interval_name}: {duration//60}min"
+                if power_target:
+                    power_str = format_power_target(power_target, ftp)
+                    description += f" @ {power_str}"
+                if cadence_target:
+                    cadence_min = cadence_target.get('min')
+                    cadence_max = cadence_target.get('max')
+                    if cadence_min and cadence_max:
+                        description += f" ({cadence_min}-{cadence_max} RPM)"
+        
+        # Start building the XML content with the correct name tag
+        xml_content = [
+            '<?xml version="1.0" encoding="UTF-8"?>',
+            '<workout_file>',
+            '  <author/>',
+            f'  <name>{display_name}</name>',
+            f'  <description>{description}</description>',
+            '  <sportType>bike</sportType>',
+            '  <durationType>time</durationType>',
+            '  <tags/>',
+            '  <workout>'
+        ]
+        
+        # Process intervals
         for interval in intervals:
-            interval_name = interval.get('name', '')
-            duration = interval.get('duration', 0)
-            power_target = interval.get('powerTarget', {})
-            cadence_target = interval.get('cadenceTarget', {})
-            
-            # Add interval details to description
-            description += f"\n{interval_name}: {duration//60}min"
-            if power_target:
-                power_str = format_power_target(power_target, ftp)
-                description += f" @ {power_str}"
-            if cadence_target:
-                cadence_min = cadence_target.get('min')
-                cadence_max = cadence_target.get('max')
-                if cadence_min and cadence_max:
-                    description += f" ({cadence_min}-{cadence_max} RPM)"
-    
-    # Start building the XML content with the correct name tag
-    xml_content = [
-        '<?xml version="1.0" encoding="UTF-8"?>',
-        '<workout_file>',
-        '  <author/>',
-        f'  <name>{display_name}</name>',
-        f'  <description>{description}</description>',
-        '  <sportType>bike</sportType>',
-        '  <durationType>time</durationType>',
-        '  <tags/>',
-        '  <workout>'
-    ]
-    
-    # Process intervals
-    for interval in intervals:
-        interval_type, xml_element = convert_interval_to_zwift(interval, ftp)
-        if xml_element:
-            xml_content.append(f'    {xml_element}')
-    
-    # Close the XML
-    xml_content.extend([
-        '  </workout>',
-        '</workout_file>'
-    ])
-    
-    # Write the file
-    with open(output_path, 'w') as f:
-        f.write('\n'.join(xml_content))
-    
-    print(f"Generated Zwift workout file at: {output_path}")
-    return output_path
+            print(f"DEBUG: Processing interval: {interval.get('name', 'unnamed')}")
+            interval_type, xml_element = convert_interval_to_zwift(interval, ftp)
+            if xml_element:
+                xml_content.append(f'    {xml_element}')
+        
+        # Close the XML
+        xml_content.extend([
+            '  </workout>',
+            '</workout_file>'
+        ])
+        
+        # Write the file
+        with open(output_path, 'w') as f:
+            f.write('\n'.join(xml_content))
+        
+        print(f"Generated Zwift workout file at: {output_path}")
+        return output_path
+        
+    except Exception as e:
+        print(f"ERROR in generate_zwift_workout: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 def fix_xml_tag_in_file(file_path: str) -> None:
     """
@@ -151,16 +191,16 @@ def convert_interval_to_zwift(interval: Dict[str, Any], ftp: int) -> Tuple[str, 
     if isinstance(power_target, dict):
         if 'start' in power_target and 'end' in power_target:
             # Ramp interval
-            start_power = calculate_power(power_target['start'], ftp)
-            end_power = calculate_power(power_target['end'], ftp)
+            start_power = calculate_power(power_target['start'], ftp)  # Already a decimal
+            end_power = calculate_power(power_target['end'], ftp)  # Already a decimal
             xml_element = f'<Ramp Duration="{duration}" PowerLow="{start_power}" PowerHigh="{end_power}" pace="0"'
         else:
             # Steady state interval
-            power = calculate_power(power_target, ftp)
+            power = calculate_power(power_target, ftp)  # Already a decimal
             xml_element = f'<SteadyState Duration="{duration}" Power="{power}" pace="0"'
     else:
         # Default to steady state if power format is unknown
-        power = calculate_power(power_target, ftp)
+        power = calculate_power(power_target, ftp)  # Already a decimal
         xml_element = f'<SteadyState Duration="{duration}" Power="{power}" pace="0"'
     
     # Add cadence target if specified
@@ -202,9 +242,12 @@ def generate_zwift_workouts_from_db(db_connection, start_date: str, end_date: st
     generated_files = []
     
     try:
+        print(f"DEBUG: Getting proposed workouts for date range {start_date} to {end_date}")
         # Get all proposed workouts for the date range
         proposed_workouts_data = db_connection.get_proposed_workouts_for_week(start_date, end_date)
         daily_workouts = proposed_workouts_data.get('daily_workouts', [])
+        
+        print(f"DEBUG: Found {len(daily_workouts)} daily workouts")
         
         # If week_number wasn't provided as an argument, try to get it from the data
         if week_number is None:
@@ -220,15 +263,19 @@ def generate_zwift_workouts_from_db(db_connection, start_date: str, end_date: st
             if workout.get('type', '').lower() == 'bike':
                 workout_date = workout.get('date')
                 workout_name = workout.get('name')
+                intervals_str = workout.get('intervals')
+                
+                print(f"\nDEBUG: Processing workout: {workout_name} on {workout_date}")
+                print(f"DEBUG: Raw intervals string: {intervals_str}")
                 
                 # Parse intervals from JSON string
-                intervals_str = workout.get('intervals')
                 intervals = []
                 if intervals_str:
                     try:
                         intervals = json.loads(intervals_str)
-                    except json.JSONDecodeError:
-                        print(f"Error parsing intervals for {workout_name} on {workout_date}")
+                        print(f"DEBUG: Successfully parsed {len(intervals)} intervals")
+                    except json.JSONDecodeError as e:
+                        print(f"ERROR: Failed to parse intervals JSON: {str(e)}")
                         continue
                 
                 if intervals:
@@ -246,9 +293,15 @@ def generate_zwift_workouts_from_db(db_connection, start_date: str, end_date: st
                         print(f"Generated Zwift workout for '{workout_name}' on {workout_date}")
                     except Exception as e:
                         print(f"Error generating Zwift workout for '{workout_name}': {str(e)}")
+                        import traceback
+                        traceback.print_exc()
+                else:
+                    print(f"WARNING: No intervals found for workout '{workout_name}' on {workout_date}")
     
     except Exception as e:
         print(f"Error processing workouts from database: {str(e)}")
+        import traceback
+        traceback.print_exc()
     
     return generated_files
 
