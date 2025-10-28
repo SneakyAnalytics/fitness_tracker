@@ -1,0 +1,835 @@
+{
+    "weekNumber": 46,
+    "startDate": "2025-09-29",
+    "plannedTSS": {
+      "min": 400,
+      "max": 450
+    },
+    "notes": {
+      "weekFocus": "Enforced Recovery & Threshold Focus",
+      "specialConsiderations": "Mandatory intensity reduction, no exceeding prescribed power, indoor control for key sessions, full rest Monday"
+    },
+    "days": [
+      {
+        "dayNumber": 1,
+        "date": "2025-09-29",
+        "workouts": [
+          {
+            "type": "rest",
+            "name": "Complete Rest Day",
+            "plannedDuration": 0,
+            "plannedTSS": {
+              "min": 0,
+              "max": 0
+            },
+            "targetRPE": {
+              "min": 0,
+              "max": 0
+            },
+            "notes": [
+              "Full rest after 682 TSS week",
+              "No bike, no structured exercise",
+              "Light walking only if desired",
+              "Focus on recovery"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 2,
+        "date": "2025-09-30",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Controlled Threshold",
+            "plannedDuration": 80,
+            "plannedTSS": {
+              "min": 80,
+              "max": 90
+            },
+            "targetRPE": {
+              "min": 6,
+              "max": 7
+            },
+            "intervals": [
+              {
+                "name": "Warmup",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "watts",
+                    "value": 140
+                  },
+                  "end": {
+                    "type": "watts",
+                    "value": 200
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Threshold 1",
+                "duration": 600,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 260,
+                  "max": 265,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Recovery 1",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Threshold 2",
+                "duration": 600,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 260,
+                  "max": 265,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Recovery 2",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Threshold 3",
+                "duration": 600,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 260,
+                  "max": 265,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Recovery 3",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Threshold 4",
+                "duration": 600,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 260,
+                  "max": 265,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Cool-down",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "watts",
+                    "value": 200
+                  },
+                  "end": {
+                    "type": "watts",
+                    "value": 140
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              }
+            ],
+            "notes": [
+              "MANDATORY: Stay at 260-265W",
+              "Do NOT push to 275W",
+              "4×10min format for control",
+              "This is sub-maximal threshold"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Recovery Sauna",
+            "plannedDuration": 20,
+            "plannedTSS": {
+              "min": 10,
+              "max": 15
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "20 minutes at 180°F",
+              "Standard recovery protocol"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 3,
+        "date": "2025-10-01",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Easy Endurance",
+            "plannedDuration": 75,
+            "plannedTSS": {
+              "min": 55,
+              "max": 65
+            },
+            "targetRPE": {
+              "min": 2,
+              "max": 3
+            },
+            "intervals": [
+              {
+                "name": "Steady Endurance",
+                "duration": 4500,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 170,
+                  "max": 180,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              }
+            ],
+            "notes": [
+              "Pure endurance pace",
+              "No intervals or surges",
+              "HR must stay below 130 bpm",
+              "Recovery focus"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Recovery Sauna",
+            "plannedDuration": 18,
+            "plannedTSS": {
+              "min": 9,
+              "max": 13
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "18 minutes at 175°F",
+              "Lower temp for recovery"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 4,
+        "date": "2025-10-02",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Reduced VO2max",
+            "plannedDuration": 70,
+            "plannedTSS": {
+              "min": 75,
+              "max": 85
+            },
+            "targetRPE": {
+              "min": 7,
+              "max": 8
+            },
+            "intervals": [
+              {
+                "name": "Warmup",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 75
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "VO2 Interval 1",
+                "duration": 180,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 315,
+                  "max": 320,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Recovery 1",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "VO2 Interval 2",
+                "duration": 180,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 315,
+                  "max": 320,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Recovery 2",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "VO2 Interval 3",
+                "duration": 180,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 315,
+                  "max": 320,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Recovery 3",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "VO2 Interval 4",
+                "duration": 180,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 315,
+                  "max": 320,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Cool-down",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 70
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              }
+            ],
+            "notes": [
+              "CRITICAL: Stay at 315-320W",
+              "Do NOT push to 335W",
+              "4×3min (reduced duration)",
+              "Target HR: 170-175 max, not 183"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "VO2 Recovery Sauna",
+            "plannedDuration": 20,
+            "plannedTSS": {
+              "min": 10,
+              "max": 15
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "20 minutes at 180°F",
+              "Important after intensity"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 5,
+        "date": "2025-10-03",
+        "workouts": [
+          {
+            "type": "strength",
+            "name": "Light Maintenance",
+            "plannedDuration": 40,
+            "plannedTSS": {
+              "min": 30,
+              "max": 35
+            },
+            "targetRPE": {
+              "min": 3,
+              "max": 4
+            },
+            "sections": [
+              {
+                "name": "Warmup",
+                "duration": 5,
+                "exercises": [
+                  {
+                    "name": "Light Movement",
+                    "sets": [
+                      {
+                        "duration": 300,
+                        "notes": [
+                          "Easy movement prep",
+                          "Dynamic stretching",
+                          "No aggressive warmup"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Maintenance Circuit",
+                "duration": 35,
+                "rounds": 2,
+                "exercises": [
+                  {
+                    "name": "Bodyweight Squats",
+                    "sets": [
+                      {
+                        "reps": 15,
+                        "restTime": 45,
+                        "cues": [
+                          "No added weight",
+                          "Focus on form",
+                          "Full range of motion"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Glute Bridges",
+                    "sets": [
+                      {
+                        "reps": 20,
+                        "restTime": 45,
+                        "cues": [
+                          "Bodyweight only",
+                          "2-second holds",
+                          "Focus on activation"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Plank",
+                    "sets": [
+                      {
+                        "duration": 45,
+                        "restTime": 45,
+                        "cues": [
+                          "Standard plank",
+                          "Perfect form",
+                          "Stop if fatigued"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Band Rows",
+                    "sets": [
+                      {
+                        "reps": 15,
+                        "restTime": 45,
+                        "cues": [
+                          "Light resistance",
+                          "Controlled tempo",
+                          "No failure"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "notes": [
+              "70% intensity maximum",
+              "2 sets only, not 3",
+              "Maintenance, not progression",
+              "Should feel easy"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Light Sauna",
+            "plannedDuration": 20,
+            "plannedTSS": {
+              "min": 10,
+              "max": 15
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "20 minutes at 175°F",
+              "Lower temp for recovery week"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 6,
+        "date": "2025-10-04",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Indoor Tempo Control",
+            "plannedDuration": 90,
+            "plannedTSS": {
+              "min": 75,
+              "max": 85
+            },
+            "targetRPE": {
+              "min": 5,
+              "max": 6
+            },
+            "intervals": [
+              {
+                "name": "Warmup",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "watts",
+                    "value": 140
+                  },
+                  "end": {
+                    "type": "watts",
+                    "value": 190
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Tempo 1",
+                "duration": 720,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 210,
+                  "max": 220,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Recovery 1",
+                "duration": 180,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Tempo 2",
+                "duration": 720,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 210,
+                  "max": 220,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Recovery 2",
+                "duration": 180,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Tempo 3",
+                "duration": 720,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 210,
+                  "max": 220,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Recovery 3",
+                "duration": 180,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Tempo 4",
+                "duration": 720,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 210,
+                  "max": 220,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Cool-down",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "watts",
+                    "value": 190
+                  },
+                  "end": {
+                    "type": "watts",
+                    "value": 140
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              }
+            ],
+            "notes": [
+              "MUST be indoor for power control",
+              "No outdoor ride this Saturday",
+              "4×12min at tempo",
+              "Stay within prescribed power"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Recovery Sauna",
+            "plannedDuration": 18,
+            "plannedTSS": {
+              "min": 9,
+              "max": 13
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "18 minutes at 180°F",
+              "Prepare for Sunday"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 7,
+        "date": "2025-10-05",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Controlled Endurance",
+            "plannedDuration": 150,
+            "plannedTSS": {
+              "min": 130,
+              "max": 150
+            },
+            "targetRPE": {
+              "min": 3,
+              "max": 5
+            },
+            "intervals": [
+              {
+                "name": "Warmup",
+                "duration": 1200,
+                "powerTarget": {
+                  "start": {
+                    "type": "watts",
+                    "value": 140
+                  },
+                  "end": {
+                    "type": "watts",
+                    "value": 180
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Steady Endurance",
+                "duration": 6600,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 175,
+                  "max": 185,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Cool-down",
+                "duration": 1200,
+                "powerTarget": {
+                  "start": {
+                    "type": "watts",
+                    "value": 180
+                  },
+                  "end": {
+                    "type": "watts",
+                    "value": 140
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              }
+            ],
+            "notes": [
+              "Can be outdoor BUT:",
+              "Maximum 5% time above Zone 3",
+              "Target TSS: 130-150 only",
+              "No adventure mode",
+              "Steady, controlled effort"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Weekly Recovery Sauna",
+            "plannedDuration": 22,
+            "plannedTSS": {
+              "min": 11,
+              "max": 16
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "22 minutes at 180°F",
+              "Full recovery protocol",
+              "Prepare for Week 47"
+            ]
+          }
+        ]
+      }
+    ]
+  }

@@ -117,14 +117,36 @@ class FitParser:
             power_metrics = None
             if power_data:
                 power_array = np.array(power_data)
+                print(f"DEBUG: Processing power data - {len(power_array)} data points")
                 
                 # Estimate FTP if not provided
                 ftp = athlete_ftp if athlete_ftp else float(np.percentile(power_array, 95))
+                print(f"DEBUG: Using FTP of {ftp:.1f} watts")
                 
-                # Calculate normalized power
-                rolling_avg = np.convolve(power_array, np.ones(30)/30, mode='valid')
+                # Calculate normalized power with improved algorithm for outdoor rides
+                # Use 30-second rolling average, but handle edge cases better
+                if len(power_array) >= 30:
+                    # Standard 30-second rolling average
+                    rolling_avg = np.convolve(power_array, np.ones(30)/30, mode='valid')
+                    print(f"DEBUG: Calculated {len(rolling_avg)} rolling averages")
+                else:
+                    # For very short workouts, use the entire array
+                    rolling_avg = power_array
+                    print(f"DEBUG: Using entire power array for short workout ({len(power_array)} points)")
+                
+                # Calculate 4th power average (standard normalized power formula)
                 rolling_avg_4th = np.power(rolling_avg, 4)
                 normalized_power = float(np.power(np.mean(rolling_avg_4th), 0.25))
+                
+                # Additional validation for outdoor rides
+                # If normalized power seems unreasonable (too high/low), use average power as fallback
+                avg_power = float(np.mean(power_array))
+                if normalized_power > avg_power * 1.5 or normalized_power < avg_power * 0.5:
+                    print(f"Warning: Normalized power ({normalized_power:.1f}) seems unreasonable compared to average power ({avg_power:.1f})")
+                    print(f"Using average power as normalized power for outdoor ride")
+                    normalized_power = avg_power
+                
+                print(f"DEBUG: Final normalized power: {normalized_power:.1f} watts")
                 
                 # Calculate TSS
                 tss = self.calculate_tss(normalized_power, duration_hours, ftp)

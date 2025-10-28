@@ -1,0 +1,928 @@
+{
+    "weekNumber": 35,
+    "startDate": "2025-07-14",
+    "plannedTSS": {
+      "min": 480,
+      "max": 540
+    },
+    "notes": {
+      "weekFocus": "Confident Return & Progressive Loading",
+      "specialConsiderations": "Bike return Tuesday 7/15, outdoor gravel integration, heat adaptation continuation, daily sauna protocol, rebuilding outdoor confidence"
+    },
+    "days": [
+      {
+        "dayNumber": 1,
+        "date": "2025-07-14",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Pre-Bike Return Threshold Work",
+            "plannedDuration": 80,
+            "plannedTSS": {
+              "min": 85,
+              "max": 95
+            },
+            "targetRPE": {
+              "min": 6,
+              "max": 8
+            },
+            "intervals": [
+              {
+                "name": "Progressive Warmup",
+                "duration": 1200,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 70
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Threshold Block 1",
+                "duration": 900,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 250,
+                  "max": 255,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Recovery",
+                "duration": 300,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Threshold Block 2",
+                "duration": 900,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 250,
+                  "max": 255,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Extended Cooldown",
+                "duration": 1500,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 65
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              }
+            ],
+            "notes": [
+              "Return to full threshold power after recovery week",
+              "2×15min at 250-255W to test fitness retention",
+              "Final indoor precision work before bike return",
+              "Celebrate recovery with quality structured work",
+              "Build anticipation for tomorrow's bike return!"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Evening Recovery Sauna",
+            "plannedDuration": 20,
+            "plannedTSS": {
+              "min": 10,
+              "max": 15
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Continue daily sauna protocol",
+              "20 minutes at 180°F",
+              "Focus on threshold workout recovery",
+              "Prepare body for bike return excitement",
+              "Maintain excellent adaptation routine"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 2,
+        "date": "2025-07-15",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Bike Return Celebration Ride",
+            "plannedDuration": 90,
+            "plannedTSS": {
+              "min": 70,
+              "max": 85
+            },
+            "targetRPE": {
+              "min": 3,
+              "max": 5
+            },
+            "outdoorGuidelines": {
+              "routeType": "Familiar paved route with optional easy gravel sections",
+              "terrain": "Gentle rolling terrain, avoid technical challenges first ride back",
+              "focus": "Bike handling assessment and position comfort",
+              "celebration": "Enjoy being back on your own bike!"
+            },
+            "structureGuidelines": {
+              "warmup": "25 minutes very easy assessment riding",
+              "mainBlock": "40 minutes comfortable endurance pace",
+              "cooldown": "25 minutes easy spinning and celebration",
+              "safetyChecks": "Stop every 20 minutes to assess everything"
+            },
+            "powerGuidelines": {
+              "baseEffort": "175-185W comfortable endurance pace",
+              "assessmentPeriod": "First 30 minutes focus on comfort over power",
+              "heartRateGuide": "Keep below 140 bpm average",
+              "rpeGuidance": "Should feel completely sustainable and enjoyable"
+            },
+            "equipmentFocus": [
+              "Pre-ride comprehensive bike check",
+              "Tire pressure verification (lesson learned!)",
+              "Gear shifting and brake function assessment",
+              "Position comfort and any needed adjustments",
+              "Power meter calibration and function check"
+            ],
+            "skillFocus": [
+              "Bike handling confidence restoration",
+              "Position comfort assessment",
+              "Gear selection and smooth operation",
+              "Braking and cornering comfort (conservative approach)",
+              "Overall bike-rider integration"
+            ],
+            "safetyProtocol": [
+              "Mandatory comprehensive pre-ride check",
+              "Conservative approach to all technical elements",
+              "Route with multiple bail-out options",
+              "Phone accessible and charged",
+              "Return immediately if any equipment or comfort issues"
+            ],
+            "notes": [
+              "BIKE RETURN DAY! 🚴‍♂️🎉",
+              "Primary goal: assess bike function and position comfort",
+              "Secondary goal: rebuild confidence and enjoyment",
+              "Take photos to commemorate the return!",
+              "Focus on the joy of being back on your bike"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Celebration Recovery Sauna",
+            "plannedDuration": 20,
+            "plannedTSS": {
+              "min": 10,
+              "max": 15
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Celebration sauna for successful bike return!",
+              "20 minutes at 180°F",
+              "2-3 hours after completing bike return ride",
+              "Reflect on successful recovery and return journey",
+              "Prepare for tomorrow's structured outdoor work"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 3,
+        "date": "2025-07-16",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Outdoor Tempo Return",
+            "plannedDuration": 90,
+            "plannedTSS": {
+              "min": 85,
+              "max": 95
+            },
+            "targetRPE": {
+              "min": 4,
+              "max": 6
+            },
+            "outdoorGuidelines": {
+              "routeType": "Paved or easy gravel with sustained climbs",
+              "terrain": "Rolling to hilly for tempo practice",
+              "focus": "First structured intensity work outdoors post-crash",
+              "confidenceBuilding": "Progressive challenge with safe environment"
+            },
+            "structureGuidelines": {
+              "warmup": "20 minutes progressive easy to moderate",
+              "mainBlock": "50 minutes with 3×10min tempo efforts",
+              "cooldown": "20 minutes easy spinning",
+              "tempoEfforts": "Find sustained climbs or rolling terrain"
+            },
+            "powerGuidelines": {
+              "tempoTarget": "210-220W (81-85% FTP) during tempo blocks",
+              "baseEffort": "180-190W between tempo efforts",
+              "climbingFocus": "Practice seated vs. standing technique",
+              "recovery": "160-180W during cooldown and between efforts"
+            },
+            "skillFocus": [
+              "First structured intensity outdoors since crash",
+              "Power meter correlation with outdoor terrain",
+              "Climbing position and technique practice",
+              "Gear selection during sustained efforts",
+              "Confidence building with moderate intensity"
+            ],
+            "safetyNotes": [
+              "Pre-ride tire pressure check (new habit!)",
+              "Conservative cornering, especially on tempo efforts",
+              "Route with good visibility and escape options",
+              "Focus on smooth power delivery over peak power"
+            ],
+            "notes": [
+              "First structured outdoor intensity since crash",
+              "Slightly reduced tempo targets for confidence",
+              "Apply all bike handling lessons learned",
+              "Celebrate return to quality outdoor training",
+              "Build foundation for weekend gravel adventure"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Post-Intensity Recovery Sauna",
+            "plannedDuration": 18,
+            "plannedTSS": {
+              "min": 10,
+              "max": 15
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Modified sauna protocol after outdoor intensity",
+              "18 minutes at 180°F",
+              "Wait 2+ hours after workout completion",
+              "Continue excellent daily adaptation routine",
+              "Focus on outdoor intensity recovery"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 4,
+        "date": "2025-07-17",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Indoor VO2max Precision",
+            "plannedDuration": 85,
+            "plannedTSS": {
+              "min": 105,
+              "max": 115
+            },
+            "targetRPE": {
+              "min": 7,
+              "max": 9
+            },
+            "intervals": [
+              {
+                "name": "Extended Warmup",
+                "duration": 1200,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 70
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Primer",
+                "duration": 60,
+                "powerTarget": {
+                  "type": "percent_ftp",
+                  "value": 95
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Rest",
+                "duration": 180,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "VO2 Interval 1",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 315,
+                  "max": 325,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Recovery 1",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "VO2 Interval 2",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 315,
+                  "max": 325,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Recovery 2",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "VO2 Interval 3",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 315,
+                  "max": 325,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Recovery 3",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "VO2 Interval 4",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 315,
+                  "max": 325,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Extended Cooldown",
+                "duration": 1200,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 65
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              }
+            ],
+            "notes": [
+              "Return to high-intensity indoor precision work",
+              "4×4min at 315-325W (121-125% FTP) - slight progression",
+              "Controlled environment for maximum quality",
+              "Compare to outdoor tempo feel from yesterday",
+              "Build top-end power for gravel climbing"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "High-Intensity Recovery Sauna",
+            "plannedDuration": 20,
+            "plannedTSS": {
+              "min": 10,
+              "max": 15
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Post-VO2max recovery sauna",
+              "20 minutes at 180°F",
+              "Wait 2+ hours after workout completion (lesson learned!)",
+              "Focus on high-intensity recovery",
+              "Prepare for weekend long adventure"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 5,
+        "date": "2025-07-18",
+        "workouts": [
+          {
+            "type": "strength",
+            "name": "Gravel Adventure Preparation",
+            "plannedDuration": 55,
+            "plannedTSS": {
+              "min": 45,
+              "max": 50
+            },
+            "targetRPE": {
+              "min": 5,
+              "max": 7
+            },
+            "sections": [
+              {
+                "name": "Dynamic Warmup",
+                "duration": 12,
+                "exercises": [
+                  {
+                    "name": "Adventure Preparation",
+                    "sets": [
+                      {
+                        "duration": 720,
+                        "notes": [
+                          "Light cardio - 2 minutes",
+                          "Full body movement flow - 2 minutes",
+                          "Hip circles and leg swings - 2 minutes each direction",
+                          "Arm circles and shoulder rolls - 1 minute each direction",
+                          "Spinal twists and cat-cow - 2 minutes"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Power and Stability Circuit",
+                "duration": 20,
+                "rounds": 3,
+                "exercises": [
+                  {
+                    "name": "Goblet Squats",
+                    "sets": [
+                      {
+                        "reps": 15,
+                        "weight": {
+                          "min": 40,
+                          "max": 50,
+                          "unit": "lbs"
+                        },
+                        "restTime": 45,
+                        "cues": [
+                          "Full depth for cycling range",
+                          "Chest up, core engaged",
+                          "Power through heels"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Single-leg Step-ups",
+                    "sets": [
+                      {
+                        "reps": 12,
+                        "perSide": true,
+                        "weight": {
+                          "min": 25,
+                          "max": 35,
+                          "unit": "lbs"
+                        },
+                        "restTime": 45,
+                        "cues": ["Drive through heel", "Control balance", "Power up, control down"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Romanian Deadlifts",
+                    "sets": [
+                      {
+                        "reps": 15,
+                        "weight": {
+                          "min": 45,
+                          "max": 55,
+                          "unit": "lbs"
+                        },
+                        "restTime": 30,
+                        "cues": ["Hip hinge pattern", "Feel hamstring load", "Neutral spine"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Lateral Lunges",
+                    "sets": [
+                      {
+                        "reps": 10,
+                        "perSide": true,
+                        "weight": {
+                          "min": 25,
+                          "max": 30,
+                          "unit": "lbs"
+                        },
+                        "restTime": 60,
+                        "cues": ["Wide stance", "Sit back into hip", "Push off powerfully"]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Core Stability for Long Rides",
+                "duration": 15,
+                "rounds": 3,
+                "exercises": [
+                  {
+                    "name": "Dead Bugs with Resistance",
+                    "sets": [
+                      {
+                        "reps": 12,
+                        "perSide": true,
+                        "restTime": 30,
+                        "cues": ["Lower back anchored", "Slow controlled movement", "Oppose resistance"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Plank to T-rotation",
+                    "sets": [
+                      {
+                        "reps": 10,
+                        "perSide": true,
+                        "restTime": 30,
+                        "cues": ["Controlled rotation", "Stack shoulders", "Core stability throughout"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Single-arm Pallof Press",
+                    "sets": [
+                      {
+                        "reps": 15,
+                        "perSide": true,
+                        "restTime": 30,
+                        "cues": ["Resist rotation", "Full extension", "Core braced"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Glute Bridge Hold",
+                    "sets": [
+                      {
+                        "duration": 60,
+                        "restTime": 60,
+                        "cues": ["Squeeze glutes maximally", "Level pelvis", "Breathe normally"]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Upper Body Endurance",
+                "duration": 8,
+                "exercises": [
+                  {
+                    "name": "Push-ups",
+                    "sets": [
+                      {
+                        "reps": 15,
+                        "sets": 2,
+                        "restBetweenSets": 60,
+                        "cues": ["Full range of motion", "Core engaged", "Controlled tempo"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Bent-over Rows",
+                    "sets": [
+                      {
+                        "reps": 12,
+                        "sets": 2,
+                        "weight": {
+                          "min": 35,
+                          "max": 45,
+                          "unit": "lbs"
+                        },
+                        "restBetweenSets": 60,
+                        "cues": ["Squeeze shoulder blades", "Pull elbows back", "Stable core"]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Pre-Adventure Sauna",
+            "plannedDuration": 20,
+            "plannedTSS": {
+              "min": 10,
+              "max": 15
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Strength recovery and adventure preparation sauna",
+              "20 minutes at 180°F",
+              "Focus on muscle recovery and preparation",
+              "Mental preparation for weekend gravel adventure",
+              "Continue excellent daily protocol"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 6,
+        "date": "2025-07-19",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Return to Gravel Adventure",
+            "plannedDuration": 160,
+            "plannedTSS": {
+              "min": 130,
+              "max": 150
+            },
+            "targetRPE": {
+              "min": 4,
+              "max": 6
+            },
+            "outdoorGuidelines": {
+              "routeType": "Extended gravel exploration - mix familiar and new sections",
+              "terrain": "Varied gravel roads, dirt trails, moderate climbing",
+              "focus": "Confidence restoration and endurance building",
+              "progression": "Build duration from recovery week baseline"
+            },
+            "structureGuidelines": {
+              "warmup": "20 minutes progressive on paved/easy gravel",
+              "mainEffort": "120 minutes varied gravel terrain",
+              "cooldown": "20 minutes easy spinning back to car",
+              "pacing": "Controlled endurance with natural terrain responses"
+            },
+            "powerGuidelines": {
+              "baseEffort": "180-195W sustained endurance pace",
+              "hillClimbs": "Natural increases to 230-250W on climbs",
+              "technical": "Power by feel, prioritize technique and safety",
+              "recovery": "160-180W on descents and easier sections"
+            },
+            "nutritionStrategy": {
+              "preRide": "Substantial breakfast 2-3 hours before",
+              "duringRide": "60-80g carbs per hour after first hour",
+              "hydration": "750-1000ml per hour (adjust for temperature)",
+              "practice": "Continue refining race-day nutrition strategy"
+            },
+            "skillFocus": [
+              "Gravel confidence restoration after crash",
+              "Extended position comfort and management",
+              "Technical handling on varied terrain",
+              "Nutrition and hydration execution",
+              "Conservative but progressive challenge"
+            ],
+            "safetyProtocol": [
+              "Comprehensive pre-ride bike and tire pressure check",
+              "Conservative approach to all technical descents",
+              "Route with multiple bail-out options",
+              "Phone accessible for navigation and emergency",
+              "Apply all crash prevention lessons learned"
+            ],
+            "notes": [
+              "RETURN TO GRAVEL ADVENTURES! 🏞️",
+              "Build on recovery week confidence",
+              "Progressive challenge with safety priority",
+              "Practice everything needed for longer events",
+              "Celebrate successful return to outdoor gravel"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Adventure Completion Sauna",
+            "plannedDuration": 25,
+            "plannedTSS": {
+              "min": 12,
+              "max": 18
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Celebration sauna for gravel adventure return",
+              "25 minutes at 180-185°F",
+              "2-3 hours after completing long ride",
+              "Celebrate successful return to gravel",
+              "Focus on recovery and adaptation"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 7,
+        "date": "2025-07-20",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Active Recovery Integration",
+            "plannedDuration": 75,
+            "plannedTSS": {
+              "min": 50,
+              "max": 65
+            },
+            "targetRPE": {
+              "min": 2,
+              "max": 4
+            },
+            "intervals": [
+              {
+                "name": "Easy Warmup",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 45
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 60
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Sweet Spot Touch",
+                "duration": 1200,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 220,
+                  "max": 230,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Recovery Block",
+                "duration": 600,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 160,
+                  "max": 170,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Sweet Spot Touch",
+                "duration": 1200,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 220,
+                  "max": 230,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Easy Cooldown",
+                "duration": 600,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 60
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 45
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              }
+            ],
+            "notes": [
+              "Active recovery with light sweet spot touches",
+              "2×20min at 220-230W (85-88% FTP)",
+              "Recovery from gravel adventure while maintaining feel",
+              "Option to substitute pure recovery ride if fatigued",
+              "Prepare for next week's continued progression"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Week Completion Sauna",
+            "plannedDuration": 20,
+            "plannedTSS": {
+              "min": 10,
+              "max": 15
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Week completion and preparation sauna",
+              "20 minutes at 180°F",
+              "Celebrate successful bike return and gravel adventure",
+              "Reflect on outstanding recovery and progression",
+              "Prepare for continued outdoor development"
+            ]
+          }
+        ]
+      }
+    ]
+  }

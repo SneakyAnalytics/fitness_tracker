@@ -1,0 +1,537 @@
+{
+    "weekNumber": 48,
+    "startDate": "2025-10-13",
+    "plannedTSS": {
+      "min": 300,
+      "max": 350
+    },
+    "notes": {
+      "weekFocus": "Return from Vacation & FTP Test Preparation",
+      "specialConsiderations": "Easy reintegration, FTP test Saturday, begin Zwift race prep"
+    },
+    "days": [
+      {
+        "dayNumber": 1,
+        "date": "2025-10-13",
+        "workouts": [
+          {
+            "type": "rest",
+            "name": "Hawaii Vacation - Final Day",
+            "plannedDuration": 0,
+            "plannedTSS": {
+              "min": 0,
+              "max": 0
+            },
+            "notes": [
+              "Last vacation day",
+              "Optional easy movement",
+              "Prepare for travel home"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 2,
+        "date": "2025-10-14",
+        "workouts": [
+          {
+            "type": "rest",
+            "name": "Travel Day Home",
+            "plannedDuration": 0,
+            "plannedTSS": {
+              "min": 0,
+              "max": 0
+            },
+            "notes": [
+              "Return travel from Hawaii",
+              "Rest and recover from flight",
+              "Rehydrate"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 3,
+        "date": "2025-10-15",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Return to Training",
+            "plannedDuration": 60,
+            "plannedTSS": {
+              "min": 40,
+              "max": 50
+            },
+            "targetRPE": {
+              "min": 3,
+              "max": 4
+            },
+            "intervals": [
+              {
+                "name": "Easy Return Ride",
+                "duration": 3600,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 165,
+                  "max": 180,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              }
+            ],
+            "notes": [
+              "First ride back",
+              "Should feel easy",
+              "Reestablish routine"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 4,
+        "date": "2025-10-16",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Tempo Test",
+            "plannedDuration": 75,
+            "plannedTSS": {
+              "min": 65,
+              "max": 75
+            },
+            "targetRPE": {
+              "min": 5,
+              "max": 6
+            },
+            "intervals": [
+              {
+                "name": "Warmup",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "watts",
+                    "value": 140
+                  },
+                  "end": {
+                    "type": "watts",
+                    "value": 190
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Tempo Block 1",
+                "duration": 600,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 230,
+                  "max": 240,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Recovery 1",
+                "duration": 300,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 160
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Tempo Block 2",
+                "duration": 600,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 230,
+                  "max": 240,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Recovery 2",
+                "duration": 300,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 160
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Tempo Block 3",
+                "duration": 600,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 230,
+                  "max": 240,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Cool-down",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "watts",
+                    "value": 190
+                  },
+                  "end": {
+                    "type": "watts",
+                    "value": 140
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              }
+            ],
+            "notes": [
+              "3×10min at tempo",
+              "Testing legs after break",
+              "Should feel moderate"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 5,
+        "date": "2025-10-17",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Short VO2max",
+            "plannedDuration": 60,
+            "plannedTSS": {
+              "min": 65,
+              "max": 75
+            },
+            "targetRPE": {
+              "min": 8,
+              "max": 9
+            },
+            "intervals": [
+              {
+                "name": "Warmup",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 75
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "VO2 1",
+                "duration": 120,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 320
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Recovery 1",
+                "duration": 180,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 160
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "VO2 2",
+                "duration": 120,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 320
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Recovery 2",
+                "duration": 180,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 160
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "VO2 3",
+                "duration": 120,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 320
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Recovery 3",
+                "duration": 180,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 160
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "VO2 4",
+                "duration": 120,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 320
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Recovery 4",
+                "duration": 180,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 160
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "VO2 5",
+                "duration": 120,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 320
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Cool-down",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 70
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              }
+            ],
+            "notes": [
+              "5×2min at VO2max",
+              "Short intervals for return week",
+              "Open up the legs"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 6,
+        "date": "2025-10-18",
+        "workouts": [
+          {
+            "type": "rest",
+            "name": "Pre-Test Rest",
+            "plannedDuration": 0,
+            "plannedTSS": {
+              "min": 0,
+              "max": 0
+            },
+            "notes": [
+              "Rest before FTP test",
+              "Light stretching only",
+              "Prepare mentally for test"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 7,
+        "date": "2025-10-19",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "FTP Test",
+            "plannedDuration": 75,
+            "plannedTSS": {
+              "min": 90,
+              "max": 110
+            },
+            "targetRPE": {
+              "min": 9,
+              "max": 10
+            },
+            "intervals": [
+              {
+                "name": "Extended Warmup",
+                "duration": 1200,
+                "powerTarget": {
+                  "start": {
+                    "type": "watts",
+                    "value": 140
+                  },
+                  "end": {
+                    "type": "watts",
+                    "value": 220
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Primer 1",
+                "duration": 60,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 300
+                },
+                "cadenceTarget": {
+                  "min": 95,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Recovery",
+                "duration": 120,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Primer 2",
+                "duration": 60,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 310
+                },
+                "cadenceTarget": {
+                  "min": 95,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Recovery",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "20-Minute FTP Test",
+                "duration": 1200,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 285,
+                  "max": 295,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Cool-down",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "watts",
+                    "value": 180
+                  },
+                  "end": {
+                    "type": "watts",
+                    "value": 120
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 80,
+                  "max": 90
+                }
+              }
+            ],
+            "notes": [
+              "20-minute FTP test",
+              "Target 285-295W based on recent performances",
+              "This sets baseline for Zwift racing",
+              "Push hard but stay controlled"
+            ]
+          }
+        ]
+      }
+    ]
+  }

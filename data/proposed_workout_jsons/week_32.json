@@ -1,0 +1,802 @@
+{
+    "weekNumber": 32,
+    "startDate": "2025-06-23",
+    "plannedTSS": {
+      "min": 500,
+      "max": 560
+    },
+    "notes": {
+      "weekFocus": "Outdoor Integration with Sauna Launch",
+      "specialConsiderations": "50/50 indoor/outdoor split, weekday paved rides, weekend gravel options, sauna integration starting Tuesday, power meter troubleshooting"
+    },
+    "days": [
+      {
+        "dayNumber": 1,
+        "date": "2025-06-23",
+        "workouts": [
+          {
+            "type": "mobility",
+            "name": "Outdoor Preparation Mobility",
+            "plannedDuration": 40,
+            "plannedTSS": {
+              "min": 15,
+              "max": 20
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "sections": [
+              {
+                "name": "Hip Flexor and Lower Back Focus",
+                "duration": 15,
+                "exercises": [
+                  {
+                    "name": "Hip Flexor Release Series",
+                    "sets": [
+                      {
+                        "duration": 600,
+                        "notes": [
+                          "Couch stretch - 3 minutes each leg",
+                          "Low lunge with reach - 2 minutes each leg",
+                          "Standing hip flexor stretch - 1 minute each leg",
+                          "Prepare hips for outdoor riding positions"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Lower Back Care",
+                    "sets": [
+                      {
+                        "duration": 300,
+                        "notes": [
+                          "Cat-cow stretches - 2 minutes",
+                          "Knee rocks - 1 minute",
+                          "Child's pose - 2 minutes"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Outdoor-Specific Preparation",
+                "duration": 12,
+                "exercises": [
+                  {
+                    "name": "Core Stability for Variable Terrain",
+                    "sets": [
+                      {
+                        "duration": 480,
+                        "notes": [
+                          "Dead bugs - 2 minutes slow",
+                          "Bird dogs - 2 minutes each side",
+                          "Modified planks - 2 minutes",
+                          "Glute bridges - 2 minutes"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Upper Body and Neck Prep",
+                    "sets": [
+                      {
+                        "duration": 240,
+                        "notes": [
+                          "Neck rolls and stretches - 2 minutes",
+                          "Shoulder blade squeezes - 1 minute",
+                          "Arm circles - 1 minute"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Final Integration",
+                "duration": 13,
+                "exercises": [
+                  {
+                    "name": "Full Body Flow",
+                    "sets": [
+                      {
+                        "duration": 480,
+                        "notes": [
+                          "Hamstring stretches - 2 minutes each leg",
+                          "Quad stretches - 1 minute each leg",
+                          "Calf stretches - 1 minute each leg"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Mental Preparation",
+                    "sets": [
+                      {
+                        "duration": 300,
+                        "notes": [
+                          "Deep breathing - 3 minutes",
+                          "Visualize smooth outdoor riding",
+                          "Set intention for outdoor integration week"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 2,
+        "date": "2025-06-24",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Outdoor Paved Endurance",
+            "plannedDuration": 90,
+            "plannedTSS": {
+              "min": 70,
+              "max": 80
+            },
+            "targetRPE": {
+              "min": 3,
+              "max": 5
+            },
+            "outdoorGuidelines": {
+              "routeType": "Paved suburban loop",
+              "terrain": "Mixed flat and rolling",
+              "trafficConsiderations": "Avoid rush hour, use quiet roads",
+              "safetyPriority": "Always prioritize safety over training targets"
+            },
+            "powerGuidelines": {
+              "mainEffort": "175-185W (if power meter working)",
+              "alternativeGuidance": "Comfortable endurance pace, able to hold conversation",
+              "heartRateTarget": "125-135 bpm average",
+              "rpeGuidance": "3-4/10 effort, should feel sustainable"
+            },
+            "structureGuidelines": {
+              "warmup": "First 15 minutes easy spinning",
+              "mainBlock": "60 minutes steady endurance pace",
+              "cooldown": "Final 15 minutes easy",
+              "positionChanges": "Every 15-20 minutes for comfort"
+            },
+            "skillFocus": [
+              "Smooth gear transitions",
+              "Comfortable hand positions",
+              "Traffic awareness and safety",
+              "Hydration and nutrition practice",
+              "Route familiarization"
+            ],
+            "notes": [
+              "First structured outdoor endurance ride",
+              "Focus on comfort and skill development",
+              "Don't stress about exact power if meter not working",
+              "Use RPE and breathing as primary guides",
+              "Build confidence for longer outdoor efforts"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "First Sauna Session",
+            "plannedDuration": 18,
+            "plannedTSS": {
+              "min": 10,
+              "max": 15
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "INAUGURAL SAUNA SESSION!",
+              "18 minutes at 175-180°F",
+              "2-3 hours after outdoor ride",
+              "Hydrate extensively before and after",
+              "Exit immediately if feeling unwell",
+              "Focus on relaxation and heat adaptation"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 3,
+        "date": "2025-06-25",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Indoor Threshold Precision",
+            "plannedDuration": 75,
+            "plannedTSS": {
+              "min": 80,
+              "max": 90
+            },
+            "targetRPE": {
+              "min": 6,
+              "max": 7
+            },
+            "intervals": [
+              {
+                "name": "Progressive Warmup",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 70
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Threshold Block 1",
+                "duration": 900,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 250,
+                  "max": 255,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Recovery",
+                "duration": 300,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Threshold Block 2",
+                "duration": 900,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 250,
+                  "max": 255,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Extended Cooldown",
+                "duration": 1500,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 65
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              }
+            ],
+            "notes": [
+              "Indoor session for precise power control",
+              "2x15min threshold blocks",
+              "Compare feel to yesterday's outdoor effort",
+              "Use this as baseline for outdoor power correlation"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Evening Sauna Session",
+            "plannedDuration": 20,
+            "plannedTSS": {
+              "min": 10,
+              "max": 15
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Second sauna session",
+              "20 minutes at 180°F",
+              "Evening session for recovery",
+              "Focus on muscle relaxation",
+              "Compare adaptation to first session"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 4,
+        "date": "2025-06-26",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Outdoor Paved Tempo and Skills",
+            "plannedDuration": 75,
+            "plannedTSS": {
+              "min": 70,
+              "max": 85
+            },
+            "targetRPE": {
+              "min": 4,
+              "max": 6
+            },
+            "outdoorGuidelines": {
+              "routeType": "Paved roads with hills if available",
+              "terrain": "Include sustained climbs and varied elevation",
+              "focus": "Tempo efforts and technical skills"
+            },
+            "structureGuidelines": {
+              "warmup": "15 minutes easy",
+              "mainBlock": "45 minutes with tempo efforts",
+              "cooldown": "15 minutes easy",
+              "tempoEfforts": "3x8min at 210-220W or moderate-hard effort"
+            },
+            "powerGuidelines": {
+              "tempoTarget": "210-220W (if power working) or 6-7/10 RPE",
+              "baseEffort": "175-185W or comfortable endurance pace",
+              "heartRateGuide": "Tempo: 145-155 bpm, Base: 125-135 bpm"
+            },
+            "skillFocus": [
+              "Climbing technique and pacing",
+              "Descending confidence and control",
+              "Cornering and bike handling",
+              "Gear selection optimization",
+              "Sustained effort pacing"
+            ],
+            "notes": [
+              "Focus on tempo efforts if hills available",
+              "Practice sustained moderate-hard efforts",
+              "Work on outdoor pacing skills",
+              "Note differences from indoor tempo feel"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Post-Ride Sauna",
+            "plannedDuration": 18,
+            "plannedTSS": {
+              "min": 10,
+              "max": 15
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Post-outdoor ride sauna",
+              "18 minutes at 180°F",
+              "1-2 hours after completing ride",
+              "Focus on muscle recovery",
+              "Note benefits after outdoor efforts"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 5,
+        "date": "2025-06-27",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Indoor VO2max Development",
+            "plannedDuration": 80,
+            "plannedTSS": {
+              "min": 95,
+              "max": 105
+            },
+            "targetRPE": {
+              "min": 7,
+              "max": 9
+            },
+            "intervals": [
+              {
+                "name": "Progressive Warmup",
+                "duration": 1200,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 70
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Primer",
+                "duration": 60,
+                "powerTarget": {
+                  "type": "percent_ftp",
+                  "value": 95
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Rest",
+                "duration": 180,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "VO2 Interval 1",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 305,
+                  "max": 315,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Recovery 1",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "VO2 Interval 2",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 305,
+                  "max": 315,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Recovery 2",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "VO2 Interval 3",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 305,
+                  "max": 315,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Recovery 3",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "VO2 Interval 4",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 305,
+                  "max": 315,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Extended Cooldown",
+                "duration": 1200,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 65
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              }
+            ],
+            "notes": [
+              "Indoor session for precise VO2max development",
+              "4x4min at 305-315W (117-121% FTP)",
+              "Controlled environment for high-intensity work",
+              "Compare to outdoor high-intensity feel"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 6,
+        "date": "2025-06-28",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Long Outdoor Gravel Adventure",
+            "plannedDuration": 180,
+            "plannedTSS": {
+              "min": 135,
+              "max": 155
+            },
+            "targetRPE": {
+              "min": 4,
+              "max": 6
+            },
+            "outdoorGuidelines": {
+              "routeType": "Drive to gravel area for authentic gravel experience",
+              "terrain": "Mixed gravel, dirt roads, varied elevation",
+              "distance": "Drive 15-30 minutes to access gravel roads",
+              "exploration": "Focus on discovering new gravel routes"
+            },
+            "structureGuidelines": {
+              "warmup": "20 minutes easy on pavement/easy gravel",
+              "mainEffort": "140 minutes varied gravel terrain",
+              "cooldown": "20 minutes easy back to car",
+              "pacing": "Mostly endurance with natural terrain surges"
+            },
+            "powerGuidelines": {
+              "baseEffort": "175-190W or comfortable endurance pace",
+              "hillClimbs": "Allow natural increases to 220-240W",
+              "technical": "Power by feel, focus on technique",
+              "recovery": "Easy spinning on descents/recovery sections"
+            },
+            "skillFocus": [
+              "Gravel handling and confidence",
+              "Climbing on loose surfaces",
+              "Descending technique and control",
+              "Line selection and bike handling",
+              "Nutrition and hydration on gravel"
+            ],
+            "equipmentNotes": [
+              "Lower tire pressure for gravel comfort",
+              "Bring spare tubes and basic tools",
+              "Extra water and nutrition",
+              "Consider gravel-specific routes with bail-out options"
+            ],
+            "notes": [
+              "FIRST LONG GRAVEL ADVENTURE!",
+              "Focus on enjoyment and skill development",
+              "Don't stress about perfect pacing",
+              "Practice race-day nutrition strategy",
+              "Take photos and celebrate this milestone!"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Evening Post-Adventure Sauna",
+            "plannedDuration": 20,
+            "plannedTSS": {
+              "min": 10,
+              "max": 15
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Post-adventure sauna session",
+              "20 minutes at 180-185°F",
+              "2-3 hours after long gravel ride",
+              "Celebrate first gravel adventure",
+              "Focus on muscle recovery and relaxation",
+              "Perfect end to milestone riding day"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 7,
+        "date": "2025-06-29",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Indoor Sweet Spot Recovery",
+            "plannedDuration": 90,
+            "plannedTSS": {
+              "min": 70,
+              "max": 85
+            },
+            "targetRPE": {
+              "min": 4,
+              "max": 6
+            },
+            "intervals": [
+              {
+                "name": "Easy Warmup",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 70
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Sweet Spot Block 1",
+                "duration": 1200,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 225,
+                  "max": 235,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Recovery 1",
+                "duration": 300,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Sweet Spot Block 2",
+                "duration": 1200,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 225,
+                  "max": 235,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Recovery 2",
+                "duration": 300,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Sweet Spot Block 3",
+                "duration": 1200,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 225,
+                  "max": 235,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Extended Cooldown",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 65
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              }
+            ],
+            "notes": [
+              "Recovery-focused sweet spot session",
+              "3x20min at 225-235W (87-90% FTP)",
+              "Active recovery from gravel adventure",
+              "Can substitute easy recovery ride if very fatigued"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Recovery Sauna Session",
+            "plannedDuration": 20,
+            "plannedTSS": {
+              "min": 10,
+              "max": 15
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Week-ending recovery sauna",
+              "20 minutes at 180°F",
+              "Focus on complete relaxation",
+              "Reflect on successful outdoor integration week",
+              "Prepare body and mind for continued outdoor progression"
+            ]
+          }
+        ]
+      }
+    ]
+  }

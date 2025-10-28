@@ -1,0 +1,1271 @@
+{
+    "weekNumber": 26,
+    "startDate": "2025-05-12",
+    "plannedTSS": {
+      "min": 480,
+      "max": 540
+    },
+    "notes": {
+      "weekFocus": "Indoor Threshold Progression and Extended Endurance",
+      "specialConsiderations": "Bike delay - continuing indoor training, Tuesday pickleball, building for outdoor transition"
+    },
+    "days": [
+      {
+        "dayNumber": 1,
+        "date": "2025-05-12",
+        "workouts": [
+          {
+            "type": "mobility",
+            "name": "Comprehensive Recovery Session",
+            "plannedDuration": 45,
+            "plannedTSS": {
+              "min": 15,
+              "max": 20
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 3
+            },
+            "sections": [
+              {
+                "name": "Breathing and Centering",
+                "duration": 8,
+                "exercises": [
+                  {
+                    "name": "Box Breathing",
+                    "sets": [
+                      {
+                        "duration": 120,
+                        "notes": [
+                          "4-4-4-4 count pattern",
+                          "Focus on diaphragm",
+                          "Seated or supine"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Progressive Muscle Relaxation",
+                    "sets": [
+                      {
+                        "duration": 180,
+                        "notes": [
+                          "Start from toes",
+                          "Tense and release",
+                          "Move upward systematically"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Gentle Neck Rolls",
+                    "sets": [
+                      {
+                        "duration": 120,
+                        "notes": [
+                          "Slow circles both directions",
+                          "Address upper back tension",
+                          "Include shoulder shrugs"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Hip Mobility Focus",
+                "duration": 12,
+                "exercises": [
+                  {
+                    "name": "Hip Circles",
+                    "sets": [
+                      {
+                        "duration": 90,
+                        "notes": [
+                          "Both directions",
+                          "Hands on hips",
+                          "Full range of motion"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "90/90 Hip Stretch",
+                    "sets": [
+                      {
+                        "duration": 180,
+                        "notes": [
+                          "90 seconds each side",
+                          "Lean forward gently",
+                          "Feel hip opening"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Pigeon Pose",
+                    "sets": [
+                      {
+                        "duration": 240,
+                        "notes": [
+                          "2 minutes each side",
+                          "Modify as needed",
+                          "Deep hip flexor stretch"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Fire Hydrants",
+                    "sets": [
+                      {
+                        "reps": 15,
+                        "perSide": true,
+                        "notes": [
+                          "Controlled movement",
+                          "Hip abduction focus",
+                          "Core engaged"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Shoulder and Upper Back",
+                "duration": 12,
+                "exercises": [
+                  {
+                    "name": "Wall Angels",
+                    "sets": [
+                      {
+                        "reps": 20,
+                        "notes": [
+                          "Back against wall",
+                          "Slow controlled movement",
+                          "Full range"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Cross-body Shoulder Stretch",
+                    "sets": [
+                      {
+                        "duration": 90,
+                        "perSide": true,
+                        "notes": [
+                          "Hold across chest",
+                          "Feel posterior deltoid",
+                          "Breathe deeply"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Thoracic Spine Rotation",
+                    "sets": [
+                      {
+                        "reps": 10,
+                        "perSide": true,
+                        "notes": [
+                          "Seated or kneeling",
+                          "Hand behind head",
+                          "Rotate from mid-back"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Cat-Cow Flow",
+                    "sets": [
+                      {
+                        "reps": 15,
+                        "notes": [
+                          "Smooth transitions",
+                          "Full spinal movement",
+                          "Coordinate with breath"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Lower Body Release",
+                "duration": 8,
+                "exercises": [
+                  {
+                    "name": "Standing Forward Fold",
+                    "sets": [
+                      {
+                        "duration": 120,
+                        "notes": [
+                          "Hang heavy",
+                          "Bend knees slightly",
+                          "Sway side to side"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Calf Stretch Series",
+                    "sets": [
+                      {
+                        "duration": 60,
+                        "perSide": true,
+                        "notes": [
+                          "Wall stretch",
+                          "Straight then bent knee",
+                          "Feel through Achilles"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Quad Stretch",
+                    "sets": [
+                      {
+                        "duration": 60,
+                        "perSide": true,
+                        "notes": [
+                          "Standing or side-lying",
+                          "Pull heel to glute",
+                          "Keep hips neutral"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Hamstring Flow",
+                    "sets": [
+                      {
+                        "duration": 120,
+                        "notes": [
+                          "Various positions",
+                          "Supine, seated, standing",
+                          "Find tight spots"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Core and Balance",
+                "duration": 5,
+                "exercises": [
+                  {
+                    "name": "Single Leg Stands",
+                    "sets": [
+                      {
+                        "duration": 30,
+                        "perSide": true,
+                        "notes": [
+                          "Eyes closed optional",
+                          "Engage core",
+                          "Progress to movement"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Gentle Core Breathing",
+                    "sets": [
+                      {
+                        "duration": 120,
+                        "notes": [
+                          "Supine position",
+                          "Hand on belly",
+                          "360-degree expansion"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Child's Pose",
+                    "sets": [
+                      {
+                        "duration": 120,
+                        "notes": [
+                          "Wide knee variation",
+                          "Arms extended",
+                          "Complete relaxation"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 2,
+        "date": "2025-05-13",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Progressive Threshold Development",
+            "plannedDuration": 85,
+            "plannedTSS": {
+              "min": 85,
+              "max": 95
+            },
+            "targetRPE": {
+              "min": 6,
+              "max": 8
+            },
+            "intervals": [
+              {
+                "name": "Warmup",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 70
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Main Set 1",
+                "duration": 720,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 250,
+                  "max": 255,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Recovery 1",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Main Set 2",
+                "duration": 720,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 250,
+                  "max": 255,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Recovery 2",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Main Set 3",
+                "duration": 720,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 250,
+                  "max": 255,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Cooldown",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 65
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              }
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Pickleball",
+            "plannedDuration": 45,
+            "plannedTSS": {
+              "min": 20,
+              "max": 25
+            },
+            "targetRPE": {
+              "min": 2,
+              "max": 4
+            },
+            "notes": [
+              "Tuesday league play",
+              "Keep effort moderate",
+              "Focus on movement quality"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 3,
+        "date": "2025-05-14",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Extended Zone 2 Endurance",
+            "plannedDuration": 105,
+            "plannedTSS": {
+              "min": 70,
+              "max": 80
+            },
+            "targetRPE": {
+              "min": 3,
+              "max": 5
+            },
+            "intervals": [
+              {
+                "name": "Warmup",
+                "duration": 600,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 65
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Main Set",
+                "duration": 4800,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 180,
+                  "max": 190,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Cooldown",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 65
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 4,
+        "date": "2025-05-15",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "VO2max Development",
+            "plannedDuration": 75,
+            "plannedTSS": {
+              "min": 90,
+              "max": 100
+            },
+            "targetRPE": {
+              "min": 7,
+              "max": 9
+            },
+            "intervals": [
+              {
+                "name": "Warmup",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 70
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Primer",
+                "duration": 60,
+                "powerTarget": {
+                  "type": "percent_ftp",
+                  "value": 95
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Rest",
+                "duration": 120,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "VO2 Interval 1",
+                "duration": 300,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 280,
+                  "max": 290,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Recovery 1",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "VO2 Interval 2",
+                "duration": 300,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 280,
+                  "max": 290,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Recovery 2",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "VO2 Interval 3",
+                "duration": 300,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 280,
+                  "max": 290,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Recovery 3",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "VO2 Interval 4",
+                "duration": 300,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 280,
+                  "max": 290,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Recovery 4",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "VO2 Interval 5",
+                "duration": 300,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 280,
+                  "max": 290,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Cooldown",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 65
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 5,
+        "date": "2025-05-16",
+        "workouts": [
+          {
+            "type": "strength",
+            "name": "Enhanced Cycling Strength",
+            "plannedDuration": 55,
+            "plannedTSS": {
+              "min": 40,
+              "max": 45
+            },
+            "targetRPE": {
+              "min": 5,
+              "max": 7
+            },
+            "sections": [
+              {
+                "name": "Dynamic Warmup",
+                "duration": 10,
+                "exercises": [
+                  {
+                    "name": "Jumping Jacks",
+                    "sets": [
+                      {
+                        "reps": 30,
+                        "notes": ["Full range", "Moderate pace"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Leg Swings",
+                    "sets": [
+                      {
+                        "reps": 15,
+                        "perSide": true,
+                        "notes": ["Forward/back", "Side to side"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Arm Circles",
+                    "sets": [
+                      {
+                        "reps": 10,
+                        "bothDirections": true,
+                        "notes": ["Progressive size", "Both directions"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Dynamic Lunges",
+                    "sets": [
+                      {
+                        "reps": 10,
+                        "perSide": true,
+                        "notes": ["Walking variation", "Add twist"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Bodyweight Squats",
+                    "sets": [
+                      {
+                        "reps": 15,
+                        "notes": ["Full depth", "Controlled tempo"]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Circuit 1 - Lower Body Power",
+                "duration": 15,
+                "rounds": 3,
+                "exercises": [
+                  {
+                    "name": "Jump Squats",
+                    "sets": [
+                      {
+                        "reps": 12,
+                        "restTime": 30,
+                        "cues": [
+                          "Explosive up",
+                          "Soft landing",
+                          "Quarter squat depth"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Single-leg Box Step-ups",
+                    "sets": [
+                      {
+                        "reps": 12,
+                        "perSide": true,
+                        "weight": {
+                          "min": 20,
+                          "max": 25,
+                          "unit": "lbs"
+                        },
+                        "restTime": 30,
+                        "cues": ["Drive through heel", "Maintain balance", "Control descent"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Lateral Bounds",
+                    "sets": [
+                      {
+                        "reps": 10,
+                        "perSide": true,
+                        "restTime": 30,
+                        "cues": ["Stick the landing", "Power from glutes", "Stay low"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Romanian Deadlifts",
+                    "sets": [
+                      {
+                        "reps": 15,
+                        "weight": {
+                          "min": 30,
+                          "max": 35,
+                          "unit": "lbs"
+                        },
+                        "restTime": 60,
+                        "cues": ["Hinge at hips", "Feel hamstrings", "Neutral spine"]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Circuit 2 - Core and Stability",
+                "duration": 15,
+                "rounds": 3,
+                "exercises": [
+                  {
+                    "name": "Plank to T-rotation",
+                    "sets": [
+                      {
+                        "reps": 8,
+                        "perSide": true,
+                        "restTime": 30,
+                        "cues": ["Controlled rotation", "Stack shoulders", "Engage core"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Pallof Press",
+                    "sets": [
+                      {
+                        "reps": 15,
+                        "perSide": true,
+                        "restTime": 30,
+                        "cues": ["Resist rotation", "Arms fully extended", "Square hips"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Bird Dog Hold",
+                    "sets": [
+                      {
+                        "duration": 30,
+                        "perSide": true,
+                        "restTime": 20,
+                        "cues": ["Opposite arm/leg", "Level hips", "No arch"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Dead Bug with Band",
+                    "sets": [
+                      {
+                        "reps": 12,
+                        "restTime": 60,
+                        "cues": ["Press into band", "Lower back down", "Slow movement"]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Finisher",
+                "duration": 10,
+                "exercises": [
+                  {
+                    "name": "Mountain Climbers",
+                    "sets": [
+                      {
+                        "duration": 30,
+                        "restTime": 30,
+                        "notes": ["Quick pace", "Core tight"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Bicycle Crunches",
+                    "sets": [
+                      {
+                        "duration": 30,
+                        "restTime": 30,
+                        "notes": ["Controlled twists", "Elbow to knee"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Glute Bridge Hold",
+                    "sets": [
+                      {
+                        "duration": 45,
+                        "restTime": 15,
+                        "notes": ["Squeeze glutes", "Add pulses last 15 sec"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Plank Hold",
+                    "sets": [
+                      {
+                        "duration": 60,
+                        "notes": ["Perfect form", "Breathe normally", "Final effort"]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Cool-down Stretch",
+                "duration": 5,
+                "exercises": [
+                  {
+                    "name": "Standing Quad Stretch",
+                    "sets": [
+                      {
+                        "duration": 45,
+                        "perSide": true
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Seated Hamstring Stretch",
+                    "sets": [
+                      {
+                        "duration": 45,
+                        "perSide": true
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Figure-4 Hip Stretch",
+                    "sets": [
+                      {
+                        "duration": 45,
+                        "perSide": true
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Child's Pose",
+                    "sets": [
+                      {
+                        "duration": 60
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 6,
+        "date": "2025-05-17",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Long Endurance Challenge",
+            "plannedDuration": 210,
+            "plannedTSS": {
+              "min": 150,
+              "max": 170
+            },
+            "targetRPE": {
+              "min": 4,
+              "max": 7
+            },
+            "intervals": [
+              {
+                "name": "Warmup",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 65
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Hour 1 - Base Endurance",
+                "duration": 3600,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 175,
+                  "max": 185,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Hour 2 - Build",
+                "duration": 3000,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 180,
+                  "max": 190,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Surge 1",
+                "duration": 180,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 240
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Recovery",
+                "duration": 180,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 180
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Surge 2",
+                "duration": 180,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 240
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Recovery",
+                "duration": 180,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 180
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Surge 3",
+                "duration": 180,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 240
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Hour 3 - Steady",
+                "duration": 3600,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 175,
+                  "max": 185,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Final Push",
+                "duration": 1800,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 190,
+                  "max": 200,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Cooldown",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 65
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              }
+            ],
+            "notes": [
+              "Practice race-day nutrition strategy throughout",
+              "Stay hydrated with planned fluid intake",
+              "Focus on maintaining form despite fatigue",
+              "This is preparation for outdoor long rides"
+            ]
+          }
+        ]
+      },
+      {
+  "dayNumber": 7,
+  "date": "2025-05-18",
+  "workouts": [
+    {
+      "type": "bike",
+      "name": "Sweet Spot Recovery Balance",
+      "plannedDuration": 90,
+      "plannedTSS": {
+        "min": 60,
+        "max": 75
+      },
+      "targetRPE": {
+        "min": 2,
+        "max": 6
+      },
+      "intervals": [
+        {
+          "name": "Warmup",
+          "duration": 900,
+          "powerTarget": {
+            "start": {
+              "type": "percent_ftp",
+              "value": 50
+            },
+            "end": {
+              "type": "percent_ftp",
+              "value": 70
+            }
+          },
+          "cadenceTarget": {
+            "min": 85,
+            "max": 95
+          }
+        },
+        {
+          "name": "Sweet Spot 1",
+          "duration": 1800,
+          "powerTarget": {
+            "type": "range",
+            "min": 220,
+            "max": 230,
+            "unit": "watts"
+          },
+          "cadenceTarget": {
+            "min": 85,
+            "max": 90
+          }
+        },
+        {
+          "name": "Recovery",
+          "duration": 300,
+          "powerTarget": {
+            "type": "watts",
+            "value": 150
+          },
+          "cadenceTarget": {
+            "min": 85,
+            "max": 95
+          }
+        },
+        {
+          "name": "Sweet Spot 2",
+          "duration": 1800,
+          "powerTarget": {
+            "type": "range",
+            "min": 220,
+            "max": 230,
+            "unit": "watts"
+          },
+          "cadenceTarget": {
+            "min": 85,
+            "max": 90
+          }
+        },
+        {
+          "name": "Cooldown",
+          "duration": 900,
+          "powerTarget": {
+            "start": {
+              "type": "percent_ftp",
+              "value": 65
+            },
+            "end": {
+              "type": "percent_ftp",
+              "value": 50
+            }
+          },
+          "cadenceTarget": {
+            "min": 85,
+            "max": 95
+          }
+        }
+      ],
+      "notes": [
+        "If fatigued from Saturday, reduce power to 160-170W recovery pace",
+        "Focus on good form and nutrition",
+        "Test hydration strategy for future outdoor rides"
+      ]
+    }
+        ]
+      }
+    ]
+  }

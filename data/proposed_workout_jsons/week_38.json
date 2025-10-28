@@ -1,0 +1,904 @@
+{
+    "weekNumber": 38,
+    "startDate": "2025-08-04",
+    "plannedTSS": {
+      "min": 480,
+      "max": 540
+    },
+    "notes": {
+      "weekFocus": "Pre-Vacation Fitness Peak & Epic Saturday Adventure",
+      "specialConsiderations": "Building on 335W VO2max breakthrough, epic Saturday adventure opportunity, Sunday travel day prep, vacation adventure preparation"
+    },
+    "days": [
+      {
+        "dayNumber": 1,
+        "date": "2025-08-04",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Post-Adventure Recovery Endurance",
+            "plannedDuration": 75,
+            "plannedTSS": {
+              "min": 55,
+              "max": 65
+            },
+            "targetRPE": {
+              "min": 2,
+              "max": 4
+            },
+            "intervals": [
+              {
+                "name": "Gentle Warmup",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 45
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 60
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Recovery Endurance Block",
+                "duration": 3600,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 170,
+                  "max": 180,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Gentle Cooldown",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 60
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 45
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              }
+            ],
+            "notes": [
+              "Recovery ride following coastal adventure achievements",
+              "Celebrate 335W VO2max breakthrough with easy endurance",
+              "Allow body to recover from weekend coastal climbing",
+              "Focus on smooth, comfortable power delivery",
+              "Prepare for structured training this week"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Achievement Celebration Sauna",
+            "plannedDuration": 20,
+            "plannedTSS": {
+              "min": 10,
+              "max": 15
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Celebration sauna for incredible power breakthrough!",
+              "20 minutes at 180°F",
+              "Reflect on 335W VO2max achievement and coastal adventures",
+              "Prepare mentally for vacation adventure week ahead",
+              "Continue excellent heat adaptation"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 2,
+        "date": "2025-08-05",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Threshold Power Confirmation",
+            "plannedDuration": 90,
+            "plannedTSS": {
+              "min": 100,
+              "max": 110
+            },
+            "targetRPE": {
+              "min": 6,
+              "max": 8
+            },
+            "intervals": [
+              {
+                "name": "Progressive Warmup",
+                "duration": 1200,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 70
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Threshold Block 1",
+                "duration": 1200,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 265,
+                  "max": 270,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Recovery",
+                "duration": 300,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Threshold Block 2",
+                "duration": 1200,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 265,
+                  "max": 270,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Extended Cooldown",
+                "duration": 1500,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 65
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              }
+            ],
+            "notes": [
+              "Test potential FTP increase based on 335W VO2max breakthrough",
+              "2×20min at 265-270W (potential 5-10W FTP increase)",
+              "Your VO2max power suggests FTP gains are definitely possible",
+              "Quality controlled session before vacation adventures",
+              "This could confirm you're now 265-270W FTP range!"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Pre-Vacation Preparation Sauna",
+            "plannedDuration": 20,
+            "plannedTSS": {
+              "min": 10,
+              "max": 15
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Recovery sauna after threshold testing",
+              "20 minutes at 180°F",
+              "Process potential FTP breakthrough results",
+              "Mental preparation for vacation adventures ahead",
+              "Continue heat adaptation benefits"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 3,
+        "date": "2025-08-06",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Outdoor Skills and Confidence",
+            "plannedDuration": 85,
+            "plannedTSS": {
+              "min": 70,
+              "max": 85
+            },
+            "targetRPE": {
+              "min": 3,
+              "max": 5
+            },
+            "outdoorGuidelines": {
+              "routeType": "Mixed terrain with technical skill practice",
+              "terrain": "Combination of paved and gravel for skill development",
+              "focus": "Build confidence for vacation adventure diversity",
+              "preparation": "Practice for varied vacation terrain"
+            },
+            "structureGuidelines": {
+              "warmup": "20 minutes easy mixed terrain",
+              "mainBlock": "45 minutes varied terrain skill practice",
+              "cooldown": "20 minutes easy spinning",
+              "skillFocus": "Technical elements and confidence building"
+            },
+            "powerGuidelines": {
+              "baseEffort": "175-185W comfortable endurance pace",
+              "skillSections": "Power by feel, prioritize technique",
+              "naturalVariation": "Allow terrain to guide intensity",
+              "confidenceBuilding": "Focus on smooth, controlled riding"
+            },
+            "skillFocus": [
+              "Cornering confidence on both surfaces",
+              "Climbing technique on varied gradients",
+              "Descending comfort and control",
+              "Surface transition smoothness",
+              "Position changes and comfort optimization"
+            ],
+            "vacationPrep": [
+              "Practice skills needed for vacation terrain",
+              "Build confidence for unknown routes",
+              "Test equipment and position comfort",
+              "Mental preparation for adventure challenges"
+            ],
+            "notes": [
+              "Final skill preparation before vacation adventures",
+              "Build confidence for tackling unknown vacation terrain",
+              "Practice smooth transitions between surface types",
+              "Focus on enjoyment and capability demonstration",
+              "Prepare mentally for vacation exploration opportunities"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Mid-Week Recovery Sauna",
+            "plannedDuration": 18,
+            "plannedTSS": {
+              "min": 10,
+              "max": 15
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Mid-week recovery and preparation sauna",
+              "18 minutes at 180°F",
+              "Recovery from outdoor skill session",
+              "Continue building heat adaptation",
+              "Mental preparation for vacation adventures"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 4,
+        "date": "2025-08-07",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Sweet Spot Power Endurance",
+            "plannedDuration": 80,
+            "plannedTSS": {
+              "min": 85,
+              "max": 95
+            },
+            "targetRPE": {
+              "min": 5,
+              "max": 7
+            },
+            "intervals": [
+              {
+                "name": "Progressive Warmup",
+                "duration": 1200,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 70
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Sweet Spot Block 1",
+                "duration": 1200,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 235,
+                  "max": 245,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Recovery 1",
+                "duration": 300,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Sweet Spot Block 2",
+                "duration": 1200,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 235,
+                  "max": 245,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Recovery 2",
+                "duration": 300,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Sweet Spot Block 3",
+                "duration": 900,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 235,
+                  "max": 245,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 90
+                }
+              },
+              {
+                "name": "Extended Cooldown",
+                "duration": 900,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 65
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              }
+            ],
+            "notes": [
+              "Sweet spot endurance for vacation adventure preparation",
+              "3 blocks: 20min + 20min + 15min at 235-245W",
+              "Build sustained power endurance for long vacation rides",
+              "Adjust power based on Tuesday's threshold test results",
+              "Final structured intensity before Saturday epic"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Pre-Epic Adventure Sauna",
+            "plannedDuration": 20,
+            "plannedTSS": {
+              "min": 10,
+              "max": 15
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Preparation sauna for Saturday epic adventure",
+              "20 minutes at 180°F",
+              "Focus on sweet spot workout recovery",
+              "Mental preparation for epic Saturday ride",
+              "Final structured workout recovery"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 5,
+        "date": "2025-08-08",
+        "workouts": [
+          {
+            "type": "strength",
+            "name": "Epic Adventure Preparation",
+            "plannedDuration": 55,
+            "plannedTSS": {
+              "min": 45,
+              "max": 50
+            },
+            "targetRPE": {
+              "min": 5,
+              "max": 7
+            },
+            "sections": [
+              {
+                "name": "Dynamic Warmup",
+                "duration": 12,
+                "exercises": [
+                  {
+                    "name": "Epic Adventure Preparation",
+                    "sets": [
+                      {
+                        "duration": 720,
+                        "notes": [
+                          "Light cardio activation - 2 minutes",
+                          "Full body movement flow - 2 minutes",
+                          "Hip circles and leg swings - 2 minutes each direction",
+                          "Arm circles and shoulder preparation - 2 minutes",
+                          "Spinal mobility and core activation - 2 minutes"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Power and Endurance Circuit",
+                "duration": 20,
+                "rounds": 4,
+                "exercises": [
+                  {
+                    "name": "Goblet Squats",
+                    "sets": [
+                      {
+                        "reps": 15,
+                        "weight": {
+                          "min": 45,
+                          "max": 55,
+                          "unit": "lbs"
+                        },
+                        "restTime": 45,
+                        "cues": [
+                          "Full depth for cycling power",
+                          "Explosive up, controlled down",
+                          "Core engaged throughout"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Single-leg Step-ups",
+                    "sets": [
+                      {
+                        "reps": 12,
+                        "perSide": true,
+                        "weight": {
+                          "min": 30,
+                          "max": 40,
+                          "unit": "lbs"
+                        },
+                        "restTime": 30,
+                        "cues": ["Power through heel", "Control balance", "Climbing simulation"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Romanian Deadlifts",
+                    "sets": [
+                      {
+                        "reps": 15,
+                        "weight": {
+                          "min": 50,
+                          "max": 60,
+                          "unit": "lbs"
+                        },
+                        "restTime": 30,
+                        "cues": ["Hip hinge power", "Feel hamstring load", "Climbing strength"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Walking Lunges",
+                    "sets": [
+                      {
+                        "reps": 10,
+                        "perSide": true,
+                        "weight": {
+                          "min": 25,
+                          "max": 35,
+                          "unit": "lbs"
+                        },
+                        "restTime": 60,
+                        "cues": ["Long strides", "Power through transitions", "Adventure simulation"]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Core Stability for Long Adventures",
+                "duration": 15,
+                "rounds": 3,
+                "exercises": [
+                  {
+                    "name": "Dead Bugs with Band Resistance",
+                    "sets": [
+                      {
+                        "reps": 12,
+                        "perSide": true,
+                        "restTime": 30,
+                        "cues": ["Lower back anchored", "Resist band tension", "Slow control"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Plank to T-rotation",
+                    "sets": [
+                      {
+                        "reps": 10,
+                        "perSide": true,
+                        "restTime": 30,
+                        "cues": ["Controlled rotation", "Core stability", "Adventure handling prep"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Single-arm Pallof Press",
+                    "sets": [
+                      {
+                        "reps": 15,
+                        "perSide": true,
+                        "restTime": 30,
+                        "cues": ["Resist rotation", "Full extension", "Technical terrain prep"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Glute Bridge Hold",
+                    "sets": [
+                      {
+                        "duration": 60,
+                        "restTime": 60,
+                        "cues": ["Maximum glute activation", "Level pelvis", "Climbing power"]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Adventure-Specific Upper Body",
+                "duration": 8,
+                "exercises": [
+                  {
+                    "name": "Push-ups",
+                    "sets": [
+                      {
+                        "reps": 15,
+                        "sets": 2,
+                        "restBetweenSets": 60,
+                        "cues": ["Full range", "Core stability", "Technical handling strength"]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Bent-over Rows",
+                    "sets": [
+                      {
+                        "reps": 12,
+                        "sets": 2,
+                        "weight": {
+                          "min": 40,
+                          "max": 50,
+                          "unit": "lbs"
+                        },
+                        "restBetweenSets": 60,
+                        "cues": ["Squeeze shoulder blades", "Pulling power", "Adventure endurance"]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Epic Preparation Sauna",
+            "plannedDuration": 22,
+            "plannedTSS": {
+              "min": 12,
+              "max": 18
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Epic adventure preparation sauna",
+              "22 minutes at 180°F",
+              "Focus on strength recovery and epic ride preparation",
+              "Mental preparation for Saturday's epic adventure",
+              "Final preparation before epic weekend"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 6,
+        "date": "2025-08-09",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "EPIC PRE-VACATION ADVENTURE",
+            "plannedDuration": 210,
+            "plannedTSS": {
+              "min": 170,
+              "max": 200
+            },
+            "targetRPE": {
+              "min": 4,
+              "max": 7
+            },
+            "outdoorGuidelines": {
+              "routeType": "Epic mixed terrain adventure - gravel, paved, climbing",
+              "terrain": "Varied challenging terrain showcasing all capabilities",
+              "focus": "Epic pre-vacation demonstration of fitness and skills",
+              "exploration": "Discover new epic territory or conquer challenging known routes"
+            },
+            "structureGuidelines": {
+              "warmup": "30 minutes progressive terrain assessment",
+              "mainEffort": "150 minutes epic adventure with varied challenges",
+              "cooldown": "30 minutes celebrating epic achievement",
+              "pacing": "Adventure-focused with strategic intensity application"
+            },
+            "powerGuidelines": {
+              "baseEffort": "185-205W sustained adventure pace",
+              "epicClimbs": "Apply 335W VO2max power on key climbs (260-280W)",
+              "technicalSections": "Power by feel, prioritize technique",
+              "finalPush": "Use new threshold power for epic finishing sections"
+            },
+            "epicFocus": [
+              "Showcase incredible fitness gains from 37 weeks of training",
+              "Demonstrate technical skills from crash recovery to mastery",
+              "Apply 335W VO2max breakthrough to real terrain",
+              "Test potential new FTP on sustained climbing",
+              "Create an unforgettable pre-vacation epic memory"
+            ],
+            "nutritionStrategy": {
+              "preRide": "Epic fueling strategy 2-3 hours before",
+              "duringRide": "80-100g carbs per hour for 3.5+ hour effort",
+              "hydration": "1000ml+ per hour depending on conditions",
+              "practice": "Perfect vacation adventure fueling execution"
+            },
+            "epicElements": [
+              "Photography of incredible scenery and achievements",
+              "Challenge sections that test new power capabilities",
+              "Technical terrain showcasing skill development",
+              "Sustained efforts demonstrating endurance growth",
+              "Celebration of the incredible journey from crash to epic"
+            ],
+            "safetyProtocol": [
+              "Comprehensive route planning with bail-out options",
+              "Weather assessment and gear preparation",
+              "Communication plan for long adventure",
+              "Emergency supplies and repair kit",
+              "Conservative approach balanced with epic challenge"
+            ],
+            "notes": [
+              "🚀 EPIC PRE-VACATION ADVENTURE! 🚀",
+              "Showcase 37 weeks of incredible training progression",
+              "Apply 335W VO2max breakthrough to epic terrain",
+              "Demonstrate complete transformation from crash recovery",
+              "Create the perfect setup for vacation adventure week",
+              "CELEBRATE YOUR INCREDIBLE CYCLING JOURNEY!"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "EPIC Achievement Celebration",
+            "plannedDuration": 30,
+            "plannedTSS": {
+              "min": 15,
+              "max": 25
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "EPIC ACHIEVEMENT CELEBRATION!",
+              "Extended sauna session - 25-30 minutes at 180°F",
+              "Celebrate incredible 3.5+ hour epic adventure",
+              "Reflect on amazing journey from crash to epic mastery",
+              "Prepare mentally and physically for vacation adventures",
+              "YOU'VE EARNED THIS CELEBRATION!"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 7,
+        "date": "2025-08-10",
+        "workouts": [
+          {
+            "type": "mobility",
+            "name": "Vacation Preparation and Epic Recovery",
+            "plannedDuration": 45,
+            "plannedTSS": {
+              "min": 20,
+              "max": 30
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "sections": [
+              {
+                "name": "Epic Adventure Recovery",
+                "duration": 20,
+                "exercises": [
+                  {
+                    "name": "Post-Epic Assessment and Care",
+                    "sets": [
+                      {
+                        "duration": 720,
+                        "notes": [
+                          "Full body assessment after epic adventure - 3 minutes",
+                          "Address any areas of fatigue or tightness - 3 minutes",
+                          "Celebrate achievement and capability - 3 minutes",
+                          "Process incredible fitness demonstration - 3 minutes"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Epic Recovery Stretches",
+                    "sets": [
+                      {
+                        "duration": 480,
+                        "notes": [
+                          "Hip flexor releases - 2 minutes each side",
+                          "Hamstring gentle stretches - 2 minutes each side",
+                          "Quad and calf releases - 2 minutes total",
+                          "Focus on epic adventure recovery"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Vacation Travel Preparation",
+                "duration": 15,
+                "exercises": [
+                  {
+                    "name": "Travel Day Body Prep",
+                    "sets": [
+                      {
+                        "duration": 600,
+                        "notes": [
+                          "Spinal mobility for travel comfort - 3 minutes",
+                          "Shoulder and neck preparation - 3 minutes",
+                          "Core activation for travel day - 3 minutes",
+                          "Prepare body for vacation travel"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Adventure Gear Preparation",
+                    "sets": [
+                      {
+                        "duration": 300,
+                        "notes": [
+                          "Mental preparation for vacation adventures",
+                          "Equipment and nutrition packing",
+                          "Route research and planning for vacation area",
+                          "Excitement building for vacation exploration"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Journey Reflection and Vacation Preparation",
+                "duration": 10,
+                "exercises": [
+                  {
+                    "name": "Incredible Journey Celebration",
+                    "sets": [
+                      {
+                        "duration": 600,
+                        "notes": [
+                          "Reflect on epic 37-week training journey - 2 minutes",
+                          "Crash recovery to 335W VO2max breakthrough - 2 minutes",
+                          "Technical skill development and adventure mastery - 2 minutes",
+                          "Gratitude for incredible transformation and capabilities - 2 minutes",
+                          "Excitement for vacation adventure opportunities - 2 minutes"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Pre-Vacation Relaxation",
+            "plannedDuration": 25,
+            "plannedTSS": {
+              "min": 10,
+              "max": 20
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Final pre-vacation relaxation and preparation",
+              "Options: gentle sauna, meditation, light walk",
+              "Focus on travel preparation and vacation excitement",
+              "Celebrate incredible fitness achievements",
+              "Prepare for amazing vacation adventure week ahead!"
+            ]
+          }
+        ]
+      }
+    ]
+  }

@@ -1,0 +1,935 @@
+{
+    "weekNumber": 37,
+    "startDate": "2025-07-28",
+    "plannedTSS": {
+      "min": 480,
+      "max": 530
+    },
+    "notes": {
+      "weekFocus": "Coastal Adventure & Heat Adaptation Mastery",
+      "specialConsiderations": "Recovery from epic mountain technical ride, heat chamber study Friday morning, coastal trip weekend, adventure skills consolidation"
+    },
+    "days": [
+      {
+        "dayNumber": 1,
+        "date": "2025-07-28",
+        "workouts": [
+          {
+            "type": "mobility",
+            "name": "Post-Epic Adventure Recovery",
+            "plannedDuration": 45,
+            "plannedTSS": {
+              "min": 20,
+              "max": 25
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "sections": [
+              {
+                "name": "Adventure Recovery Assessment",
+                "duration": 12,
+                "exercises": [
+                  {
+                    "name": "Full Body Damage Assessment",
+                    "sets": [
+                      {
+                        "duration": 480,
+                        "notes": [
+                          "Gentle movement exploration - 2 minutes",
+                          "Identify areas of scrapes and soreness - 2 minutes",
+                          "Gentle range of motion testing - 2 minutes",
+                          "Address any particularly tight areas - 2 minutes"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Battle Scar Care",
+                    "sets": [
+                      {
+                        "duration": 240,
+                        "notes": [
+                          "Gentle cleaning and assessment of scratches",
+                          "Apply appropriate first aid if needed",
+                          "Note areas requiring extra care during stretching",
+                          "Celebrate the badges of epic adventure!"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Technical Riding Recovery",
+                "duration": 18,
+                "exercises": [
+                  {
+                    "name": "Upper Body and Arm Release",
+                    "sets": [
+                      {
+                        "duration": 600,
+                        "notes": [
+                          "Shoulder rolls and gentle stretches - 2 minutes",
+                          "Forearm and wrist stretches - 2 minutes each arm",
+                          "Upper back extension work - 2 minutes",
+                          "Neck and cervical mobility - 2 minutes",
+                          "Address bike carrying and technical handling strain"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Core and Lower Back Care",
+                    "sets": [
+                      {
+                        "duration": 480,
+                        "notes": [
+                          "Cat-cow stretches - 2 minutes gentle",
+                          "Knee rocks and spinal decompression - 2 minutes",
+                          "Child's pose variations - 2 minutes",
+                          "Gentle core activation - 2 minutes",
+                          "Address technical terrain core demands"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Leg Recovery Protocol",
+                    "sets": [
+                      {
+                        "duration": 600,
+                        "notes": [
+                          "Hip flexor releases - 2 minutes each side",
+                          "Hamstring gentle stretches - 2 minutes each side",
+                          "Quad stretches around scratches - 2 minutes each side",
+                          "Calf and ankle mobility - 2 minutes total"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Adventure Integration",
+                "duration": 15,
+                "exercises": [
+                  {
+                    "name": "Mental and Physical Integration",
+                    "sets": [
+                      {
+                        "duration": 600,
+                        "notes": [
+                          "Deep breathing and body scan - 3 minutes",
+                          "Reflect on incredible adventure achievements - 3 minutes",
+                          "Process technical skills gained - 2 minutes",
+                          "Gratitude for capability and resilience - 2 minutes"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Week Preparation",
+                    "sets": [
+                      {
+                        "duration": 300,
+                        "notes": [
+                          "Mental preparation for heat study",
+                          "Excitement for coastal adventures",
+                          "Set intention for continued skill development",
+                          "Appreciate the journey from crash recovery to epic adventures"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Epic Adventure Celebration Sauna",
+            "plannedDuration": 22,
+            "plannedTSS": {
+              "min": 12,
+              "max": 18
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Celebration sauna for epic mountain adventure!",
+              "22 minutes at 180°F",
+              "Reflect on incredible technical achievement",
+              "Process the bush-whacking, fallen trees, and technical mastery",
+              "Prepare body for week ahead with heat study and coast trip"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 2,
+        "date": "2025-07-29",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "VO2max Power Progression",
+            "plannedDuration": 85,
+            "plannedTSS": {
+              "min": 110,
+              "max": 120
+            },
+            "targetRPE": {
+              "min": 7,
+              "max": 9
+            },
+            "intervals": [
+              {
+                "name": "Extended Warmup",
+                "duration": 1200,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 70
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Primer",
+                "duration": 60,
+                "powerTarget": {
+                  "type": "percent_ftp",
+                  "value": 95
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Rest",
+                "duration": 180,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "VO2 Interval 1",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 320,
+                  "max": 330,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Recovery 1",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "VO2 Interval 2",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 320,
+                  "max": 330,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Recovery 2",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "VO2 Interval 3",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 320,
+                  "max": 330,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Recovery 3",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "VO2 Interval 4",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 320,
+                  "max": 330,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Recovery 4",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "watts",
+                  "value": 150
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "VO2 Interval 5",
+                "duration": 240,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 320,
+                  "max": 330,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Extended Cooldown",
+                "duration": 1200,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 65
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 50
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              }
+            ],
+            "notes": [
+              "Progressive VO2max power building on 59 VO2max results",
+              "5×4min at 320-330W (123-127% FTP) - significant progression",
+              "Your 425W peak test suggests this power range is achievable",
+              "Quality session before heat study later in week",
+              "Channel the mental toughness from mountain adventure"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "High-Intensity Recovery Sauna",
+            "plannedDuration": 20,
+            "plannedTSS": {
+              "min": 10,
+              "max": 15
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Post-VO2max recovery sauna",
+              "20 minutes at 180°F",
+              "Wait 2+ hours after workout completion",
+              "Continue heat adaptation for Friday study",
+              "Focus on high-intensity recovery"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 3,
+        "date": "2025-07-30",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Outdoor Endurance Confidence Builder",
+            "plannedDuration": 90,
+            "plannedTSS": {
+              "min": 70,
+              "max": 85
+            },
+            "targetRPE": {
+              "min": 3,
+              "max": 5
+            },
+            "outdoorGuidelines": {
+              "routeType": "Familiar roads with optional easy gravel sections",
+              "terrain": "Gentle rolling terrain - confidence building after mountain epic",
+              "focus": "Smooth, enjoyable riding after technical challenges",
+              "recovery": "Active recovery from both VO2max and mountain adventure"
+            },
+            "structureGuidelines": {
+              "warmup": "20 minutes easy spinning",
+              "mainBlock": "50 minutes comfortable endurance pace",
+              "cooldown": "20 minutes easy spinning",
+              "enjoyment": "Focus on the joy of smooth, flowing riding"
+            },
+            "powerGuidelines": {
+              "baseEffort": "175-185W comfortable endurance pace",
+              "naturalVariation": "Allow terrain to guide gentle intensity changes",
+              "heartRateGuide": "Keep relaxed - 125-140 bpm average",
+              "rpeGuidance": "Should feel refreshing and confidence-building"
+            },
+            "skillFocus": [
+              "Smooth bike handling on easier terrain",
+              "Position comfort and relaxation",
+              "Contrast to technical mountain demands",
+              "Build confidence for coastal adventures",
+              "Practice efficient, flowing riding"
+            ],
+            "mentalFocus": [
+              "Appreciate smooth, flowing terrain after technical challenges",
+              "Build excitement for coastal weekend adventures",
+              "Confidence in varied terrain capabilities",
+              "Enjoy the progression from crash recovery to epic adventures"
+            ],
+            "notes": [
+              "Enjoyable contrast to Saturday's technical epic",
+              "Build confidence for coastal weekend adventures",
+              "Recovery-focused while maintaining outdoor skills",
+              "Celebrate the progression in adventure capabilities",
+              "Prepare mentally for heat study tomorrow"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Pre-Heat Study Sauna",
+            "plannedDuration": 18,
+            "plannedTSS": {
+              "min": 10,
+              "max": 15
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Pre-heat study preparation sauna",
+              "18 minutes at 180°F",
+              "Continue heat adaptation process",
+              "Mental preparation for tomorrow's study session",
+              "Recovery from outdoor endurance ride"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 4,
+        "date": "2025-07-31",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Pre-Heat Study Easy Spin",
+            "plannedDuration": 45,
+            "plannedTSS": {
+              "min": 30,
+              "max": 40
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 3
+            },
+            "intervals": [
+              {
+                "name": "Gentle Warmup",
+                "duration": 600,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 45
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 55
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              },
+              {
+                "name": "Easy Spin Main",
+                "duration": 2100,
+                "powerTarget": {
+                  "type": "range",
+                  "min": 155,
+                  "max": 165,
+                  "unit": "watts"
+                },
+                "cadenceTarget": {
+                  "min": 90,
+                  "max": 100
+                }
+              },
+              {
+                "name": "Gentle Cooldown",
+                "duration": 600,
+                "powerTarget": {
+                  "start": {
+                    "type": "percent_ftp",
+                    "value": 55
+                  },
+                  "end": {
+                    "type": "percent_ftp",
+                    "value": 45
+                  }
+                },
+                "cadenceTarget": {
+                  "min": 85,
+                  "max": 95
+                }
+              }
+            ],
+            "notes": [
+              "Light activation before heat chamber study",
+              "Very easy effort to promote blood flow",
+              "Higher cadence for active recovery benefits",
+              "Complete 2+ hours before study session",
+              "Focus on preparation, not training stress"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Heat Chamber Study Session",
+            "plannedDuration": 60,
+            "plannedTSS": {
+              "min": 50,
+              "max": 70
+            },
+            "targetRPE": {
+              "min": 4,
+              "max": 6
+            },
+            "notes": [
+              "HEAT CHAMBER STUDY SESSION - 95°F, 85% humidity",
+              "Approximately 50-60 minutes of work",
+              "Power range likely 80-140W based on previous session",
+              "Excellent heat adaptation training stimulus",
+              "Stay hydrated before, during, and after",
+              "This counts as significant training - no other workouts today!"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Post-Study Recovery Protocol",
+            "plannedDuration": 30,
+            "plannedTSS": {
+              "min": 10,
+              "max": 15
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Post-heat study recovery - NO SAUNA TODAY",
+              "Cool shower and gradual temperature normalization",
+              "Extensive hydration and electrolyte replacement",
+              "Gentle stretching and mobility work",
+              "Prepare for coastal travel tomorrow"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 5,
+        "date": "2025-08-01",
+        "workouts": [
+          {
+            "type": "mobility",
+            "name": "Coastal Travel Preparation",
+            "plannedDuration": 35,
+            "plannedTSS": {
+              "min": 15,
+              "max": 20
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "sections": [
+              {
+                "name": "Post-Heat Study Assessment",
+                "duration": 10,
+                "exercises": [
+                  {
+                    "name": "Heat Adaptation Recovery Check",
+                    "sets": [
+                      {
+                        "duration": 600,
+                        "notes": [
+                          "Gentle movement assessment - 2 minutes",
+                          "Hydration status check - 1 minute",
+                          "Energy level evaluation - 2 minutes",
+                          "Any residual heat study effects - 2 minutes",
+                          "Adjust coastal plans based on recovery status"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Travel Preparation Mobility",
+                "duration": 15,
+                "exercises": [
+                  {
+                    "name": "Pre-Travel Body Prep",
+                    "sets": [
+                      {
+                        "duration": 600,
+                        "notes": [
+                          "Hip flexor stretches - 2 minutes each side",
+                          "Hamstring stretches - 2 minutes each side",
+                          "Spinal mobility - 2 minutes",
+                          "Prepare for travel and coastal adventures"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Adventure Readiness",
+                    "sets": [
+                      {
+                        "duration": 300,
+                        "notes": [
+                          "Shoulder and neck preparation - 2 minutes",
+                          "Core activation - 2 minutes",
+                          "Balance and proprioception - 1 minute"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Coastal Adventure Preparation",
+                "duration": 10,
+                "exercises": [
+                  {
+                    "name": "Mental and Physical Preparation",
+                    "sets": [
+                      {
+                        "duration": 420,
+                        "notes": [
+                          "Deep breathing and centering - 2 minutes",
+                          "Visualize coastal riding adventures - 2 minutes",
+                          "Equipment and nutrition preparation - 2 minutes",
+                          "Excitement for new coastal terrain - 1 minute"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Final Travel Prep",
+                    "sets": [
+                      {
+                        "duration": 180,
+                        "notes": [
+                          "Final body scan and comfort check",
+                          "Pack coastal adventure gear",
+                          "Check weather and route options for coast"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Gentle Recovery Sauna",
+            "plannedDuration": 18,
+            "plannedTSS": {
+              "min": 8,
+              "max": 12
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Gentle sauna if feeling recovered from heat study",
+              "18 minutes at 175°F maximum",
+              "Skip if still feeling heat study effects",
+              "Focus on coastal trip preparation",
+              "Last home sauna before coastal adventures"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 6,
+        "date": "2025-08-02",
+        "workouts": [
+          {
+            "type": "bike",
+            "name": "Epic Coastal Adventure Exploration",
+            "plannedDuration": 150,
+            "plannedTSS": {
+              "min": 120,
+              "max": 150
+            },
+            "targetRPE": {
+              "min": 4,
+              "max": 7
+            },
+            "outdoorGuidelines": {
+              "routeType": "Coastal roads, bike paths, and optional coastal gravel",
+              "terrain": "Coastal rolling terrain with ocean views",
+              "focus": "Epic coastal exploration and adventure",
+              "scenery": "Maximize ocean views and coastal beauty"
+            },
+            "structureGuidelines": {
+              "warmup": "20 minutes easy coastal road exploration",
+              "mainEffort": "110 minutes varied coastal terrain adventure",
+              "cooldown": "20 minutes easy spinning back to accommodation",
+              "pacing": "Adventure-focused with natural terrain responses"
+            },
+            "powerGuidelines": {
+              "baseEffort": "180-200W sustained coastal endurance pace",
+              "coastalClimbs": "Natural increases to 230-260W on coastal hills",
+              "headwindSections": "Steady power through coastal wind challenges",
+              "scenicSections": "Power by feel while enjoying coastal views"
+            },
+            "adventureFocus": [
+              "Explore incredible coastal terrain and views",
+              "Photography of stunning ocean and cliff scenery",
+              "Discover coastal roads and paths",
+              "Experience different terrain after mountain technical",
+              "Create amazing coastal cycling memories"
+            ],
+            "coastalConsiderations": [
+              "Wind conditions and direction planning",
+              "Tide schedules if riding near shore",
+              "Salt air equipment protection",
+              "Coastal weather pattern awareness",
+              "Scenic stop planning for photos and enjoyment"
+            ],
+            "safetyProtocol": [
+              "Check coastal weather and wind forecasts",
+              "Carry extra nutrition and hydration",
+              "Phone accessible for navigation and photos",
+              "Conservative approach to unfamiliar coastal terrain",
+              "Emergency contact information accessible"
+            ],
+            "notes": [
+              "EPIC COASTAL ADVENTURE! 🌊",
+              "Primary goal: explore and enjoy stunning coastal terrain",
+              "Take amazing photos and create lasting memories",
+              "Experience the contrast to mountain technical riding",
+              "Embrace the joy of coastal cycling exploration!"
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Coastal Adventure Recovery",
+            "plannedDuration": 30,
+            "plannedTSS": {
+              "min": 10,
+              "max": 20
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "notes": [
+              "Coastal-style recovery and celebration",
+              "Options: beach walking, ocean swimming if available",
+              "Celebrate epic coastal adventure achievement",
+              "Gentle stretching with ocean views if possible",
+              "Enjoy coastal atmosphere and adventure satisfaction"
+            ]
+          }
+        ]
+      },
+      {
+        "dayNumber": 7,
+        "date": "2025-08-03",
+        "workouts": [
+          {
+            "type": "mobility",
+            "name": "Coastal Travel Recovery",
+            "plannedDuration": 40,
+            "plannedTSS": {
+              "min": 15,
+              "max": 25
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 2
+            },
+            "sections": [
+              {
+                "name": "Travel Day Preparation",
+                "duration": 15,
+                "exercises": [
+                  {
+                    "name": "Pre-Travel Recovery Assessment",
+                    "sets": [
+                      {
+                        "duration": 600,
+                        "notes": [
+                          "Assess recovery from coastal adventure - 2 minutes",
+                          "Energy levels for travel day - 2 minutes",
+                          "Any residual fatigue or soreness - 2 minutes",
+                          "Plan travel day comfort strategies - 2 minutes"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Travel Preparation Stretches",
+                    "sets": [
+                      {
+                        "duration": 300,
+                        "notes": [
+                          "Hip flexor releases for car travel - 2 minutes each side",
+                          "Spinal mobility for sitting comfort - 1 minute"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Full Body Recovery",
+                "duration": 20,
+                "exercises": [
+                  {
+                    "name": "Coastal Adventure Recovery",
+                    "sets": [
+                      {
+                        "duration": 720,
+                        "notes": [
+                          "Gentle neck and shoulder releases - 3 minutes",
+                          "Upper back and chest stretches - 3 minutes",
+                          "Hip and lower back mobility - 3 minutes",
+                          "Leg stretches and releases - 3 minutes"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "Core and Stability",
+                    "sets": [
+                      {
+                        "duration": 480,
+                        "notes": [
+                          "Gentle core activation - 2 minutes",
+                          "Glute bridges and activation - 2 minutes",
+                          "Balance and proprioception - 2 minutes",
+                          "Prepare for week ahead - 2 minutes"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "Week Reflection and Preparation",
+                "duration": 5,
+                "exercises": [
+                  {
+                    "name": "Adventure Week Celebration",
+                    "sets": [
+                      {
+                        "duration": 300,
+                        "notes": [
+                          "Reflect on epic mountain and coastal adventures",
+                          "Process incredible technical skill development",
+                          "Appreciate the journey from crash to epic adventures",
+                          "Set intention for continued progression and exploration"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "other",
+            "name": "Optional Light Activity",
+            "plannedDuration": 30,
+            "plannedTSS": {
+              "min": 10,
+              "max": 20
+            },
+            "targetRPE": {
+              "min": 1,
+              "max": 3
+            },
+            "notes": [
+              "Completely optional based on energy and schedule",
+              "Options: gentle walk, light yoga, coastal exploration",
+              "Focus on enjoyment and recovery",
+              "No pressure - adapt to travel schedule",
+              "Celebrate an incredible week of adventure achievements!"
+            ]
+          }
+        ]
+      }
+    ]
+  }

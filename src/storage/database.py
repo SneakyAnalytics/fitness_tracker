@@ -27,7 +27,8 @@ class WorkoutDatabase:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 athlete_comments TEXT,
-                UNIQUE(workout_day, workout_title)
+                sequence_number INTEGER DEFAULT 1,
+                UNIQUE(workout_day, workout_title, sequence_number)
             )
         ''')
 
@@ -40,7 +41,8 @@ class WorkoutDatabase:
                 fit_data TEXT NOT NULL,
                 file_name TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(workout_day, workout_title)
+                sequence_number INTEGER DEFAULT 1,
+                UNIQUE(workout_day, workout_title, sequence_number)
             )
         ''')
 
@@ -113,6 +115,99 @@ class WorkoutDatabase:
 
         conn.commit()
         conn.close()
+        
+        # Handle database migration for existing databases
+        self._migrate_database()
+    
+    def _migrate_database(self):
+        """Migrate existing database to support sequence numbers for duplicate workouts"""
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        
+        try:
+            # Check if sequence_number column exists in workouts table
+            c.execute("PRAGMA table_info(workouts)")
+            columns = [column[1] for column in c.fetchall()]
+            
+            if 'sequence_number' not in columns:
+                print("Migrating workouts table to add sequence_number column...")
+                # Add sequence_number column
+                c.execute("ALTER TABLE workouts ADD COLUMN sequence_number INTEGER DEFAULT 1")
+                
+                # Update existing records to have proper sequence numbers
+                # Find duplicates and assign sequence numbers
+                c.execute('''
+                    SELECT workout_day, workout_title, COUNT(*) as count
+                    FROM workouts
+                    GROUP BY workout_day, workout_title
+                    HAVING count > 1
+                ''')
+                duplicates = c.fetchall()
+                
+                for day, title, count in duplicates:
+                    # Get all records for this day/title combination
+                    c.execute('''
+                        SELECT id FROM workouts 
+                        WHERE workout_day = ? AND workout_title = ?
+                        ORDER BY created_at
+                    ''', (day, title))
+                    records = c.fetchall()
+                    
+                    # Update each record with a sequence number
+                    for i, (record_id,) in enumerate(records):
+                        c.execute('''
+                            UPDATE workouts 
+                            SET sequence_number = ?
+                            WHERE id = ?
+                        ''', (i + 1, record_id))
+                
+                print(f"Updated {len(duplicates)} duplicate workout groups with sequence numbers")
+            
+            # Check if sequence_number column exists in fit_files table
+            c.execute("PRAGMA table_info(fit_files)")
+            columns = [column[1] for column in c.fetchall()]
+            
+            if 'sequence_number' not in columns:
+                print("Migrating fit_files table to add sequence_number column...")
+                # Add sequence_number column
+                c.execute("ALTER TABLE fit_files ADD COLUMN sequence_number INTEGER DEFAULT 1")
+                
+                # Update existing records to have proper sequence numbers
+                c.execute('''
+                    SELECT workout_day, workout_title, COUNT(*) as count
+                    FROM fit_files
+                    GROUP BY workout_day, workout_title
+                    HAVING count > 1
+                ''')
+                duplicates = c.fetchall()
+                
+                for day, title, count in duplicates:
+                    # Get all records for this day/title combination
+                    c.execute('''
+                        SELECT id FROM fit_files 
+                        WHERE workout_day = ? AND workout_title = ?
+                        ORDER BY created_at
+                    ''', (day, title))
+                    records = c.fetchall()
+                    
+                    # Update each record with a sequence number
+                    for i, (record_id,) in enumerate(records):
+                        c.execute('''
+                            UPDATE fit_files 
+                            SET sequence_number = ?
+                            WHERE id = ?
+                        ''', (i + 1, record_id))
+                
+                print(f"Updated {len(duplicates)} duplicate fit file groups with sequence numbers")
+            
+            conn.commit()
+            print("Database migration completed successfully")
+            
+        except Exception as e:
+            print(f"Error during database migration: {e}")
+            conn.rollback()
+        finally:
+            conn.close()
     
     def _get_numeric_value(self, value, default=0.0):
         """Safely convert value to float"""
@@ -166,22 +261,31 @@ class WorkoutDatabase:
             return 1.0
 
     def save_fit_data(self, workout_day: str, workout_title: str, fit_data: Dict[str, Any], file_name: str) -> bool:
-        """Save or update FIT file data"""
+        """Save or update FIT file data with sequence number support for duplicates"""
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
 
         try:
+            # Find the next available sequence number for this day/title combination
+            c.execute('''
+                SELECT COALESCE(MAX(sequence_number), 0) + 1
+                FROM fit_files
+                WHERE workout_day = ? AND workout_title = ?
+            ''', (workout_day, workout_title))
+            next_sequence = c.fetchone()[0]
+            
             c.execute(
                 '''
                 INSERT OR REPLACE INTO fit_files
-                (workout_day, workout_title, fit_data, file_name)
-                VALUES (?, ?, ?, ?)
+                (workout_day, workout_title, fit_data, file_name, sequence_number)
+                VALUES (?, ?, ?, ?, ?)
                 ''',
                 (
                     workout_day,
                     workout_title,
                     json.dumps(fit_data),
-                    file_name
+                    file_name,
+                    next_sequence
                 )
             )
             conn.commit()
@@ -224,15 +328,23 @@ class WorkoutDatabase:
             conn.close()
 
     def save_workout(self, workout: Dict[str, Any]) -> bool:
-        """Save or update a workout while preserving qualitative data"""
+        """Save or update a workout while preserving qualitative data with sequence number support for duplicates"""
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
         
         try:
+            # Find the next available sequence number for this day/title combination
+            c.execute('''
+                SELECT COALESCE(MAX(sequence_number), 0) + 1
+                FROM workouts
+                WHERE workout_day = ? AND workout_title = ?
+            ''', (workout['workout_day'], workout['title']))
+            next_sequence = c.fetchone()[0]
+            
             # Check if workout exists and get any existing qualitative data
             c.execute(
-                "SELECT workout_data, qualitative_data FROM workouts WHERE workout_day = ? AND workout_title = ?",
-                (workout['workout_day'], workout['title'])
+                "SELECT workout_data, qualitative_data FROM workouts WHERE workout_day = ? AND workout_title = ? AND sequence_number = ?",
+                (workout['workout_day'], workout['title'], next_sequence)
             )
             existing = c.fetchone()
             
@@ -248,24 +360,25 @@ class WorkoutDatabase:
             workout_with_qual['athlete_comments'] = athlete_comments
             workout_data = json.dumps(workout_with_qual)
             
-            # Save workout with preserved qualitative data
+            # Save workout with preserved qualitative data and sequence number
             c.execute(
                 '''
                 INSERT OR REPLACE INTO workouts
-                (workout_day, workout_title, workout_data, qualitative_data, athlete_comments, updated_at)
-                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                (workout_day, workout_title, workout_data, qualitative_data, athlete_comments, sequence_number, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ''',
                 (
                     workout['workout_day'],
                     workout['title'],
                     workout_data,
                     None,
-                    athlete_comments  # Ensure this field is saved
+                    athlete_comments,  # Ensure this field is saved
+                    next_sequence
                 )
             )
             
             conn.commit()
-            print(f"Successfully saved workout: {workout['title']} on {workout['workout_day']}")
+            print(f"Successfully saved workout: {workout['title']} on {workout['workout_day']} (sequence {next_sequence})")
             success = True
         except Exception as e:
             print(f"Error saving workout: {e}")
@@ -463,17 +576,15 @@ class WorkoutDatabase:
         c = conn.cursor()
         
         try:
-            # Get all workouts for the date range
+            # Get all workouts for the date range - updated to handle sequence numbers
             query = '''
-                    SELECT w.workout_day, w.workout_title, w.workout_data, w.qualitative_data, w.athlete_comments, f.fit_data
+                    SELECT w.workout_day, w.workout_title, w.workout_data, w.qualitative_data, w.athlete_comments, w.sequence_number, f.fit_data
                     FROM workouts w
-                    LEFT JOIN fit_files f ON w.workout_day = f.workout_day
-                    AND ABS(
-                        CAST(json_extract(w.workout_data, '$.metrics.actual_duration') AS REAL) -
-                        CAST(json_extract(f.fit_data, '$.metrics.duration') AS REAL)
-                    ) < 1
+                    LEFT JOIN fit_files f ON w.workout_day = f.workout_day 
+                    AND w.workout_title = f.workout_title 
+                    AND w.sequence_number = f.sequence_number
                     WHERE w.workout_day >= ? AND w.workout_day <= ?
-                    ORDER BY w.workout_day
+                    ORDER BY w.workout_day, w.sequence_number
                     '''
 
             print(f"\nExecuting query with dates: {start_date}, {end_date}")
@@ -521,8 +632,8 @@ class WorkoutDatabase:
             # Process workouts
             for row in workout_rows:
                 try:
-                    day, title, workout_data, qual_data, athlete_comments, fit_data = row
-                    print(f"\nProcessing workout: {title} on {day}")
+                    day, title, workout_data, qual_data, athlete_comments, sequence_number, fit_data = row
+                    print(f"\nProcessing workout: {title} on {day} (sequence {sequence_number})")
                     
                     workout = json.loads(workout_data)
                     print(f"Raw workout data: {json.dumps(workout, indent=2)}")
@@ -655,6 +766,10 @@ class WorkoutDatabase:
                     # Combine heart rate data - prioritize workout CSV data over FIT file data
                     hr_data = workout.get('heart_rate_data', {})
                     
+                    # Handle case where hr_data is None (outdoor rides without HR data)
+                    if hr_data is None:
+                        hr_data = {}
+                    
                     # Extract and standardize zones from workout CSV data
                     csv_hr_zones = standardize_hr_zones(hr_data.get('zones', {}))
                     
@@ -729,11 +844,17 @@ class WorkoutDatabase:
                                     print(f"Error decoding performance data for workout {title} on {day}")
                                     performance_data = None
 
-                    # Create workout entry
+                    # Create workout entry with sequence number in title for multiple workouts same day
+                    display_title = title
+                    if sequence_number > 1:
+                        display_title = f"{title} (#{sequence_number})"
+                    
                     workout_entry = {
                         'day': day,
                         'type': workout_type,
-                        'title': title,
+                        'title': display_title,
+                        'original_title': title,
+                        'sequence_number': sequence_number,
                         'workout_data': {
                             'metrics': {
                                 'actual_tss': workout_tss,
@@ -1571,5 +1692,90 @@ class WorkoutDatabase:
         except Exception as e:
             print(f"Error retrieving workout performance: {str(e)}")
             return None
+        finally:
+            conn.close()
+
+    def get_all_workouts_for_week(self, start_date: str, end_date: str) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Get both completed and proposed workouts for a specific week.
+        
+        Args:
+            start_date: Start date in YYYY-MM-DD format
+            end_date: End date in YYYY-MM-DD format
+            
+        Returns:
+            Dictionary containing two lists:
+            - completed_workouts: List of completed workouts from the workouts table
+            - proposed_workouts: List of proposed workouts from the proposed_workouts table
+        """
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        
+        try:
+            # Get completed workouts
+            c.execute(
+                '''
+                SELECT workout_day, workout_title, workout_data, qualitative_data, athlete_comments
+                FROM workouts 
+                WHERE workout_day BETWEEN ? AND ?
+                ORDER BY workout_day
+                ''',
+                (start_date, end_date)
+            )
+            completed_rows = c.fetchall()
+            
+            completed_workouts = []
+            for row in completed_rows:
+                workout_day, title, workout_data, qual_data, comments = row
+                workout = json.loads(workout_data)
+                if qual_data:
+                    workout.update(json.loads(qual_data))
+                workout['athlete_comments'] = comments
+                workout['date'] = workout_day
+                workout['title'] = title
+                completed_workouts.append(workout)
+            
+            # Get proposed workouts
+            c.execute(
+                '''
+                SELECT dp.date, pw.type, pw.name, pw.plannedDuration, 
+                    pw.plannedTSS_min, pw.plannedTSS_max, 
+                    pw.targetRPE_min, pw.targetRPE_max,
+                    pw.intervals, pw.sections
+                FROM daily_plans dp
+                JOIN proposed_workouts pw ON dp.id = pw.dailyPlanId
+                WHERE dp.date BETWEEN ? AND ?
+                ORDER BY dp.date
+                ''',
+                (start_date, end_date)
+            )
+            proposed_rows = c.fetchall()
+            
+            proposed_workouts = []
+            for row in proposed_rows:
+                workout = {
+                    'date': row[0],
+                    'type': row[1],
+                    'name': row[2],
+                    'plannedDuration': row[3],
+                    'plannedTSS_min': row[4],
+                    'plannedTSS_max': row[5],
+                    'targetRPE_min': row[6],
+                    'targetRPE_max': row[7],
+                    'intervals': row[8],
+                    'sections': row[9]
+                }
+                proposed_workouts.append(workout)
+            
+            return {
+                'completed_workouts': completed_workouts,
+                'proposed_workouts': proposed_workouts
+            }
+            
+        except Exception as e:
+            print(f"Error retrieving workouts: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {'completed_workouts': [], 'proposed_workouts': []}
         finally:
             conn.close()
