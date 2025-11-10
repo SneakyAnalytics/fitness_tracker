@@ -2,7 +2,7 @@
 
 import pandas as pd
 import numpy as np
-from typing import Any, Optional, Dict
+from typing import Any, Optional
 
 def format_value(value: Any, is_percentage: bool = False) -> str:
     """Format a value for display in AI-ready format"""
