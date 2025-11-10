@@ -160,7 +160,9 @@ def generate_zwift_workout(workout_date: str, workout_name: str, intervals: List
             '  <workout>',
             '    <!-- Welcome message -->',
             '    <textevent timeoffset="5" message="' + dynamic_content.get_fresh_content("welcome") + '"/>',
-            '    <textevent timeoffset="15" message="' + dynamic_content.get_fresh_content("encouragement") + '"/>'
+            '    <textevent timeoffset="15" message="' + dynamic_content.get_fresh_content("encouragement") + '"/>',
+            '    <!-- Daily special content -->',
+            '    <textevent timeoffset="25" message="' + dynamic_content.get_fresh_content("daily_special", workout_date=workout_date_obj) + '"/>'
         ]
         
         # Reset used messages for fresh workout content
