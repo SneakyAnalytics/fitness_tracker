@@ -7,6 +7,7 @@ from typing import Dict, Any, List, Optional, Set
 from datetime import datetime
 import hashlib
 import time
+import calendar
 
 class DynamicWorkoutContent:
     """
@@ -84,21 +85,119 @@ class DynamicWorkoutContent:
                 "Workout complete! Go celebrate with some quality carbs! 🥯"
             ]
         }
+        
+        # Daily special content - date-based rotation
+        self.daily_jokes = [
+            "Why don't cyclists ever get lost? Because they always know which way is up-hill! 🚵‍♂️",
+            "What's a cyclist's favorite type of music? Anything with a good beat per minute! 🎵",
+            "Why did the cyclist bring a ladder to the race? To get over the competition! 🪜",
+            "What do you call a cyclist who doesn't wear lycra? Underdressed! 👕",
+            "Why don't cyclists ever retire? Because they can't stop pedaling! 🔄",
+            "What's the hardest part about cycling? Telling your spouse how much your bike cost! 💰",
+            "Why did the cyclist cross the road? To get to the bike shop on the other side! 🚴‍♂️",
+            "What do you call a cyclist's favorite dessert? Spoke-cake! 🎂",
+            "Why don't cyclists make good comedians? Their timing is always off the chain! ⛓️",
+            "What's a cyclist's favorite math? Geometry - they love acute angles! 📐"
+        ]
+        
+        self.fitness_facts = [
+            "💪 Daily Fact: Your heart is a muscle that gets stronger with every workout!",
+            "🧠 Daily Fact: Exercise increases BDNF, literally growing new brain cells!",
+            "🔥 Daily Fact: Your metabolism stays elevated for up to 24 hours after intense exercise!",
+            "💨 Daily Fact: Elite cyclists can consume 8 liters of oxygen per minute!",
+            "⚡ Daily Fact: Muscle fibers can contract in just 50 milliseconds!",
+            "🏆 Daily Fact: Regular exercise can add 3-7 years to your lifespan!",
+            "🎯 Daily Fact: Your body burns calories 15x faster during exercise than at rest!",
+            "🔋 Daily Fact: Mitochondria (cellular powerhouses) increase 40% with training!",
+            "🌟 Daily Fact: Exercise releases endorphins that are 200x more powerful than morphine!",
+            "💎 Daily Fact: Bone density increases with resistance training at any age!"
+        ]
+        
+        self.cycling_history = [
+            "🚴 Cycling History: The first bicycle race was held in Paris in 1868!",
+            "📜 Cycling History: The Tour de France was created in 1903 to sell newspapers!",
+            "🏅 Cycling History: The Olympic cycling track has a 42-degree banking angle!",
+            "⚙️ Cycling History: The derailleur wasn't allowed in Tour de France until 1937!",
+            "🌍 Cycling History: The first bicycle world championship was held in 1893!",
+            "👑 Cycling History: Eddy Merckx won 525 races in his career - simply 'The Cannibal'!",
+            "🎪 Cycling History: The first indoor cycling track was built in 1869!",
+            "🇺🇸 Cycling History: The first American Tour de France winner was Greg LeMond in 1985!",
+            "🚴‍♀️ Cycling History: Women's cycling became Olympic in 1984!",
+            "⏰ Cycling History: The hour record has been broken over 50 times since 1893!"
+        ]
+        
+        self.this_day_in_sports = [
+            "🏆 Sports History: Muhammad Ali won his first heavyweight title on this day in history!",
+            "⚽ Sports History: The first FIFA World Cup match was played in 1930!",
+            "🏀 Sports History: Basketball was invented by Dr. James Naismith in 1891!",
+            "🏈 Sports History: The first Super Bowl was played in 1967!",
+            "⚾ Sports History: Babe Ruth hit his first home run on this day in 1915!",
+            "🎾 Sports History: Wimbledon started as a croquet club in 1868!",
+            "🏓 Sports History: Table tennis became an Olympic sport in 1988!",
+            "🏊 Sports History: The first swimming pool was built in 1837!",
+            "🏃 Sports History: The marathon distance was standardized in 1908!",
+            "🥇 Sports History: The modern Olympics began in Athens in 1896!"
+        ]
+        
+        self.motivational_mantras = [
+            "🧘 Daily Mantra: 'I am stronger than my excuses.'",
+            "🎯 Daily Mantra: 'Every rep, every mile, every breath makes me better.'",
+            "💪 Daily Mantra: 'My body can do it. It's my mind I need to convince.'",
+            "🔥 Daily Mantra: 'I don't train to be skinny. I train to be a badass.'",
+            "🌟 Daily Mantra: 'The pain you feel today will be the strength you feel tomorrow.'",
+            "⚡ Daily Mantra: 'Success is the sum of small efforts repeated daily.'",
+            "🎨 Daily Mantra: 'My body is my masterpiece in progress.'",
+            "🏆 Daily Mantra: 'Champions train when they don't feel like it.'",
+            "🚀 Daily Mantra: 'I am not in competition with anyone but yesterday's me.'",
+            "💎 Daily Mantra: 'Pressure makes diamonds. I choose to shine.'"
+        ]
+        
+        self.training_wisdom = [
+            "👨‍🏫 Coach Wisdom: 'Consistency beats intensity when intensity can't be consistent.'",
+            "📚 Training Tip: 'Your weakest day is still stronger than your strongest excuse.'",
+            "🎓 Pro Insight: 'Recovery is not a reward for hard work. It IS the hard work.'",
+            "🧠 Training Psychology: 'The body achieves what the mind believes.'",
+            "📈 Performance Tip: 'Progress is not linear. Trust the process.'",
+            "⚖️ Training Balance: 'Train smart today so you can train hard tomorrow.'",
+            "🎯 Focus Tip: 'Don't just count your reps. Make your reps count.'",
+            "🔄 Adaptation Rule: 'Your body adapts to what you do most often. Choose wisely.'",
+            "💡 Training Secret: 'The magic happens outside your comfort zone.'",
+            "🏁 Performance Mindset: 'Every workout is a step towards your best self.'"
+        ]
+        
+        self.weekend_motivation = [
+            "🎉 Weekend Warrior: 'Saturday's sweat is Sunday's strength!'",
+            "☀️ Weekend Vibes: 'Weekends are for adventures on two wheels!'",
+            "🏞️ Weekend Goals: 'The best therapy is bike therapy!'",
+            "💪 Weekend Mindset: 'Weekend warriors rest on Monday!'",
+            "🚴‍♂️ Weekend Spirit: 'Life is a beautiful ride - especially on weekends!'",
+            "🌅 Weekend Energy: 'Early weekend rides catch the best views!'",
+            "🔋 Weekend Recharge: 'Weekends are for refilling the tank!'",
+            "🎯 Weekend Focus: 'Play hard, recover harder!'",
+            "🌟 Weekend Magic: 'Weekend miles are smile miles!'",
+            "🏆 Weekend Achievement: 'Making weekends count, one pedal at a time!'"
+        ]
     
     def get_fresh_content(self, context: str, workout_type: str = "", 
-                         interval_name: str = "", duration: int = 0) -> str:
+                         interval_name: str = "", duration: int = 0, 
+                         workout_date: Optional[datetime] = None) -> str:
         """
         Get fresh, contextually appropriate content with anti-repetition logic.
         
         Args:
-            context: Type of message (welcome, recovery, intensity, encouragement, humor, science, closing)
+            context: Type of message (welcome, recovery, intensity, encouragement, humor, science, closing, daily_special)
             workout_type: Type of workout (bike, run, etc.)
             interval_name: Name of current interval
             duration: Duration of current interval in seconds
+            workout_date: Optional specific date for the workout (for daily special content)
             
         Returns:
             Fresh, contextually appropriate message
         """
+        
+        # Handle daily special content
+        if context == "daily_special":
+            return self.get_daily_special_content(workout_date)
         
         # Try to get dynamic content first
         dynamic_content = self._get_dynamic_content(context, workout_type, interval_name, duration)
@@ -322,6 +421,175 @@ class DynamicWorkoutContent:
             })
         
         return messages
+
+    def get_daily_special_content(self, target_date: Optional[datetime] = None) -> str:
+        """
+        Get special daily content that rotates based on the date.
+        Each day of the year gets a different combination of content types.
+        
+        Args:
+            target_date: Optional specific date for content. If None, uses current date.
+        """
+        if target_date is None:
+            target_date = datetime.now()
+        
+        day_of_year = target_date.timetuple().tm_yday
+        day_name = target_date.strftime("%A")
+        
+        # Create a seed based on the date for consistent daily content
+        random.seed(day_of_year + target_date.year)
+        
+        # Determine content type based on day of week and day of year
+        content_type = self._get_daily_content_type(day_of_year, day_name)
+        
+        try:
+            if content_type == "joke":
+                content = self._get_daily_joke_with_api() or self._get_daily_joke(target_date)
+            elif content_type == "fact":
+                content = self._get_daily_fact_with_api() or self._get_daily_fact(target_date)
+            elif content_type == "history":
+                content = self._get_daily_history_with_api(target_date) or self._get_daily_history(target_date)
+            elif content_type == "mantra":
+                content = self._get_daily_mantra(target_date)
+            elif content_type == "wisdom":
+                content = self._get_daily_wisdom(target_date)
+            elif content_type == "weekend":
+                content = self._get_weekend_content(target_date)
+            else:
+                content = self._get_daily_fact(target_date)
+                
+        except Exception as e:
+            print(f"Error getting daily special content: {e}")
+            content = self._get_daily_fact(target_date)
+        
+        # Reset random seed to current time
+        random.seed()
+        
+        return f"🗓️ Daily Special: {content}"
+    
+    def _get_daily_content_type(self, day_of_year: int, day_name: str) -> str:
+        """Determine what type of daily content to show"""
+        
+        # Weekend content on weekends
+        if day_name in ["Saturday", "Sunday"]:
+            return "weekend"
+        
+        # Rotation based on day of year - ensure each day gets unique content type
+        content_cycle = day_of_year % 7
+        
+        if content_cycle == 0:
+            return "joke"
+        elif content_cycle == 1:
+            return "fact"
+        elif content_cycle == 2:
+            return "history"
+        elif content_cycle == 3:
+            return "mantra"
+        elif content_cycle == 4:
+            return "wisdom"
+        elif content_cycle == 5:
+            return "joke"  # Second joke day for variety
+        else:  # content_cycle == 6
+            return "history"  # Second history day instead of repeating fact
+    
+    def _get_daily_joke_with_api(self, target_date: Optional[datetime] = None) -> Optional[str]:
+        """Try to get joke from API - prefer fresh API content over static"""
+        try:
+            # Try JokesAPI (free, no key required) - make multiple attempts for variety
+            for _ in range(3):  # Try up to 3 times for different jokes
+                response = requests.get("https://v2.jokeapi.dev/joke/Programming,Miscellaneous?blacklistFlags=nsfw,religious,political,racist,sexist,explicit&type=single", timeout=3)
+                if response.status_code == 200:
+                    data = response.json()
+                    if not data.get('error') and data.get('joke'):
+                        joke = data.get('joke')
+                        if len(joke) < 120:  # Keep it concise for workout display
+                            return f"😂 {joke}"
+        except Exception:
+            pass
+        return None
+    
+    def _get_daily_joke(self, target_date: Optional[datetime] = None) -> str:
+        """Get curated daily joke"""
+        if target_date is None:
+            target_date = datetime.now()
+        joke_index = target_date.timetuple().tm_yday % len(self.daily_jokes)
+        return self.daily_jokes[joke_index]
+    
+    def _get_daily_fact_with_api(self, target_date: Optional[datetime] = None) -> Optional[str]:
+        """Try to get fact from API - prefer fresh API content"""
+        try:
+            # Try NumbersAPI for interesting facts - make multiple attempts for variety
+            for _ in range(3):  # Try up to 3 times for different facts
+                response = requests.get("http://numbersapi.com/random/trivia", timeout=3)
+                if response.status_code == 200:
+                    fact = response.text.strip()
+                    if len(fact) < 120:  # Keep it concise for workout display
+                        return f"🤓 Random Fact: {fact}"
+        except Exception:
+            pass
+        return None
+    
+    def _get_daily_fact(self, target_date: Optional[datetime] = None) -> str:
+        """Get curated daily fitness fact"""
+        if target_date is None:
+            target_date = datetime.now()
+        fact_index = target_date.timetuple().tm_yday % len(self.fitness_facts)
+        return self.fitness_facts[fact_index]
+    
+    def _get_daily_history_with_api(self, target_date: Optional[datetime] = None) -> Optional[str]:
+        """Try to get historical fact from API"""
+        try:
+            if target_date is None:
+                target_date = datetime.now()
+            month = target_date.month
+            day = target_date.day
+            
+            # Try Wikipedia API for "On This Day"
+            url = f"https://en.wikipedia.org/api/rest_v1/feed/onthisday/events/{month}/{day}"
+            response = requests.get(url, timeout=3)
+            if response.status_code == 200:
+                data = response.json()
+                events = data.get('events', [])
+                if events:
+                    # Get a random recent event
+                    recent_events = [e for e in events if e.get('year', 0) > 1800]
+                    if recent_events:
+                        event = random.choice(recent_events[:5])  # Pick from top 5 recent events
+                        year = event.get('year')
+                        text = event.get('text', '')
+                        if text and len(text) < 100:
+                            return f"📅 On This Day ({year}): {text}"
+        except Exception:
+            pass
+        return None
+    
+    def _get_daily_history(self, target_date: Optional[datetime] = None) -> str:
+        """Get curated daily cycling history"""
+        if target_date is None:
+            target_date = datetime.now()
+        history_index = target_date.timetuple().tm_yday % len(self.cycling_history)
+        return self.cycling_history[history_index]
+    
+    def _get_daily_mantra(self, target_date: Optional[datetime] = None) -> str:
+        """Get daily motivational mantra"""
+        if target_date is None:
+            target_date = datetime.now()
+        mantra_index = target_date.timetuple().tm_yday % len(self.motivational_mantras)
+        return self.motivational_mantras[mantra_index]
+    
+    def _get_daily_wisdom(self, target_date: Optional[datetime] = None) -> str:
+        """Get daily training wisdom"""
+        if target_date is None:
+            target_date = datetime.now()
+        wisdom_index = target_date.timetuple().tm_yday % len(self.training_wisdom)
+        return self.training_wisdom[wisdom_index]
+    
+    def _get_weekend_content(self, target_date: Optional[datetime] = None) -> str:
+        """Get weekend-specific content"""
+        if target_date is None:
+            target_date = datetime.now()
+        weekend_index = target_date.timetuple().tm_yday % len(self.weekend_motivation)
+        return self.weekend_motivation[weekend_index]
 
 
 # Global instance for workout generation

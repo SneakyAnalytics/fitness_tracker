@@ -708,35 +708,6 @@ def display_bike_workout(workout):
     if intervals_data:
         intervals_df = pd.DataFrame(intervals_data)
         st.table(intervals_df)
-        
-    # Display interval details with descriptions and notes
-    st.subheader("Interval Details")
-    for i, interval in enumerate(intervals):
-        interval_name = interval.get('name', f"Interval {i+1}")
-        with st.expander(f"{interval_name}", expanded=True):
-            # Display notes if available
-            if interval.get('notes'):
-                st.markdown("**Notes:**")
-                notes = interval.get('notes')
-                if isinstance(notes, list):
-                    for note in notes:
-                        st.markdown(f"- {note}")
-                else:
-                    st.markdown(f"{notes}")
-                    
-            # Display description if available
-            if interval.get('description'):
-                st.markdown("**Description:**")
-                desc = interval.get('description')
-                if isinstance(desc, str):
-                    st.markdown(desc)
-                elif isinstance(desc, dict) and desc.get('notes'):
-                    notes = desc.get('notes')
-                    if isinstance(notes, list):
-                        for note in notes:
-                            st.markdown(f"- {note}")
-                    else:
-                        st.markdown(f"{notes}")
 
 def display_run_workout(workout):
     """Display run workout with sections and detailed guidance"""
