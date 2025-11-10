@@ -10,7 +10,7 @@ class PowerData:
     average_power: float
     normalized_power: float
     intensity_factor: float
-    zone_distribution: Dict[str, float] = None
+    zone_distribution: Optional[Dict[str, float]] = None
     
     def __post_init__(self):
         if self.zone_distribution is None:
@@ -27,7 +27,7 @@ class HeartRateData:
     """Store heart rate-related metrics"""
     average_hr: int
     max_hr: int
-    zone_distribution: Dict[str, float] = None
+    zone_distribution: Optional[Dict[str, float]] = None
     
     def __post_init__(self):
         if self.zone_distribution is None:
@@ -81,10 +81,11 @@ class WeeklySummary:
     avg_daily_energy: float
     
     # Optional fields (with default values)
-    daily_energy: Dict[str, int] = None
+    daily_energy: Optional[Dict[str, Optional[int]]] = None
     sleep_quality_trend: Optional[str] = None
     muscle_soreness_patterns: Optional[str] = None
     general_fatigue_level: Optional[str] = None
+    preferred_workout_types: Optional[List[str]] = None
     
     def __post_init__(self):
         if self.daily_energy is None:
@@ -114,6 +115,7 @@ class WeeklyPlan:
     plannedTSS_min: int
     plannedTSS_max: int
     notes: str
+    ftp: Optional[int] = None
 
 @dataclass
 class DailyPlan:
@@ -137,3 +139,5 @@ class ProposedWorkout:
     targetRPE_max: int
     intervals: str
     sections: str
+    notes: Optional[str] = None
+    dayNumber: Optional[int] = None

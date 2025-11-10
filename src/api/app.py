@@ -3,18 +3,19 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 
-from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any
+from datetime import datetime
+from typing import Optional, Dict, Any
 import pandas as pd
 import pytz
-import numpy as np
 import io
 from pydantic import BaseModel
 import json
+import sqlite3
+import re
+import os
 
 
 from ..storage.database import WorkoutDatabase
-from ..models.workout import DailyWorkout, WeeklySummary
 from ..utils.helpers import format_value, clean_float, clean_workout_data
 from ..utils.fit_parser import FitParser
 from ..utils.metrics_processor import MetricsProcessor
@@ -34,65 +35,38 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-def clean_float(value: Any) -> Optional[float]:
-    """Clean float values, handling NaN and infinite values"""
-    if pd.isna(value) or pd.isnull(value):
-        return None
-    if isinstance(value, (int, float)):
-        if np.isinf(value) or np.isneginf(value):
-            return None
-        return float(value)
-    return None
+
 
 def generate_workout_analysis(workout_data: Dict[str, Any]) -> Dict[str, str]:
     """Generate AI analysis of workout data"""
     
-    # Create structured prompt for power analysis
-    power_prompt = """Analyze this workout's power data:
-    - Average Power: {avg_power}W
-    - Normalized Power: {norm_power}W
-    - Intensity Factor: {intensity}
-    - Zone Distribution: {zones}
+    # Placeholder prompts for future AI integration (kept as comments)
+    # Create structured prompt for power analysis (example):
+    # """Analyze this workout's power data:
+    # - Average Power: {avg_power}W
+    # - Normalized Power: {norm_power}W
+    # - Intensity Factor: {intensity}
+    # - Zone Distribution: {zones}
+    #
+    # Provide a brief analysis of:
+    # 1. Overall intensity and distribution
+    # 2. Workout type (based on zone distribution)
+    # 3. Training impact and recovery needs
+    # """
+    #
+    # Create structured prompt for heart rate analysis (example):
+    # """Analyze this workout's heart rate response:
+    # - Average HR: {avg_hr}bpm
+    # - Max HR: {max_hr}bpm
+    # - HR Zone Distribution: {zones}
+    #
+    # Consider:
+    # 1. Cardiovascular strain
+    # 2. Time spent in different zones
+    # 3. Recovery implications
+    # """
     
-    Provide a brief analysis of:
-    1. Overall intensity and distribution
-    2. Workout type (based on zone distribution)
-    3. Training impact and recovery needs
-    """
-    
-    # Create structured prompt for heart rate analysis
-    hr_prompt = """Analyze this workout's heart rate response:
-    - Average HR: {avg_hr}bpm
-    - Max HR: {max_hr}bpm
-    - HR Zone Distribution: {zones}
-    
-    Consider:
-    1. Cardiovascular strain
-    2. Time spent in different zones
-    3. Recovery implications
-    """
-    
-    # Format prompts with actual data
-    if workout_data.get('power_metrics'):
-        power_analysis = power_prompt.format(
-            avg_power=workout_data['power_metrics']['average_power'],
-            norm_power=workout_data['power_metrics']['normalized_power'],
-            intensity=workout_data['power_metrics']['intensity_factor'],
-            zones=workout_data['power_metrics']['zones']
-        )
-    else:
-        power_analysis = None
-    
-    if workout_data.get('hr_metrics'):
-        hr_analysis = hr_prompt.format(
-            avg_hr=workout_data['hr_metrics']['average_hr'],
-            max_hr=workout_data['hr_metrics']['max_hr'],
-            zones=workout_data.get('hr_metrics', {}).get('zones', 'N/A')
-        )
-    else:
-        hr_analysis = None
-    
-    # TODO: Integrate with actual AI analysis
+    # TODO: Integrate with actual AI analysis in the future
     # For now, return placeholder analysis
     return {
         "power_analysis": "Power analysis would appear here",
@@ -107,14 +81,14 @@ def process_workout_data(row: pd.Series) -> Dict[str, Any]:
     workout_type = str(row['Title']) if row['WorkoutType'].lower() == 'other' else str(row['WorkoutType'])
     
     # Calculate zone percentages based on minutes
-    def calculate_zone_percentages(zone_minutes: Dict[str, float]) -> Dict[str, float]:
-        total_minutes = sum(v for v in zone_minutes.values() if pd.notna(v))
+    def calculate_zone_percentages(zone_minutes: Dict[str, Optional[float]]) -> Dict[str, float]:
+        # Coerce None/NaN to 0.0 for calculation
+        sanitized = {k: (float(v) if v is not None and pd.notna(v) else 0.0) for k, v in zone_minutes.items()}
+        total_minutes = sum(sanitized.values())
         if total_minutes > 0:
-            return {
-                k: (v / total_minutes) * 100 if pd.notna(v) else 0 
-                for k, v in zone_minutes.items()
-            }
-        return zone_minutes
+            return {k: (v / total_minutes) * 100.0 for k, v in sanitized.items()}
+        # If total is zero, return zeros for each zone
+        return {k: 0.0 for k in sanitized.keys()}
 
     workout = {
         'title': str(row['Title']),
@@ -235,29 +209,70 @@ async def upload_workouts(file: UploadFile = File(...)):
         contents = await file.read()
         decoded_contents = contents.decode('utf-8')
         
-        # Basic validation of CSV structure
+        # Parse CSV
         df = pd.read_csv(io.StringIO(decoded_contents))
-        required_columns = ['Title', 'WorkoutType', 'WorkoutDay']
-        missing_columns = [col for col in required_columns if col not in df.columns]
+
+        # Normalize WorkoutDay to local date (America/Los_Angeles) when a time
+        # component is present. If the CSV contains only dates, preserve as-is.
+        def _normalize_workout_day(series: pd.Series) -> pd.Series:
+            import re
+
+            # If any value looks like it contains a time component or timezone
+            # (e.g., contains ':' or 'T' or 'Z' or a +/- offset), parse as UTC
+            # then convert to America/Los_Angeles. Otherwise treat as date-only.
+            pattern = re.compile(r"T|\d:\d|Z|[\+\-]\d{2}:?\d{2}")
+            sample_values = series.dropna().astype(str).head(20).tolist()
+            has_time = any(pattern.search(s) for s in sample_values)
+
+            if has_time:
+                # Parse as UTC (this will make naive timestamps assumed to be UTC)
+                parsed = pd.to_datetime(series, utc=True, errors='coerce')
+                # Convert to LA timezone and take the date part
+                la = pytz.timezone('America/Los_Angeles')
+                return parsed.dt.tz_convert(la).dt.strftime('%Y-%m-%d')
+            else:
+                # Date-only values - parse normally
+                return pd.to_datetime(series, errors='coerce').dt.strftime('%Y-%m-%d')
+
+        df['WorkoutDay'] = _normalize_workout_day(df['WorkoutDay'])
         
-        if missing_columns:
-            raise ValueError(f"Missing required columns: {missing_columns}")
+        # Get date range from CSV
+        min_date = df['WorkoutDay'].min()
+        max_date = df['WorkoutDay'].max()
+        print(f"CSV contains workouts from {min_date} to {max_date}")
         
-        # Convert date format for consistency
-        df['WorkoutDay'] = pd.to_datetime(df['WorkoutDay']).dt.strftime('%Y-%m-%d')
+        # Initialize database connection
+        db = WorkoutDatabase()
         
+        # DELETE existing workouts in this date range (prevents duplicates on re-upload)
+        conn = sqlite3.connect(db.db_path)
+        c = conn.cursor()
+        try:
+            c.execute('''
+                DELETE FROM workouts 
+                WHERE workout_day >= ? AND workout_day <= ?
+            ''', (min_date, max_date))
+            deleted_count = c.rowcount
+            conn.commit()
+            print(f"Deleted {deleted_count} existing workouts from {min_date} to {max_date}")
+        except Exception as e:
+            print(f"Error deleting existing workouts: {e}")
+            conn.rollback()
+        finally:
+            conn.close()
+        
+        # Now insert all workouts
         workouts = []
         for _, row in df.iterrows():
             print(f"Processing workout: {row['Title']} on {row['WorkoutDay']}")
             
             # Calculate zone percentages based on minutes
-            def calculate_zone_percentages(zone_minutes: Dict[str, float], total_minutes: float) -> Dict[str, float]:
+            def calculate_zone_percentages(zone_minutes: Dict[str, Optional[float]], total_minutes: float) -> Dict[str, float]:
+                # Coerce None/NaN to 0.0 for calculation
+                sanitized = {k: (float(v) if v is not None and pd.notna(v) else 0.0) for k, v in zone_minutes.items()}
                 if total_minutes > 0:
-                    return {
-                        k: (v / total_minutes) * 100 if pd.notna(v) else 0 
-                        for k, v in zone_minutes.items()
-                    }
-                return zone_minutes
+                    return {k: (v / total_minutes) * 100.0 for k, v in sanitized.items()}
+                return {k: 0.0 for k in sanitized.keys()}
             
             actual_duration = clean_float(row.get('TimeTotalInHours', 0) * 60) if pd.notna(row.get('TimeTotalInHours')) else None
             
@@ -268,8 +283,9 @@ async def upload_workouts(file: UploadFile = File(...)):
                 'metrics': {
                     'actual_tss': float(row['TSS']) if pd.notna(row.get('TSS')) else None,
                     'actual_duration': actual_duration,
-                    'rpe': float(row['Rpe']) if pd.notna(row.get('Rpe')) else None,  # Include RPE value
+                    'rpe': float(row['Rpe']) if pd.notna(row.get('Rpe')) else None,
                 },
+
                 'power_data': {
                     'average': float(row['PowerAverage']) if pd.notna(row.get('PowerAverage')) else None,
                     'max': float(row['PowerMax']) if pd.notna(row.get('PowerMax')) else None,
@@ -280,7 +296,7 @@ async def upload_workouts(file: UploadFile = File(...)):
                         'zone3': float(row['PWRZone3Minutes']) if pd.notna(row.get('PWRZone3Minutes')) else 0,
                         'zone4': float(row['PWRZone4Minutes']) if pd.notna(row.get('PWRZone4Minutes')) else 0,
                         'zone5': float(row['PWRZone5Minutes']) if pd.notna(row.get('PWRZone5Minutes')) else 0,
-                    }, actual_duration)
+                    }, (actual_duration or 0.0))
                 } if pd.notna(row.get('PowerAverage')) else None,
                 'heart_rate_data': {
                     'average': float(row['HeartRateAverage']) if pd.notna(row.get('HeartRateAverage')) else None,
@@ -291,26 +307,27 @@ async def upload_workouts(file: UploadFile = File(...)):
                         'zone3': float(row['HRZone3Minutes']) if pd.notna(row.get('HRZone3Minutes')) else 0,
                         'zone4': float(row['HRZone4Minutes']) if pd.notna(row.get('HRZone4Minutes')) else 0,
                         'zone5': float(row['HRZone5Minutes']) if pd.notna(row.get('HRZone5Minutes')) else 0,
-                    }, actual_duration)
+                    }, (actual_duration or 0.0))
                 } if pd.notna(row.get('HeartRateAverage')) else None,
-                'athlete_comments': str(row.get('AthleteComments')) if pd.notna(row.get('AthleteComments')) else None  # Ensure this field is included
+                'athlete_comments': str(row.get('AthleteComments')) if pd.notna(row.get('AthleteComments')) else None
             }
             
             # Clean workout data
             cleaned_workout = clean_workout_data(workout)
 
-            # Save to database
-            db = WorkoutDatabase()
+            # Save to database (using the same db instance)
             if db.save_workout(cleaned_workout):
                 workouts.append(cleaned_workout)
                 print(f"Saved workout: {workout['title']} on {workout['workout_day']}")
             else:
                 print(f"Failed to save workout: {workout['title']} on {workout['workout_day']}")
         
+        print(f"\n✓ Successfully processed {len(workouts)} workouts")
         return {
             "message": f"Successfully processed {len(workouts)} workouts",
             "workouts": workouts
         }
+        
     except Exception as e:
         print(f"Error processing workouts file: {str(e)}")
         import traceback
@@ -328,12 +345,21 @@ async def upload_metrics(file: UploadFile = File(...)):
         # Print first few lines for debugging
         print(f"First few lines of file:\n{decoded_contents[:200]}")
         
-        # Parse CSV
-        df = pd.read_csv(
-            io.StringIO(decoded_contents),
-            on_bad_lines='skip',
-            skipinitialspace=True
-        )
+        # Guard against empty uploads
+        if not decoded_contents or decoded_contents.strip() == "":
+            print("Error processing metrics file: uploaded file is empty")
+            raise HTTPException(status_code=400, detail="Uploaded metrics file is empty or malformed")
+
+        # Parse CSV (guard pandas EmptyDataError for clearer feedback)
+        try:
+            df = pd.read_csv(
+                io.StringIO(decoded_contents),
+                on_bad_lines='skip',
+                skipinitialspace=True
+            )
+        except pd.errors.EmptyDataError as ede:
+            print(f"Error processing metrics file: {str(ede)}")
+            raise HTTPException(status_code=400, detail="Uploaded metrics file contains no parseable data")
         
         print(f"Columns found: {df.columns.tolist()}")
         
@@ -393,10 +419,10 @@ async def save_qualitative_data(data: QualitativeData):
             workout_day=data.workout_day,
             workout_title=data.workout_title,
             qualitative_data={
-                'how_it_felt': data.how_it_felt,
-                'technical_issues': data.technical_issues,
-                'modifications': data.modifications,
-                'athlete_comments': data.athlete_comments
+                'how_it_felt': data.how_it_felt or '',
+                'technical_issues': data.technical_issues or '',
+                'modifications': data.modifications or '',
+                'athlete_comments': data.athlete_comments or ''
             }
         )
         if success:
@@ -499,10 +525,47 @@ async def export_summary(start_date: str, end_date: str):
             
         print("DEBUG: Summary with qualitative data:", json.dumps(summary, indent=2))
 
-        # Start building content with weekly plan details
-        content = [
-            "## Overall Weekly Summary"
-        ]
+        # Load persisted athlete settings (if any) and include in export header
+        try:
+            athlete_settings = db.load_athlete_settings('default')
+        except Exception:
+            athlete_settings = None
+
+        if athlete_settings:
+            print("DEBUG: Loaded athlete settings:", json.dumps(athlete_settings, indent=2))
+
+        # Start building content with athlete settings and weekly plan details
+        content = []
+        if athlete_settings:
+            content.append("## Athlete Settings (effective)")
+            # Show FTP if available
+            ftp_val = athlete_settings.get('ftp') or athlete_settings.get('ATHLETE_FTP')
+            if ftp_val:
+                content.append(f"• FTP: {ftp_val}")
+
+            # HR zones may be stored as list or comma string
+            hr_zones = athlete_settings.get('hr_zones') or athlete_settings.get('ATHLETE_HR_ZONES')
+            if hr_zones:
+                if isinstance(hr_zones, str):
+                    hr_display = hr_zones
+                elif isinstance(hr_zones, (list, tuple)):
+                    hr_display = ','.join(str(x) for x in hr_zones)
+                else:
+                    hr_display = str(hr_zones)
+                content.append(f"• HR zone upper bounds: {hr_display}")
+
+            power_zones = athlete_settings.get('power_zones') or athlete_settings.get('ATHLETE_POWER_ZONES')
+            if power_zones:
+                if isinstance(power_zones, str):
+                    p_display = power_zones
+                elif isinstance(power_zones, (list, tuple)):
+                    p_display = ','.join(str(x) for x in power_zones)
+                else:
+                    p_display = str(power_zones)
+                content.append(f"• Power zone cutoffs (watts): {p_display}")
+            content.append("")
+
+        content.append("## Overall Weekly Summary")
         
         if summary.get('weekly_plan'):
             wp = summary['weekly_plan']
@@ -641,8 +704,13 @@ async def export_summary(start_date: str, end_date: str):
                             content.append(f"     * {zone}: {format_value(value, is_percentage=True)}")
 
             # Athlete Comments section
-            feedback = workout.get('feedback', {})
-            athlete_comments = feedback.get('athlete_comments')
+            # Comments may be stored directly on the workout entry (athlete_comments)
+            # or inside the qualitative/feedback object depending on code path.
+            athlete_comments = (
+                workout.get('athlete_comments') or
+                (workout.get('feedback') or {}).get('athlete_comments') or
+                (workout.get('qualitative') or {}).get('athlete_comments')
+            )
             content.extend([
                 "",
                 "4. Athlete Comments:",
@@ -709,26 +777,45 @@ async def export_summary(start_date: str, end_date: str):
         raise HTTPException(status_code=400, detail=f"Error generating export: {str(e)}")
 
 @app.post("/upload/fit")
-async def upload_fit_file(file: UploadFile = File(...)):
-    """Handle FIT file upload"""
+async def upload_fit(file: UploadFile = File(...)):
+    """Handle FIT file upload with improved unique title generation"""
     try:
+        print(f"\n{'='*80}")
         print(f"Processing FIT file: {file.filename}")
+        print(f"{'='*80}")
         contents = await file.read()
         
         # Parse date from filename and standardize format
         date = None
-        filename = file.filename
+        filename: str = file.filename or ""
 
-        # Parse the FIT file once
+        # Parse the FIT file once. Prefer a persisted athlete FTP if available to avoid per-file FTP estimation
         fit_parser = FitParser()
         try:
-            parsed_data = fit_parser.parse_fit_file(contents)
+            # Try to load athlete FTP from persisted settings
+            try:
+                db_for_parse = WorkoutDatabase()
+                athlete_settings = db_for_parse.load_athlete_settings('default') or {}
+                athlete_ftp = None
+                if athlete_settings and isinstance(athlete_settings, dict):
+                    athlete_ftp = athlete_settings.get('ftp') or athlete_settings.get('FTP')
+                    if athlete_ftp is not None:
+                        try:
+                            athlete_ftp = float(athlete_ftp)
+                        except Exception:
+                            athlete_ftp = None
+            except Exception as e:
+                print(f"DEBUG: Could not load athlete settings for FTP: {e}")
+                athlete_ftp = None
+
+            parsed_data = fit_parser.parse_fit_file(contents, athlete_ftp=athlete_ftp)
             # Ensure we always have a dictionary, even if parsing fails
             if parsed_data is None:
-                print(f"Warning: FIT file parsing returned None for {file.filename}")
+                print(f"⚠️  Warning: FIT file parsing returned None for {file.filename}")
                 parsed_data = {}
         except Exception as e:
-            print(f"Error parsing FIT file {file.filename}: {str(e)}")
+            print(f"⚠️  Error parsing FIT file {file.filename}: {str(e)}")
+            print("Continuing with empty parsed_data...")
             parsed_data = {}
         
         # Handle date extraction based on filename patterns
@@ -749,14 +836,29 @@ async def upload_fit_file(file: UploadFile = File(...)):
     
                     # Extract date in YYYY-MM-DD format
                     date = la_start_time.strftime('%Y-%m-%d')
+                    print(f"Extracted date from Zwift file: {date}")
                 except Exception as e:
                     print(f"Error processing start time {start_time_str}: {str(e)}")
                     date = None
             else:
                 date = '2025-01-16'
-        elif '.GarminPing.' in filename:
-            date_part = filename.split('.')[1]
-            date = date_part[:10]
+        elif '.GarminPing.' in filename or '_GarminPing_' in filename:
+            # Handle both formats: dots and underscores
+            if '.GarminPing.' in filename:
+                date_part = filename.split('.')[1]
+                print("Using period-separated format for date extraction")
+            else:  # '_GarminPing_' format
+                # Extract date from underscore format: tp-5350487_2025-10-23-15-06-02-533Z_GarminPing_...
+                parts = filename.split('_')
+                if len(parts) >= 2:
+                    date_part = parts[1]  # Get the second part which contains the date
+                    print("Using underscore-separated format for date extraction")
+                else:
+                    date_part = None
+            
+            if date_part:
+                date = date_part[:10]  # Extract YYYY-MM-DD
+                print(f"Extracted date from GarminPing filename: {date}")
         elif filename.endswith('.fit') or filename.endswith('.FIT'):
             # Handle standard Garmin FIT files - try to extract date from filename
             # Common patterns: YYYY-MM-DD_HH-MM-SS.fit, Activity_YYYY-MM-DD.fit, etc.
@@ -764,38 +866,69 @@ async def upload_fit_file(file: UploadFile = File(...)):
             date_match = re.search(r'(\d{4}-\d{2}-\d{2})', filename)
             if date_match:
                 date = date_match.group(1)
+                print(f"Extracted date using regex: {date}")
             else:
                 # Try to get date from FIT file start_time
                 start_time_str = parsed_data.get('start_time')
                 if start_time_str:
                     try:
                         start_time = datetime.fromisoformat(start_time_str)
-                        date = start_time.strftime('%Y-%m-%d')
+                        # Convert to Los Angeles timezone
+                        la_timezone = pytz.timezone('America/Los_Angeles')
+                        la_start_time = start_time.astimezone(la_timezone)
+                        date = la_start_time.strftime('%Y-%m-%d')
+                        print(f"Extracted date from FIT file start_time: {date}")
                     except Exception as e:
                         print(f"Error extracting date from start_time {start_time_str}: {str(e)}")
                         date = None
         
         if not date:
-            print(f"Could not extract date from filename: {filename}")
+            print(f"⚠️  Could not extract date from filename: {filename}")
             date = "2025-01-16"  # Fallback date
         
-        print(f"Extracted date: {date}")
+        print(f"Final date: {date}")
+        
+        # Extract title from filename - make it UNIQUE to avoid collisions
+        if 'zwift-activity' in filename:
+            # Keep the activity ID for uniqueness
+            title = filename.split('.')[0].replace('zwift-activity-', 'Zwift Workout ')
+            print(f"Generated Zwift title: {title}")
+        elif '.GarminPing.' in filename or '_GarminPing_' in filename:
+            # Extract the unique identifier from the filename
+            # Format: tp-5350487.2025-10-23-15-06-02-533Z.GarminPing.AAAAAGj6RFpWW8L5.FIT.gz
+            # We want the unique ID: AAAAAGj6RFpWW8L5 (after GarminPing)
+            
+            # Split by periods and find the unique ID (after GarminPing)
+            parts = filename.split('.')
+            unique_id = None
+            
+            for i, part in enumerate(parts):
+                if 'GarminPing' in part and i + 1 < len(parts):
+                    unique_id = parts[i + 1]
+                    break
+            
+            if unique_id and unique_id not in ['FIT', 'fit', 'gz']:
+                title = f"Garmin-{unique_id}"
+            else:
+                # Fallback: use the full filename without extensions
+                title = filename.replace('.fit.gz', '').replace('.FIT.gz', '')
+            
+            print(f"Generated Garmin title: {title}")
+        else:
+            # For other FIT files, use a more specific title
+            # Remove extension and use full filename
+            title = filename.rsplit('.', 2)[0] if '.gz' in filename else filename.rsplit('.', 1)[0]
+            print(f"Generated generic title: {title}")
         
         # Save to database
         db = WorkoutDatabase()
-        # Extract title from filename or use a default
-        if 'zwift-activity' in filename:
-            title = filename.split('.')[0].replace('zwift-activity-', 'Zwift Workout ')
-        elif '.GarminPing.' in filename:
-            title = filename.split('.')[0].replace('.GarminPing', 'Garmin Workout')
-        else:
-            # For other FIT files, use a more generic title
-            title = filename.split('.')[0] + ' Workout'
-            
         saved = db.save_fit_data(date, title, parsed_data, filename)
         
         if not saved:
-            raise ValueError("Failed to save FIT data to database")
+            raise ValueError(f"Failed to save FIT data to database for {filename}")
+        
+        print(f"✓ Successfully saved to database: {title} on {date}")
+        print(f"{'='*80}\n")
         
         return {
             "message": "Successfully processed FIT file",
@@ -803,7 +936,9 @@ async def upload_fit_file(file: UploadFile = File(...)):
         }
         
     except Exception as e:
-        print(f"Error processing FIT file {file.filename}: {str(e)}")
+        print(f"❌ Error processing FIT file {file.filename}: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/debug/workout_upload")
@@ -868,13 +1003,14 @@ async def upload_proposed_workouts(file: UploadFile = File(...)):
             print(f"Successfully deleted existing data for week {weekly_plan.weekNumber}")
             
         # Create new weekly plan
-        print(f"Creating weekly plan: {weekly_plan.weekNumber}, {weekly_plan.startDate}, {weekly_plan.plannedTSS_min}, {weekly_plan.plannedTSS_max}, {weekly_plan.notes}")
+        print(f"Creating weekly plan: {weekly_plan.weekNumber}, {weekly_plan.startDate}, {weekly_plan.plannedTSS_min}, {weekly_plan.plannedTSS_max}, {weekly_plan.notes}, FTP: {weekly_plan.ftp}")
         db.create_weekly_plan(
             weekNumber=weekly_plan.weekNumber, 
             startDate=weekly_plan.startDate, 
             plannedTSS_min=weekly_plan.plannedTSS_min, 
             plannedTSS_max=weekly_plan.plannedTSS_max, 
-            notes=weekly_plan.notes
+            notes=weekly_plan.notes,
+            ftp=weekly_plan.ftp
         )
 
         for daily_plan in daily_plans:
@@ -895,15 +1031,16 @@ async def upload_proposed_workouts(file: UploadFile = File(...)):
                 raise Exception(f"Failed to save daily plan for {daily_plan.date}")
 
         print(f"DEBUG: Daily plans after DB: {[dp.__dict__ for dp in daily_plans]}")
-        print(f"DEBUG: Proposed workouts before matching: {[(w.name, getattr(w, '_dayNumber', None)) for w in proposed_workouts]}")
+        print(f"DEBUG: Proposed workouts before matching: {[(w.name, getattr(w, 'dayNumber', None)) for w in proposed_workouts]}")
 
         for workout in proposed_workouts:
+            # Match using the dataclass field `dayNumber` set during parsing
             daily_plan_id = next(
-                (dp.id for dp in daily_plans if dp.dayNumber == getattr(workout, '_dayNumber', None)),
+                (dp.id for dp in daily_plans if dp.dayNumber == getattr(workout, 'dayNumber', None)),
                 0
             )
             if daily_plan_id == 0:
-                print(f"DEBUG: Failed to match workout {workout.name} with _dayNumber {getattr(workout, '_dayNumber', None)}")
+                print(f"DEBUG: Failed to match workout {workout.name} with dayNumber {getattr(workout, 'dayNumber', None)}")
                 raise Exception(f"No daily plan found for workout {workout.name}")
             workout.dailyPlanId = daily_plan_id
 
@@ -917,7 +1054,8 @@ async def upload_proposed_workouts(file: UploadFile = File(...)):
                 targetRPE_min=workout.targetRPE_min,
                 targetRPE_max=workout.targetRPE_max,
                 intervals=workout.intervals,
-                sections=workout.sections
+                sections=workout.sections,
+                notes=workout.notes
             )
             if not success:
                 raise Exception(f"Failed to save proposed workout {workout.name}")
@@ -934,7 +1072,27 @@ async def upload_proposed_workouts(file: UploadFile = File(...)):
                 end_date = max(dp.date for dp in date_filtered_plans)
                 
                 # Generate Zwift workouts for these dates
-                zwift_output_dir = "/Users/jacobrobinson/Documents/Zwift/Workouts/6870291"
+                zwift_output_dir = os.getenv('ZWIFT_WORKOUTS_DIR', "~/Documents/Zwift/Workouts/6870291")
+                
+                # Extract FTP from weekly plan - try explicit FTP field first, then notes as fallback
+                ftp = 258  # Default FTP
+                try:
+                    # First, check for explicit FTP field in weekly plan
+                    if weekly_plan.ftp:
+                        ftp = weekly_plan.ftp
+                        print(f"Using explicit FTP: {ftp}W from weekly plan")
+                    elif weekly_plan.notes:
+                        # Fallback to parsing FTP from notes
+                        notes_data = json.loads(weekly_plan.notes) if isinstance(weekly_plan.notes, str) else weekly_plan.notes
+                        if isinstance(notes_data, dict):
+                            special_considerations = notes_data.get('specialConsiderations', '')
+                            # Look for FTP pattern like "FTP 300W confirmed" or "FTP: 300W"
+                            ftp_match = re.search(r'FTP[:\s]*(\d+)W?', special_considerations, re.IGNORECASE)
+                            if ftp_match:
+                                ftp = int(ftp_match.group(1))
+                                print(f"Extracted FTP: {ftp}W from weekly plan notes (fallback)")
+                except Exception as e:
+                    print(f"Could not extract FTP from weekly plan: {e}, using default {ftp}W")
                 
                 # Use the module to generate files
                 from ..utils.zwift_workout_generator import generate_zwift_workouts_from_db
@@ -942,6 +1100,7 @@ async def upload_proposed_workouts(file: UploadFile = File(...)):
                     db_connection=db,
                     start_date=start_date,
                     end_date=end_date,
+                    ftp=ftp,
                     output_dir=zwift_output_dir,
                     week_number=weekly_plan.weekNumber
                 )
@@ -980,24 +1139,82 @@ async def get_proposed_workouts_week(start_date: str, end_date: str):
             detail=f"Error retrieving proposed workouts: {str(e)}"
         )
 
+
+@app.get("/athlete/settings")
+async def get_athlete_settings(athlete_id: Optional[str] = 'default'):
+    """Get persisted athlete settings (ftp, hr_zones, power_zones)."""
+    try:
+        db = WorkoutDatabase()
+        aid = athlete_id or 'default'
+        settings = db.load_athlete_settings(aid)
+        if settings is None:
+            return {"athlete_id": aid, "settings": {}}
+        return {"athlete_id": aid, "settings": settings}
+    except Exception as e:
+        print(f"Error getting athlete settings: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/athlete/settings")
+async def save_athlete_settings(athlete_id: Optional[str] = Form('default'), settings: str = Form(...)):
+    """Save persisted athlete settings. Expects JSON string in `settings` form field."""
+    try:
+        db = WorkoutDatabase()
+        try:
+            settings_obj = json.loads(settings) if isinstance(settings, str) else settings
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid JSON for settings field")
+        aid = athlete_id or 'default'
+        success = db.save_athlete_settings(aid, settings_obj)
+        if success:
+            return {"message": "Athlete settings saved", "athlete_id": aid}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to persist athlete settings")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error saving athlete settings: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/zwift/generate_workouts")
 async def generate_zwift_workouts(start_date: str, end_date: str, output_dir: Optional[str] = None, ftp: int = 258, week_number: Optional[int] = None):
     """Generate Zwift workout files for all cycling workouts in the date range"""
     try:
-        import os
         from ..utils.zwift_workout_generator import generate_zwift_workouts_from_db
         
         db = WorkoutDatabase()
         
         # Set default output directory to the Zwift workouts directory if not specified
         if not output_dir:
-            output_dir = "/Users/jacobrobinson/Documents/Zwift/Workouts/6870291"
+            output_dir = os.getenv('ZWIFT_WORKOUTS_DIR', "~/Documents/Zwift/Workouts/6870291")
+        
+        # Extract FTP from weekly plan - try explicit FTP field first, then notes as fallback
+        extracted_ftp = ftp  # Use provided FTP as ultimate fallback
+        try:
+            proposed_workouts_data = db.get_proposed_workouts_for_week(start_date, end_date)
+            weekly_plan = proposed_workouts_data.get('weekly_plan', {})
+            
+            # First, check for explicit FTP field in weekly plan
+            if weekly_plan and weekly_plan.get('ftp'):
+                extracted_ftp = weekly_plan.get('ftp')
+                print(f"Using explicit FTP: {extracted_ftp}W from weekly plan")
+            elif weekly_plan and weekly_plan.get('notes'):
+                # Fallback to parsing FTP from notes
+                notes = weekly_plan['notes']
+                notes_data = json.loads(notes) if isinstance(notes, str) else notes
+                if isinstance(notes_data, dict):
+                    special_considerations = notes_data.get('specialConsiderations', '')
+                    # Look for FTP pattern like "FTP 300W confirmed" or "FTP: 300W"
+                    ftp_match = re.search(r'FTP[:\s]*(\d+)W?', special_considerations, re.IGNORECASE)
+                    if ftp_match:
+                        extracted_ftp = int(ftp_match.group(1))
+                        print(f"Extracted FTP: {extracted_ftp}W from weekly plan notes (fallback)")
+        except Exception as e:
+            print(f"Could not extract FTP from weekly plan: {e}, using provided FTP {extracted_ftp}W")
         
         # If week number wasn't provided, try to get it from the database
         if week_number is None:
             # Try to get the weekly plan from the database
-            proposed_workouts_data = db.get_proposed_workouts_for_week(start_date, end_date)
-            weekly_plan = proposed_workouts_data.get('weekly_plan', {})
             if weekly_plan and 'weekNumber' in weekly_plan:
                 week_number = weekly_plan.get('weekNumber')
                 print(f"Using week number from database: {week_number}")
@@ -1007,7 +1224,7 @@ async def generate_zwift_workouts(start_date: str, end_date: str, output_dir: Op
             db_connection=db,
             start_date=start_date,
             end_date=end_date,
-            ftp=ftp,
+            ftp=extracted_ftp,
             output_dir=output_dir,
             week_number=week_number
         )
@@ -1055,7 +1272,7 @@ async def save_workout_performance(
             workout_id=workout_id,
             workout_date=workout_date,
             actual_duration=actual_duration,
-            performance_data=perf_data_dict
+            performance_data=perf_data_dict or {}
         )
         
         if success:

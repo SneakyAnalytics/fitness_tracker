@@ -1,3 +1,45 @@
-/.DS_Store
-/venv
+# System files
+.DS_Store
+*.pyc
+__pycache__/
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env
+
+# Database files (contain personal data)
+data/fitness_data.db
+data/fitness_data.db.backup
+data/fitness_data.db.bak.*
+data/fitness_data.db.manual_migrate_*
+
+# Personal workout data
+data/proposed_workout_jsons/
 data/temp/
+Week_*/
+WorkoutFileExport-*/
+
+# Personal files and logs
+*.log
+api.log
+api_debug.log
+metrics*.csv
+workouts*.csv
+weekly_summary_*.json
+weekly_summary_*.txt
+
+# Test files
+pytest.ini
+tests/
+
+# Build and development files
+bin/
+.github/
+*.jpeg
+*.jpg
+*.png
+
+# Local documentation
+README_LOCAL_RUN.md

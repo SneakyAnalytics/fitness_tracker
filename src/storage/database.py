@@ -2,9 +2,8 @@
 
 import sqlite3
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Optional, Dict, Any
-from ..models.workout import DailyWorkout, WeeklySummary
 
 class WorkoutDatabase:
     def __init__(self, db_path: str = "data/fitness_data.db"):
@@ -28,6 +27,7 @@ class WorkoutDatabase:
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 athlete_comments TEXT,
                 sequence_number INTEGER DEFAULT 1,
+                fit_file_id INTEGER,
                 UNIQUE(workout_day, workout_title, sequence_number)
             )
         ''')
@@ -72,6 +72,16 @@ class WorkoutDatabase:
             )
         ''')
 
+        # Create athlete_settings table for persisted athlete defaults (FTP, HR zones, power zones)
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS athlete_settings (
+                athlete_id TEXT PRIMARY KEY,
+                settings_json TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         # Create weekly_plans table
         c.execute('''
             CREATE TABLE IF NOT EXISTS weekly_plans (
@@ -108,10 +118,19 @@ class WorkoutDatabase:
                 targetRPE_max INTEGER,
                 intervals TEXT,
                 sections TEXT,
+                notes TEXT,
                 FOREIGN KEY (dailyPlanId) REFERENCES daily_plans(id),
                 UNIQUE(dailyPlanId, name) ON CONFLICT IGNORE
             )
         ''')
+        
+        # Migration: Add notes column if it doesn't exist
+        try:
+            c.execute("ALTER TABLE proposed_workouts ADD COLUMN notes TEXT")
+            print("Added notes column to proposed_workouts table")
+        except sqlite3.OperationalError:
+            # Column already exists
+            pass
 
         conn.commit()
         conn.close()
@@ -162,6 +181,14 @@ class WorkoutDatabase:
                         ''', (i + 1, record_id))
                 
                 print(f"Updated {len(duplicates)} duplicate workout groups with sequence numbers")
+            # Ensure fit_file_id column exists for workouts
+            if 'fit_file_id' not in columns:
+                try:
+                    print("Migrating workouts table to add fit_file_id column...")
+                    c.execute("ALTER TABLE workouts ADD COLUMN fit_file_id INTEGER")
+                    print("Added fit_file_id column to workouts table")
+                except Exception as e:
+                    print(f"Error adding fit_file_id column to workouts: {e}")
             
             # Check if sequence_number column exists in fit_files table
             c.execute("PRAGMA table_info(fit_files)")
@@ -199,6 +226,13 @@ class WorkoutDatabase:
                         ''', (i + 1, record_id))
                 
                 print(f"Updated {len(duplicates)} duplicate fit file groups with sequence numbers")
+            
+            # Add FTP column to weekly_plans table if it doesn't exist
+            c.execute("PRAGMA table_info(weekly_plans)")
+            columns = [column[1] for column in c.fetchall()]
+            if 'ftp' not in columns:
+                c.execute("ALTER TABLE weekly_plans ADD COLUMN ftp INTEGER")
+                print("Added FTP column to weekly_plans table")
             
             conn.commit()
             print("Database migration completed successfully")
@@ -361,11 +395,12 @@ class WorkoutDatabase:
             workout_data = json.dumps(workout_with_qual)
             
             # Save workout with preserved qualitative data and sequence number
+            fit_file_id_val = workout.get('fit_file_id')
             c.execute(
                 '''
                 INSERT OR REPLACE INTO workouts
-                (workout_day, workout_title, workout_data, qualitative_data, athlete_comments, sequence_number, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                (workout_day, workout_title, workout_data, qualitative_data, athlete_comments, sequence_number, fit_file_id, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ''',
                 (
                     workout['workout_day'],
@@ -373,7 +408,8 @@ class WorkoutDatabase:
                     workout_data,
                     None,
                     athlete_comments,  # Ensure this field is saved
-                    next_sequence
+                    next_sequence,
+                    fit_file_id_val
                 )
             )
             
@@ -558,7 +594,7 @@ class WorkoutDatabase:
         
         if best_match is None and matching_workouts:
             best_match = matching_workouts[0]
-            print(f"DEBUG: No duration match found, selecting first match by date/type")
+            print("DEBUG: No duration match found, selecting first match by date/type")
 
         if best_match:
             print(f"DEBUG: Best match found: {json.dumps(best_match, indent=2)}")
@@ -567,9 +603,9 @@ class WorkoutDatabase:
             
         return best_match
 
-    def generate_weekly_summary(self, start_date: str, end_date: str) -> Dict[str, Any]:
+    def generate_weekly_summary(self, start_date: str, end_date: str) -> Optional[Dict[str, Any]]:
         """Generate a comprehensive weekly summary integrating all data sources"""
-        print(f"\nDEBUG: Generating weekly summary")
+        print("\nDEBUG: Generating weekly summary")
         print(f"Start date: {start_date}, End date: {end_date}")
         
         conn = sqlite3.connect(self.db_path)
@@ -595,39 +631,36 @@ class WorkoutDatabase:
             print("\nAvailable workout days in database:")
             for date in available_dates:
                 print(f"  - {date[0]}")
-            
-            try:
-                formatted_start_date = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
-                formatted_end_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')
-                print(f"\nFormatted dates for query: {formatted_start_date} to {formatted_end_date}")
-                
-                # Debug: Test the date comparison directly
-                test_query = '''
-                    SELECT COUNT(*)
-                    FROM workouts
-                    WHERE DATE(workout_day) BETWEEN ? AND ?
-                '''
-                c.execute(test_query, (formatted_start_date, formatted_end_date))
-                count = c.fetchone()[0]
-                print(f"\nFound {count} workouts in date range")
-                
-                # Execute the original query
-                c.execute(query, (formatted_start_date, formatted_end_date))
-            except ValueError as e:
-                print(f"\nError parsing dates: {e}")
-                raise
+
+            # Execute the main query
+            c.execute(query, (start_date, end_date))
             workout_rows = c.fetchall()
-            
-            print(f"Found {len(workout_rows)} workouts")
-            
+
+            # Try to load persisted athlete settings (FTP / power zones) to guide zone computations
+            try:
+                athlete_settings = self.load_athlete_settings('default') or {}
+                athlete_ftp_setting = None
+                athlete_power_zone_bounds = None
+                if athlete_settings and isinstance(athlete_settings, dict):
+                    athlete_ftp_setting = athlete_settings.get('ftp') or athlete_settings.get('FTP')
+                    athlete_power_zone_bounds = athlete_settings.get('power_zones') or athlete_settings.get('power_zones')
+                    try:
+                        if athlete_ftp_setting is not None:
+                            athlete_ftp_setting = float(athlete_ftp_setting)
+                    except Exception:
+                        athlete_ftp_setting = None
+            except Exception:
+                athlete_ftp_setting = None
+                athlete_power_zone_bounds = None
+
             # Initialize summary data
             total_tss = 0.0
             total_duration = 0.0
             sessions_completed = len(workout_rows)
             workout_types = set()
             daily_workouts = []
-            daily_energy = {}
-            daily_sleep_quality = {}
+            daily_energy: Dict[str, float] = {}
+            daily_sleep_quality: Dict[str, Dict[str, Optional[float]]] = {}
             
             # Process workouts
             for row in workout_rows:
@@ -640,8 +673,100 @@ class WorkoutDatabase:
                     
                     qualitative = json.loads(qual_data) if qual_data else {}
                     
-                    # Safely load fit_data
+                    # Safely load fit_data. If the LEFT JOIN didn't find a matching fit row (sequence mismatch),
+                    # try a fallback lookup for any fit_files entry matching day/title (use latest sequence).
                     fit_metrics = {}
+                    matched_fit_id = None
+                    if not fit_data:
+                        try:
+                            # First try fallback by exact title (most recent sequence) and capture id
+                            c.execute(
+                                '''
+                                SELECT id, fit_data FROM fit_files
+                                WHERE workout_day = ? AND workout_title = ?
+                                ORDER BY sequence_number DESC
+                                LIMIT 1
+                                ''',
+                                (day, title)
+                            )
+                            fallback = c.fetchone()
+                            if fallback and fallback[1]:
+                                matched_fit_id = fallback[0]
+                                fit_data = fallback[1]
+                                print(f"DEBUG: Fallback fit_data found for {title} on {day} (by exact title) - fit_id: {matched_fit_id}")
+                            else:
+                                    # As a more robust fallback, try to find the best FIT file for the same day.
+                                    # If multiple FIT files exist for the day, choose the one whose average power
+                                    # (from the FIT file) is closest to the workout's CSV average power when available.
+                                    try:
+                                        c.execute(
+                                            '''
+                                            SELECT id, fit_data, workout_title, file_name, sequence_number FROM fit_files
+                                            WHERE workout_day = ?
+                                            ''',
+                                            (day,)
+                                        )
+                                        candidates = c.fetchall()
+                                        if candidates:
+                                            # Determine CSV average power if available for matching heuristic
+                                            csv_avg = None
+                                            try:
+                                                csv_power = workout.get('metrics') or {}
+                                                # Try common CSV keys for average power
+                                                csv_avg = workout.get('power_data', {}).get('average') or csv_power.get('actual_average_power') or csv_power.get('average_power')
+                                                if csv_avg is not None:
+                                                    csv_avg = float(csv_avg)
+                                            except Exception:
+                                                csv_avg = None
+
+                                            best_candidate = None
+                                            best_diff = None
+                                            for cand in candidates:
+                                                fid, fdata, ftitle, fname, fseq = cand
+                                                try:
+                                                    parsed = json.loads(fdata) if fdata else {}
+                                                except Exception:
+                                                    parsed = {}
+
+                                                pm = parsed.get('power_metrics') if isinstance(parsed, dict) else {}
+                                                cand_avg = None
+                                                if isinstance(pm, dict):
+                                                    cand_avg = pm.get('average_power') or pm.get('average')
+                                                try:
+                                                    cand_avg = float(cand_avg) if cand_avg is not None else None
+                                                except Exception:
+                                                    cand_avg = None
+
+                                                # If we have a csv_avg, choose candidate minimizing abs diff
+                                                if csv_avg is not None and cand_avg is not None:
+                                                    diff = abs(csv_avg - cand_avg)
+                                                else:
+                                                    # If we don't have numeric comparison data, prefer highest sequence (most recent)
+                                                    diff = None
+
+                                                if csv_avg is not None and diff is not None:
+                                                    if best_diff is None or diff < best_diff:
+                                                        best_diff = diff
+                                                        best_candidate = (fid, fdata)
+                                                else:
+                                                    # fallback to preferring the highest sequence number if no numeric match possible
+                                                    if best_candidate is None:
+                                                        best_candidate = (fid, fdata)
+                                                    else:
+                                                        # prefer candidate with higher sequence_number
+                                                        if fseq is not None and best_candidate:
+                                                            if fseq > (best_candidate[0] or 0):
+                                                                best_candidate = (fid, fdata)
+
+                                            if best_candidate:
+                                                matched_fit_id = best_candidate[0]
+                                                fit_data = best_candidate[1]
+                                                print(f"DEBUG: Selected best-fit fit_data for {title} on {day} - fit_id: {matched_fit_id}")
+                                    except Exception as e:
+                                        print(f"DEBUG: Error during fallback fit_files lookup: {e}")
+                        except Exception as e:
+                            print(f"DEBUG: Error during fallback fit_files lookup: {e}")
+
                     if fit_data:
                         try:
                             fit_metrics = json.loads(fit_data)
@@ -689,21 +814,183 @@ class WorkoutDatabase:
                     total_duration += duration
                     
                     # Combine power data from all sources with FIT priority
-                    power_data = workout.get('power_data', {})
+                    power_data = workout.get('power_data', {}) or {}
                     if fit_metrics.get('power_metrics'):
                         # Preserve normalized power from FIT files
                         fit_power = fit_metrics['power_metrics']
-                        power_data.update({
-                            'normalized_power': fit_power.get('normalized_power'),
-                            # Explicitly map all power fields from FIT
-                            'average_power': fit_power.get('average_power'),
-                            'max_power': fit_power.get('max_power'),
-                            'intensity_factor': fit_power.get('intensity_factor'),
-                            'zones': fit_power.get('zones', {}),
-                            # Merge with existing workout data
-                            **power_data
-                        })
-                    print(f"Power data: {json.dumps(power_data, indent=2)}")
+                        # Merge FIT power metrics into the existing power_data but do not overwrite
+                        # the canonical keys we use for export. We'll canonicalize names below.
+                        power_data = {**power_data}  # shallow copy
+                        if fit_power.get('normalized_power') is not None:
+                            power_data['normalized_power'] = fit_power.get('normalized_power')
+                        if fit_power.get('average_power') is not None:
+                            power_data['average_power'] = fit_power.get('average_power')
+                        if fit_power.get('max_power') is not None:
+                            power_data['max_power'] = fit_power.get('max_power')
+                        if fit_power.get('intensity_factor') is not None:
+                            power_data['intensity_factor'] = fit_power.get('intensity_factor')
+                        if fit_power.get('zones') is not None:
+                            power_data['zones'] = fit_power.get('zones')
+
+                    # Canonicalize power field names so downstream code can reliably read them.
+                    canonical_power = {
+                        'average': power_data.get('average') if power_data.get('average') is not None else power_data.get('average_power'),
+                        'max': power_data.get('max') if power_data.get('max') is not None else power_data.get('max_power'),
+                        # intensity_factor may appear as 'if' in CSV-derived data; accept both
+                        'intensity_factor': power_data.get('intensity_factor') if power_data.get('intensity_factor') is not None else power_data.get('if'),
+                        'zones': power_data.get('zones', {}),
+                        'normalized_power': power_data.get('normalized_power')
+                    }
+
+                    print(f"Power data (canonical): {json.dumps(canonical_power, indent=2)}")
+
+                    # Normalize/override power zone distribution if we have a persisted FTP or explicit numeric power zone bounds.
+                    # Some FIT files include pre-computed zones that were calculated with a different FTP; prefer a simple
+                    # heuristic: if normalized_power is present and athlete FTP or explicit zone bounds are available,
+                    # place the bulk of time in the zone where normalized_power falls (more intuitive for exports).
+                    try:
+                        npower = canonical_power.get('normalized_power')
+                        # Prefer to recompute percent-time-in-zone using raw power samples if available
+                        power_series = None
+                        fit_power = (fit_metrics.get('power_metrics') or {}) if fit_metrics else {}
+                        if isinstance(fit_power, dict):
+                            power_series = fit_power.get('power_series') or fit_metrics.get('power_series')
+
+                        # Determine FTP to use for zone cutoffs: persisted athlete setting preferred,
+                        # otherwise fall back to FTP recorded by the FIT parser if present
+                        ftp_for_zones = None
+                        if athlete_ftp_setting:
+                            ftp_for_zones = athlete_ftp_setting
+                        else:
+                            # Defensive: fit_power may not always be a dict (could be a list, string, etc.)
+                            # Normalize to dict when possible and safely extract ftp
+                            if not isinstance(fit_power, dict):
+                                try:
+                                    if isinstance(fit_power, str):
+                                        parsed = json.loads(fit_power)
+                                        fit_power = parsed if isinstance(parsed, dict) else {}
+                                    else:
+                                        fit_power = {}
+                                except Exception:
+                                    fit_power = {}
+
+                            ftp_for_zones = None
+                            # Try common places for FTP: fit_power dict, then top-level fit_metrics
+                            ftp_candidate = None
+                            if isinstance(fit_power, dict):
+                                ftp_candidate = fit_power.get('ftp')
+                            if ftp_candidate is None and isinstance(fit_metrics, dict):
+                                ftp_candidate = fit_metrics.get('ftp') or (fit_metrics.get('metrics') or {}).get('ftp')
+
+                            # Use helper to defensively convert ftp_candidate to a numeric value.
+                            # _get_numeric_value returns the provided default (None) when conversion
+                            # isn't possible (e.g. dicts or malformed strings).
+                            # Defensive numeric conversion for FTP candidate: only attempt to
+                            # cast if it's a numeric or numeric string. Otherwise leave as None.
+                            ftp_for_zones = None
+                            if isinstance(ftp_candidate, (int, float)):
+                                ftp_for_zones = float(ftp_candidate)
+                            elif isinstance(ftp_candidate, str):
+                                try:
+                                    ftp_for_zones = float(ftp_candidate)
+                                except Exception:
+                                    ftp_for_zones = None
+
+                        zones_override = None
+
+                        # If we have raw power samples and either explicit numeric power bounds or an FTP, compute percent-time-in-zone
+                        if power_series and (athlete_power_zone_bounds or ftp_for_zones):
+                            try:
+                                # Normalize samples to floats and filter invalid entries
+                                samples = [float(x) for x in power_series if x is not None]
+                                total = len(samples)
+                                if total > 0:
+                                    zone_names = [
+                                        'Zone 1 (Recovery)',
+                                        'Zone 2 (Endurance)',
+                                        'Zone 3 (Tempo)',
+                                        'Zone 4 (Threshold)',
+                                        'Zone 5 (VO2 Max)'
+                                    ]
+                                    zones_override = {name: 0.0 for name in zone_names}
+
+                                    if athlete_power_zone_bounds and isinstance(athlete_power_zone_bounds, list) and len(athlete_power_zone_bounds) >= 5:
+                                        bounds = [float(b) for b in athlete_power_zone_bounds[:5]]
+                                        lower = None
+                                        for i, upper in enumerate(bounds):
+                                            if lower is None:
+                                                cnt = sum(1 for s in samples if s <= upper)
+                                            else:
+                                                cnt = sum(1 for s in samples if s > lower and s <= upper)
+                                            zones_override[zone_names[i]] = (cnt / total) * 100.0
+                                            lower = upper
+                                        # Anything above highest bound goes to last zone
+                                        if lower is not None:
+                                            cnt = sum(1 for s in samples if s > lower)
+                                            zones_override[zone_names[-1]] += (cnt / total) * 100.0
+                                    elif ftp_for_zones:
+                                        # Create numeric cutoffs from FTP using FitParser conventions
+                                        cutoffs = [0.55, 0.75, 0.90, 1.05, 1.5]
+                                        thresholds = [ftp_for_zones * c for c in cutoffs]
+                                        lower = None
+                                        for i, upper in enumerate(thresholds):
+                                            if lower is None:
+                                                cnt = sum(1 for s in samples if s <= upper)
+                                            else:
+                                                cnt = sum(1 for s in samples if s > lower and s <= upper)
+                                            zones_override[zone_names[i]] = (cnt / total) * 100.0
+                                            lower = upper
+                                        if lower is not None:
+                                            cnt = sum(1 for s in samples if s > lower)
+                                            zones_override[zone_names[-1]] += (cnt / total) * 100.0
+                            except Exception as e:
+                                print(f"DEBUG: Error computing zones from power_series: {e}")
+
+                        # If we couldn't compute percent-time zones from samples, fall back to simple single-zone override based on NP (legacy heuristic)
+                        if zones_override is None:
+                            if npower is not None:
+                                # If explicit numeric bounds are persisted, use them
+                                if athlete_power_zone_bounds and isinstance(athlete_power_zone_bounds, list) and len(athlete_power_zone_bounds) >= 5:
+                                    bounds = athlete_power_zone_bounds
+                                    zone_names = [
+                                        'Zone 1 (Recovery)',
+                                        'Zone 2 (Endurance)',
+                                        'Zone 3 (Tempo)',
+                                        'Zone 4 (Threshold)',
+                                        'Zone 5 (VO2 Max)'
+                                    ]
+                                    zones_override = {name: 0.0 for name in zone_names}
+                                    for i, b in enumerate(bounds[:5]):
+                                        try:
+                                            if npower <= float(b):
+                                                zones_override[zone_names[i]] = 100.0
+                                                break
+                                        except Exception:
+                                            continue
+                                    if sum(zones_override.values()) == 0:
+                                        zones_override[zone_names[-1]] = 100.0
+                                elif athlete_ftp_setting:
+                                    pct = npower / athlete_ftp_setting
+                                    zone_names = [
+                                        'Zone 1 (Recovery)',
+                                        'Zone 2 (Endurance)',
+                                        'Zone 3 (Tempo)',
+                                        'Zone 4 (Threshold)',
+                                        'Zone 5 (VO2 Max)'
+                                    ]
+                                    cutoffs = [0.55, 0.75, 0.90, 1.05, 1.5]
+                                    zones_override = {name: 0.0 for name in zone_names}
+                                    for i, cutoff in enumerate(cutoffs):
+                                        if pct <= cutoff:
+                                            zones_override[zone_names[i]] = 100.0
+                                            break
+                                    if sum(zones_override.values()) == 0:
+                                        zones_override[zone_names[-1]] = 100.0
+
+                        if zones_override is not None:
+                            canonical_power['zones'] = zones_override
+                    except Exception as e:
+                        print(f"DEBUG: Could not override power zones: {e}")
                     
                     # Helper function to standardize heart rate zone format
                     def standardize_hr_zones(zones_data):
@@ -864,12 +1151,12 @@ class WorkoutDatabase:
                                 'rpe': self._get_numeric_value(csv_metrics.get('rpe'))
                             },
                             'power_data': {
-                                'average': power_data.get('average'),
-                                'max': power_data.get('max'),
-                                'intensity_factor': power_data.get('if'),
-                                'zones': power_data.get('zones', {}),
-                                'normalized_power': normalized_power
-                            } if power_data else None,
+                                'average': canonical_power.get('average'),
+                                'max': canonical_power.get('max'),
+                                'intensity_factor': canonical_power.get('intensity_factor'),
+                                'zones': canonical_power.get('zones', {}),
+                                'normalized_power': canonical_power.get('normalized_power') if canonical_power.get('normalized_power') is not None else normalized_power
+                            } if (power_data or normalized_power is not None) else None,
                             'heart_rate_data': hr_data if hr_data else None,
                             'performance_data': performance_data
                         },
@@ -882,6 +1169,19 @@ class WorkoutDatabase:
                             if v is not None
                         }
                     daily_workouts.append(workout_entry)
+                    # If we found a fallback fit_file, persist the association so future queries join directly
+                    if matched_fit_id:
+                        try:
+                            c.execute(
+                                '''
+                                UPDATE workouts SET fit_file_id = ? WHERE workout_day = ? AND workout_title = ? AND sequence_number = ?
+                                ''',
+                                (matched_fit_id, day, title, sequence_number)
+                            )
+                            conn.commit()
+                            print(f"DEBUG: Updated workout row to reference fit_file_id {matched_fit_id} for {title} on {day} (seq {sequence_number})")
+                        except Exception as e:
+                            print(f"DEBUG: Could not update workout with fit_file_id: {e}")
                     print(f"Successfully added workout entry with power data: {json.dumps(workout_entry['workout_data'].get('power_data'), indent=2)}")
                 except Exception as e:
                     print(f"Error processing workout: {str(e)}")
@@ -898,7 +1198,7 @@ class WorkoutDatabase:
                 (start_date, end_date)
             )
             body_battery_rows = c.fetchall()
-            total_energy = 0
+            total_energy = 0.0
             count = 0
             for date, metric_data in body_battery_rows:
                 metric_data = json.loads(metric_data)
@@ -940,10 +1240,11 @@ class WorkoutDatabase:
             
             # Second pass: calculate sleep quality scores
             for date, metrics in daily_sleep_quality.items():
-                sleep_hours = metrics.get('Sleep Hours', 0)
-                deep_sleep = metrics.get('Time In Deep Sleep', 0)
-                light_sleep = metrics.get('Time In Light Sleep', 0)
-                rem_sleep = metrics.get('Time In REM Sleep', 0)
+                # Normalize numeric values (some may be None or strings)
+                sleep_hours = self._get_numeric_value(metrics.get('Sleep Hours'), default=0)
+                deep_sleep = self._get_numeric_value(metrics.get('Time In Deep Sleep'), default=0)
+                light_sleep = self._get_numeric_value(metrics.get('Time In Light Sleep'), default=0)
+                rem_sleep = self._get_numeric_value(metrics.get('Time In REM Sleep'), default=0)
                 
                 # Calculate sleep quality score (1-5 scale)
                 if sleep_hours > 0:  # Only calculate if we have sleep data
@@ -1024,7 +1325,7 @@ class WorkoutDatabase:
                         'planned_rpe': f"{matching_proposed['targetRPE_min']}-{matching_proposed['targetRPE_max']}"
                     })
                 else:
-                    print(f"DEBUG: No matching proposed workout found")
+                    print("DEBUG: No matching proposed workout found")
 
             summary = {
                 'start_date': start_date,
@@ -1156,6 +1457,51 @@ class WorkoutDatabase:
         finally:
             conn.close()
 
+    def save_athlete_settings(self, athlete_id: str, settings: Dict[str, Any]) -> bool:
+        """Persist athlete-specific settings (FTP, HR zones, power zones) as JSON."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                c = conn.cursor()
+                # Use SQLite upsert to insert or update by athlete_id
+                c.execute(
+                    '''
+                    INSERT INTO athlete_settings (athlete_id, settings_json, created_at, updated_at)
+                    VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    ON CONFLICT(athlete_id) DO UPDATE SET
+                        settings_json = excluded.settings_json,
+                        updated_at = CURRENT_TIMESTAMP
+                    ''',
+                    (athlete_id, json.dumps(settings))
+                )
+                conn.commit()
+                print(f"DEBUG: Saved athlete settings for {athlete_id}")
+                return True
+        except Exception as e:
+            print(f"Error saving athlete settings: {e}")
+            return False
+
+    def load_athlete_settings(self, athlete_id: str) -> Optional[Dict[str, Any]]:
+        """Load persisted athlete settings by athlete_id. Returns dict or None."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                c = conn.cursor()
+                c.execute(
+                    '''
+                    SELECT settings_json FROM athlete_settings WHERE athlete_id = ? LIMIT 1
+                    ''',
+                    (athlete_id,)
+                )
+                row = c.fetchone()
+                if row and row[0]:
+                    try:
+                        return json.loads(row[0])
+                    except json.JSONDecodeError:
+                        return None
+                return None
+        except Exception as e:
+            print(f"Error loading athlete settings: {e}")
+            return None
+
     def delete_weekly_plan_cascade(self, weekNumber: int) -> bool:
         """Delete a weekly plan and all associated daily plans and proposed workouts"""
         try:
@@ -1207,20 +1553,20 @@ class WorkoutDatabase:
             print(f"Error deleting weekly plan cascade: {e}")
             return False
     
-    def create_weekly_plan(self, weekNumber: int, startDate: str, plannedTSS_min: int, plannedTSS_max: int, notes: str) -> bool:
+    def create_weekly_plan(self, weekNumber: int, startDate: str, plannedTSS_min: int, plannedTSS_max: int, notes: str, ftp: Optional[int] = None) -> bool:
         """Create a new weekly plan"""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 c = conn.cursor()
                 c.execute(
                     '''
-                    INSERT INTO weekly_plans (weekNumber, startDate, plannedTSS_min, plannedTSS_max, notes)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO weekly_plans (weekNumber, startDate, plannedTSS_min, plannedTSS_max, notes, ftp)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     ''',
-                    (weekNumber, startDate, plannedTSS_min, plannedTSS_max, notes)
+                    (weekNumber, startDate, plannedTSS_min, plannedTSS_max, notes, ftp)
                 )
                 conn.commit()
-                print(f"DEBUG: Successfully inserted weekly plan: {weekNumber}, {startDate}, {plannedTSS_min}, {plannedTSS_max}, {notes}")
+                print(f"DEBUG: Successfully inserted weekly plan: {weekNumber}, {startDate}, {plannedTSS_min}, {plannedTSS_max}, {notes}, FTP: {ftp}")
                 return True
         except Exception as e:
             print(f"Error creating weekly plan: {e}")
@@ -1288,7 +1634,7 @@ class WorkoutDatabase:
             print(f"Error creating/updating daily plan: {e}")
             return False
 
-    def create_proposed_workout(self, dailyPlanId: int, type: str, name: str, plannedDuration: int, plannedTSS_min: int, plannedTSS_max: int, targetRPE_min: int, targetRPE_max: int, intervals: str, sections: str) -> bool:
+    def create_proposed_workout(self, dailyPlanId: int, type: str, name: str, plannedDuration: int, plannedTSS_min: int, plannedTSS_max: int, targetRPE_min: int, targetRPE_max: int, intervals: str, sections: str, notes: Optional[str] = None) -> bool:
         """Create a new proposed workout or update existing one"""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -1313,11 +1659,11 @@ class WorkoutDatabase:
                         SET type = ?, plannedDuration = ?, 
                             plannedTSS_min = ?, plannedTSS_max = ?,
                             targetRPE_min = ?, targetRPE_max = ?,
-                            intervals = ?, sections = ?
+                            intervals = ?, sections = ?, notes = ?
                         WHERE id = ?
                         ''',
                         (type, plannedDuration, plannedTSS_min, plannedTSS_max, 
-                         targetRPE_min, targetRPE_max, intervals, sections, workout_id)
+                         targetRPE_min, targetRPE_max, intervals, sections, notes or "", workout_id)
                     )
                     print(f"Updated existing proposed workout '{name}' for dailyPlanId {dailyPlanId}")
                 else:
@@ -1326,11 +1672,11 @@ class WorkoutDatabase:
                         '''
                         INSERT INTO proposed_workouts 
                         (dailyPlanId, type, name, plannedDuration, plannedTSS_min, plannedTSS_max, 
-                         targetRPE_min, targetRPE_max, intervals, sections)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         targetRPE_min, targetRPE_max, intervals, sections, notes)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ''',
                         (dailyPlanId, type, name, plannedDuration, plannedTSS_min, plannedTSS_max, 
-                         targetRPE_min, targetRPE_max, intervals, sections)
+                         targetRPE_min, targetRPE_max, intervals, sections, notes or "")
                     )
                     print(f"Created new proposed workout '{name}' for dailyPlanId {dailyPlanId}")
                 
@@ -1517,7 +1863,7 @@ class WorkoutDatabase:
             # First get the weekly plan
             c.execute(
                 """
-                SELECT weekNumber, startDate, plannedTSS_min, plannedTSS_max, notes
+                SELECT weekNumber, startDate, plannedTSS_min, plannedTSS_max, notes, ftp
                 FROM weekly_plans
                 WHERE startDate = ?
                 LIMIT 1
@@ -1533,7 +1879,8 @@ class WorkoutDatabase:
                     'startDate': weekly_plan_row[1],
                     'plannedTSS_min': weekly_plan_row[2],
                     'plannedTSS_max': weekly_plan_row[3],
-                    'notes': weekly_plan_row[4]
+                    'notes': weekly_plan_row[4],
+                    'ftp': weekly_plan_row[5]
                 }
             
             # Get all daily plans and workouts for the week
@@ -1543,7 +1890,7 @@ class WorkoutDatabase:
                     pw.id, pw.type, pw.name, pw.plannedDuration, 
                     pw.plannedTSS_min, pw.plannedTSS_max, 
                     pw.targetRPE_min, pw.targetRPE_max,
-                    pw.intervals, pw.sections
+                    pw.intervals, pw.sections, pw.notes
                 FROM daily_plans dp
                 LEFT JOIN proposed_workouts pw ON dp.id = pw.dailyPlanId
                 WHERE dp.date BETWEEN ? AND ?
@@ -1571,7 +1918,8 @@ class WorkoutDatabase:
                         'targetRPE_min': row[10],
                         'targetRPE_max': row[11],
                         'intervals': row[12],
-                        'sections': row[13]
+                        'sections': row[13],
+                        'notes': row[14]
                     }
                     daily_workouts.append(workout)
             

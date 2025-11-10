@@ -4,13 +4,64 @@ sys.path.append(".")
 
 import streamlit as st
 import pandas as pd
-from datetime import datetime, date, timedelta
+# Some versions of NumPy (e.g. 1.26+) do not expose a top-level `numpy.rec` module
+# which older code (and pandas internals) sometimes expect to import. Ensure a
+# compatible alias exists so downstream `isinstance(..., np.rec.recarray)` checks
+# don't raise ModuleNotFoundError at runtime.
+try:
+    import numpy as np
+    import importlib
+    try:
+        # Try importing the historical alias first (may raise ModuleNotFoundError)
+        import numpy.rec  # type: ignore
+    except Exception:
+        try:
+            rec_mod = importlib.import_module('numpy.core.records')
+            setattr(np, 'rec', rec_mod)
+        except Exception:
+            # If this fails, we silently continue; the original import error
+            # will surface later but we've attempted a safe compatibility fix.
+            pass
+except Exception:
+    # If numpy isn't available at all, let the normal import errors occur later
+    pass
+from datetime import datetime, timedelta, date
+from typing import Any, Optional, cast
 import requests
 import json
+import importlib
+import types as _types
+
+# Some versions of plotly may expect a submodule `plotly.graph_objs._densitymap`
+# to exist (older code paths). If that submodule is missing in the installed
+# plotly package, create a compatibility alias pointing at a closely related
+# existing module (if available) or a dummy module to avoid import-time
+# failures inside plotly's lazy importer.
+try:
+    import plotly.graph_objs as _go  # type: ignore
+    try:
+        # Quick existence check
+        import plotly.graph_objs._densitymap  # type: ignore
+    except Exception:
+        # Try to reuse a related module if present
+        for _candidate in ('plotly.graph_objs._densitymapbox', 'plotly.graph_objs._scatter', 'plotly.graph_objs._box'):
+            try:
+                _mod = importlib.import_module(_candidate)
+                sys.modules['plotly.graph_objs._densitymap'] = _mod
+                break
+            except Exception:
+                continue
+        else:
+            # Last resort: insert an empty module object so importlib can find it
+            sys.modules['plotly.graph_objs._densitymap'] = _types.ModuleType('plotly.graph_objs._densitymap')
+except Exception:
+    # If plotly isn't installed or another error occurs, let the normal import
+    # errors surface when plotly is actually needed.
+    pass
+
 import plotly.express as px
 import os
 import math
-from src.utils.proposed_workouts_processor import process_proposed_workouts
 
 def display_weekly_summary(summary):
     """Display weekly summary data with error handling"""
@@ -290,6 +341,9 @@ def display_workout_calendar():
     
     # Get current week number and date
     today = datetime.now().date()
+    # Local variables may be a date or None after normalization
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
     start_of_week = today - timedelta(days=today.weekday())
     end_of_week = start_of_week + timedelta(days=6)
     
@@ -305,6 +359,20 @@ def display_workout_calendar():
             "Week End Date", 
             value=end_of_week
         )
+
+    # Normalize Streamlit date widget return values (can be date, datetime or a tuple when range-select is used)
+    # Use the module-level helper below
+    selected_week_start = _normalize_date_widget(selected_week_start)
+    selected_week_end = _normalize_date_widget(selected_week_end)
+
+    # Cast to concrete date type for static checkers (we validated above)
+    selected_week_start = cast(date, selected_week_start)
+    selected_week_end = cast(date, selected_week_end)
+
+    # Validate normalized dates
+    if selected_week_start is None or selected_week_end is None:
+        st.warning("Please select a valid week start and end date.")
+        return
     
     # Add help text about where data is stored
     with st.expander("About Workout Tracking Data"):
@@ -338,8 +406,8 @@ def display_workout_calendar():
         response = requests.get(
             "http://localhost:8000/proposed_workouts/week",
             params={
-                "start_date": selected_week_start.strftime('%Y-%m-%d'),
-                "end_date": selected_week_end.strftime('%Y-%m-%d')
+                "start_date": selected_week_start.strftime('%Y-%m-%d') if selected_week_start else None,
+                "end_date": selected_week_end.strftime('%Y-%m-%d') if selected_week_end else None
             }
         )
         
@@ -368,7 +436,8 @@ def display_workout_calendar():
                     st.info(f"**Weekly Focus:** {notes.get('weekFocus', '')}")
                     if notes.get('specialConsiderations'):
                         st.warning(f"**Special Considerations:** {notes.get('specialConsiderations', '')}")
-                except:
+                except Exception as e:
+                    st.warning(f"Failed to parse weekly plan notes: {e}")
                     st.text(weekly_plan['notes'])
         
         # Create a mapping of date to workouts
@@ -463,13 +532,13 @@ def display_workout_calendar():
                         
                         # Show workout details based on type with unique keys
                         if workout_type == "bike":
-                            st.markdown(f"### Workout Details")
+                            st.markdown("### Workout Details")
                             display_bike_workout(workout)
                         elif workout_type == "run":
-                            st.markdown(f"### Workout Details")
+                            st.markdown("### Workout Details")
                             display_run_workout(workout)
                         elif workout_type in ["strength", "yoga", "mobility", "other"]:
-                            st.markdown(f"### Workout Details")
+                            st.markdown("### Workout Details")
                             # Pass unique key to avoid duplicate widget keys
                             display_strength_workout_with_tracking(workout, unique_key=unique_workout_key)
                         
@@ -484,33 +553,108 @@ def display_workout_calendar():
         st.exception(e)  # This will show the full traceback
 
 def display_bike_workout(workout):
-    """Display bike workout intervals"""
-    st.subheader("Interval Structure")
+    """Display bike workout intervals with comprehensive coaching notes"""
     
-    # Display overall workout notes if available
+    # Display overall workout notes if available - enhanced with better formatting
     if workout.get('notes'):
-        st.markdown("### Workout Notes")
         notes = workout.get('notes')
-        if isinstance(notes, list):
+        
+        # Parse notes if they're stored as JSON string
+        if isinstance(notes, str):
+            try:
+                import json
+                notes = json.loads(notes)
+            except (json.JSONDecodeError, ValueError):
+                # If parsing fails, treat as a single string
+                notes = [notes]
+        
+        if isinstance(notes, list) and notes:
+            # Categorize notes for better presentation
+            race_strategy_notes = []
+            nutrition_notes = []
+            power_pacing_notes = []
+            recovery_notes = []
+            general_notes = []
+            
             for note in notes:
-                st.markdown(f"- {note}")
+                note_lower = note.lower()
+                if any(keyword in note_lower for keyword in ['race', 'strategy', 'scoring', 'power-up', 'tactic', 'contest', 'racing', 'points race']):
+                    race_strategy_notes.append(note)
+                elif any(keyword in note_lower for keyword in ['carb', 'nutrition', 'drink', 'electrolyte', 'hydrat', 'fuel']):
+                    nutrition_notes.append(note)
+                elif any(keyword in note_lower for keyword in ['hr', 'heart rate', 'bpm', 'power', 'watt', '%', 'ftp', 'threshold', 'tempo', 'zone']):
+                    power_pacing_notes.append(note)
+                elif any(keyword in note_lower for keyword in ['recovery', 'sleep', 'sauna', 'cool', 'rest', 'easy', 'maintenance', 'energy']):
+                    recovery_notes.append(note)
+                else:
+                    general_notes.append(note)
+            
+            # Display categorized notes with better formatting
+            if race_strategy_notes:
+                with st.expander("🎯 Race Strategy & Mental Prep", expanded=False):
+                    for note in race_strategy_notes:
+                        if note.startswith(('RACE STRATEGY', 'TACTICAL')):
+                            st.markdown(f"**{note}**")
+                        else:
+                            st.markdown(f"• {note}")
+            
+            if nutrition_notes:
+                with st.expander("🥤 Nutrition & Fueling", expanded=False):
+                    for note in nutrition_notes:
+                        if note.startswith(('NUTRITION', 'PRE-RACE PREP')):
+                            st.markdown(f"**{note}**")
+                        else:
+                            st.markdown(f"• {note}")
+            
+            if power_pacing_notes:
+                with st.expander("⚡ Power & Heart Rate Guidelines", expanded=False):
+                    for note in power_pacing_notes:
+                        if note.startswith('POWER PACING'):
+                            st.markdown(f"**{note}**")
+                        else:
+                            st.markdown(f"• {note}")
+            
+            if recovery_notes:
+                with st.expander("😴 Recovery & Energy Management", expanded=False):
+                    for note in recovery_notes:
+                        if note.startswith('POST-RACE'):
+                            st.markdown(f"**{note}**")
+                        else:
+                            st.markdown(f"• {note}")
+            
+            if general_notes:
+                with st.expander("📝 Coaching Notes", expanded=True):
+                    for note in general_notes:
+                        # Check if it's a section header (ALL CAPS or starts with keywords)
+                        if (note.isupper() and len(note) > 10) or note.startswith(('WARMUP', 'COOLDOWN', 'CRITICAL')):
+                            st.markdown(f"**{note}**")
+                        else:
+                            st.markdown(f"• {note}")
+        elif isinstance(notes, str) and notes.strip():
+            # Single string note
+            st.markdown("### 📝 Workout Notes")
+            st.markdown(f"• {notes}")
         else:
+            # Fallback for any other format
+            st.markdown("### 📝 Workout Notes")
             st.markdown(f"{notes}")
+    
+    st.subheader("🏋️ Interval Structure")
     
     # Parse intervals from JSON string if needed
     intervals = workout.get('intervals')
     if isinstance(intervals, str):
         try:
             intervals = json.loads(intervals)
-        except:
-            st.warning("Could not parse intervals data")
+        except Exception as e:
+            st.warning(f"Could not parse intervals data: {e}")
             return
     
     if not intervals:
         st.info("No interval data available")
         return
     
-    # Display intervals as a table
+    # Display intervals as a table with enhanced power formatting
     intervals_data = []
     for i, interval in enumerate(intervals):
         interval_data = {
@@ -518,7 +662,7 @@ def display_bike_workout(workout):
             "Duration": f"{interval.get('duration', 0)/60:.1f} min" if interval.get('duration') else 'N/A',
         }
         
-        # Handle different power target formats
+        # Handle different power target formats with better display
         power_target = interval.get('powerTarget', {})
         if isinstance(power_target, dict):
             if power_target.get('type') == 'percent_ftp':
@@ -529,18 +673,34 @@ def display_bike_workout(workout):
                 start_value = power_target.get('start', {}).get('value', 0)
                 end_value = power_target.get('end', {}).get('value', 0)
                 interval_data["Power"] = f"{start_value}% → {end_value}% FTP"
+            elif 'min' in power_target and 'max' in power_target:
+                min_val = power_target.get('min', 0)
+                max_val = power_target.get('max', 0)
+                unit = power_target.get('unit', 'watts')
+                if unit == 'watts':
+                    if min_val == max_val:
+                        interval_data["Power"] = f"{min_val}W"
+                    else:
+                        interval_data["Power"] = f"{min_val}-{max_val}W"
+                else:
+                    interval_data["Power"] = f"{min_val}-{max_val}% FTP"
             elif power_target.get('type') == 'range':
                 min_val = power_target.get('min', 0)
                 max_val = power_target.get('max', 0)
                 unit = power_target.get('unit', 'watts')
                 interval_data["Power"] = f"{min_val}-{max_val} {unit}"
-            else:
-                interval_data["Power"] = "Custom"
         
-        # Add cadence info
-        cadence = interval.get('cadenceTarget', {})
-        if cadence:
-            interval_data["Cadence"] = f"{cadence.get('min', 0)}-{cadence.get('max', 0)} rpm"
+        # Add cadence information if available
+        cadence_target = interval.get('cadenceTarget', {})
+        if cadence_target and isinstance(cadence_target, dict):
+            cadence_min = cadence_target.get('min')
+            cadence_max = cadence_target.get('max')
+            if cadence_min and cadence_max:
+                interval_data["Cadence"] = f"{cadence_min}-{cadence_max} RPM"
+            else:
+                interval_data["Cadence"] = "Free choice"
+        else:
+            interval_data["Cadence"] = "Free choice"
         
         intervals_data.append(interval_data)
     
@@ -580,32 +740,77 @@ def display_bike_workout(workout):
 
 def display_run_workout(workout):
     """Display run workout with sections and detailed guidance"""
-    st.subheader("Run Structure")
     
-    # Display overall workout notes if available
+    # Display overall workout notes with enhanced formatting
     if workout.get('notes'):
-        st.markdown("### Workout Notes")
         notes = workout.get('notes')
         if isinstance(notes, list):
+            # Categorize run notes for better presentation
+            hr_notes = []
+            pacing_notes = []
+            recovery_notes = []
+            general_notes = []
+            
             for note in notes:
-                st.markdown(f"- {note}")
+                note_lower = note.lower()
+                if any(keyword in note_lower for keyword in ['hr', 'heart rate', 'bpm', 'zone']):
+                    hr_notes.append(note)
+                elif any(keyword in note_lower for keyword in ['pace', 'breathing', 'nose', 'speed']):
+                    pacing_notes.append(note)
+                elif any(keyword in note_lower for keyword in ['recovery', 'stretch', 'cooldown', 'post-run']):
+                    recovery_notes.append(note)
+                else:
+                    general_notes.append(note)
+            
+            # Display categorized notes with better formatting
+            if hr_notes:
+                with st.expander("💗 Heart Rate Guidelines", expanded=True):
+                    for note in hr_notes:
+                        if note.startswith('HR TARGET'):
+                            st.markdown(f"**{note}**")
+                        else:
+                            st.markdown(f"• {note}")
+            
+            if pacing_notes:
+                with st.expander("🏃 Pacing & Breathing", expanded=True):
+                    for note in pacing_notes:
+                        st.markdown(f"• {note}")
+            
+            if recovery_notes:
+                with st.expander("🧘 Recovery Protocol", expanded=False):
+                    for note in recovery_notes:
+                        if note.startswith('POST-RUN'):
+                            st.markdown(f"**{note}**")
+                        else:
+                            st.markdown(f"• {note}")
+            
+            if general_notes:
+                with st.expander("📝 General Notes", expanded=True):
+                    for note in general_notes:
+                        if note.startswith('PURPOSE') or note.startswith('CRITICAL'):
+                            st.markdown(f"**{note}**")
+                        else:
+                            st.markdown(f"• {note}")
         else:
+            st.markdown("### 📝 Workout Notes")
             st.markdown(f"{notes}")
+    
+    st.subheader("🏃 Run Structure")
     
     # Parse sections from JSON string if needed
     sections = workout.get('sections')
     if isinstance(sections, str):
         try:
             sections = json.loads(sections)
-        except:
-            st.warning("Could not parse sections data")
+        except Exception as e:
+            st.warning(f"Could not parse sections data: {e}")
             return
     
     if not sections:
         st.info("No section data available")
         return
     
-    # Display sections
+    # Display sections with enhanced formatting
     st.markdown("### Run Sections")
     for i, section in enumerate(sections):
         section_name = section.get('name', f"Section {i+1}")
@@ -1127,6 +1332,24 @@ def create_workout_timer():
     # Return the timer state for reference
     return st.session_state.timer_running
 
+
+def _normalize_date_widget(d: Any) -> Optional[date]:
+    """Normalize Streamlit date widget return values to a date or None.
+
+    Streamlit date_input may return a date, a datetime, or a tuple/list when a range
+    is selected. This helper converts those into a single date or None.
+    """
+    if d is None:
+        return None
+    # If a range is returned, take the first element
+    if isinstance(d, (tuple, list)):
+        d = d[0] if d else None
+    if isinstance(d, datetime):
+        return d.date()
+    if isinstance(d, date):
+        return d
+    return None
+
 # Configure the page
 st.set_page_config(
     page_title="Fitness Tracker",
@@ -1167,20 +1390,33 @@ elif page == 'Dashboard':
     
     today = datetime.now().date()
     if time_period == "Last 4 Weeks":
-        end_date = today
-        start_date = end_date - timedelta(days=28)
+        dashboard_end_date = today
+        dashboard_start_date = dashboard_end_date - timedelta(days=28)
     elif time_period == "Last 8 Weeks":
-        end_date = today
-        start_date = end_date - timedelta(days=56)
+        dashboard_end_date = today
+        dashboard_start_date = dashboard_end_date - timedelta(days=56)
     elif time_period == "Last 12 Weeks":
-        end_date = today
-        start_date = end_date - timedelta(days=84)
+        dashboard_end_date = today
+        dashboard_start_date = dashboard_end_date - timedelta(days=84)
     else:  # Custom
         col1, col2 = st.sidebar.columns(2)
         with col1:
-            start_date = st.date_input("Start Date", today - timedelta(days=28))
+            dashboard_start_date = st.date_input("Start Date", today - timedelta(days=28))
         with col2:
-            end_date = st.date_input("End Date", today)
+            dashboard_end_date = st.date_input("End Date", today)
+
+    # Normalize date widget returns to plain date objects
+    dashboard_start_date = _normalize_date_widget(dashboard_start_date)
+    dashboard_end_date = _normalize_date_widget(dashboard_end_date)
+
+    # Ensure we have valid dates
+    if dashboard_start_date is None or dashboard_end_date is None:
+        st.warning("Please select valid start and end dates for the dashboard.")
+        st.stop()
+
+    # Cast to concrete date types for downstream comparisons
+    dashboard_start_date = cast(date, dashboard_start_date)
+    dashboard_end_date = cast(date, dashboard_end_date)
     
     # Fetch data for selected time period
     try:
@@ -1196,8 +1432,8 @@ elif page == 'Dashboard':
                 # Convert dates to datetime
                 workouts_df['workout_day'] = pd.to_datetime(workouts_df['workout_day'])
                 # Filter by date range
-                workouts_df = workouts_df[(workouts_df['workout_day'].dt.date >= start_date) & 
-                                         (workouts_df['workout_day'].dt.date <= end_date)]
+                workouts_df = workouts_df[(workouts_df['workout_day'].dt.date >= dashboard_start_date) & 
+                                         (workouts_df['workout_day'].dt.date <= dashboard_end_date)]
             else:
                 workouts_df = pd.DataFrame()
         
@@ -1214,8 +1450,8 @@ elif page == 'Dashboard':
                 summaries_df['start_date'] = pd.to_datetime(summaries_df['start_date'])
                 summaries_df['end_date'] = pd.to_datetime(summaries_df['end_date'])
                 # Filter by date range
-                summaries_df = summaries_df[(summaries_df['end_date'].dt.date >= start_date) & 
-                                           (summaries_df['start_date'].dt.date <= end_date)]
+                summaries_df = summaries_df[(summaries_df['end_date'].dt.date >= dashboard_start_date) & 
+                                           (summaries_df['start_date'].dt.date <= dashboard_end_date)]
             else:
                 summaries_df = pd.DataFrame()
                 
@@ -1224,7 +1460,7 @@ elif page == 'Dashboard':
         has_summary_data = not summaries_df.empty
                 
         if not has_workout_data and not has_summary_data:
-            st.warning(f"No training data found for the period {start_date} to {end_date}")
+            st.warning(f"No training data found for the period {dashboard_start_date} to {dashboard_end_date}")
             st.info("Try selecting a different time period or import workout data.")
             # Skip the rest of the dashboard code if no data is available
             
@@ -1781,9 +2017,9 @@ elif page == 'Import Data':
     
     # Clear data button
     if st.session_state.current_workouts is not None:
-        if st.button("Clear Uploaded Data"):
-            st.session_state.current_workouts = None
-            st.experimental_rerun()
+            if st.button("Clear Uploaded Data"):
+                st.session_state.current_workouts = None
+                st.experimental_rerun()  # type: ignore[attr-defined]
     
     # Display workouts and qualitative data form
     if st.session_state.current_workouts:
@@ -1910,10 +2146,14 @@ elif page == 'Proposed Workouts':
         
         # Date range selection
         col1, col2 = st.columns(2)
+        # Widget returns (may be date, datetime, tuple, or None) -> collect into temporary vars
         with col1:
-            start_date = st.date_input("Start Date", value=datetime.now().date() - timedelta(days=7))
+            zwift_start_widget = st.date_input("Start Date", value=datetime.now().date() - timedelta(days=7))
         with col2:
-            end_date = st.date_input("End Date", value=datetime.now().date() + timedelta(days=7))
+            zwift_end_widget = st.date_input("End Date", value=datetime.now().date() + timedelta(days=7))
+        # Normalize date widget returns to plain date objects
+        zwift_start_date = _normalize_date_widget(zwift_start_widget)
+        zwift_end_date = _normalize_date_widget(zwift_end_widget)
             
         # FTP value
         ftp_value = st.number_input("Your current FTP (watts)", min_value=100, max_value=500, value=258, step=1)
@@ -1922,12 +2162,16 @@ elif page == 'Proposed Workouts':
         if st.button("Generate Zwift Files", key="generate_zwift_files"):
             with st.spinner("Generating Zwift workout files..."):
                 try:
+                    # Ensure valid dates
+                    if zwift_start_date is None or zwift_end_date is None:
+                        st.error("Please select valid start and end dates before generating Zwift files.")
+                        st.stop()
                     # Call the API to generate the files
                     response = requests.get(
                         "http://localhost:8000/zwift/generate_workouts",
                         params={
-                            "start_date": start_date.strftime("%Y-%m-%d"),
-                            "end_date": end_date.strftime("%Y-%m-%d"),
+                            "start_date": zwift_start_date.strftime("%Y-%m-%d") if zwift_start_date else None,
+                            "end_date": zwift_end_date.strftime("%Y-%m-%d") if zwift_end_date else None,
                             "ftp": ftp_value
                         }
                     )
@@ -1986,7 +2230,7 @@ elif page == 'Proposed Workouts':
                                 if zwift_files:
                                     st.subheader("Generated Zwift Workout Files")
                                     st.markdown(f"**{len(zwift_files)} Zwift workout files were created at:**")
-                                    st.markdown("`/Users/jacobrobinson/Documents/Zwift/Workouts/6870291`")
+                                    st.markdown("`~/Documents/Zwift/Workouts/6870291` (or set ZWIFT_WORKOUTS_DIR environment variable)")
                                     
                                     # Show the list of files
                                     with st.expander("Show generated files"):
@@ -2009,7 +2253,9 @@ elif page == 'Proposed Workouts':
                             # Handle error response
                             try:
                                 error_detail = response.json().get('detail', 'Unknown error')
-                            except:
+                            except Exception as e:
+                                # Fall back to raw text and log the parsing error
+                                st.warning(f"Failed to parse error detail from response JSON: {e}")
                                 error_detail = response.text if response.text else "Unknown error"
                             
                             st.error(f"Error processing the uploaded file: {error_detail}")
@@ -2030,25 +2276,38 @@ elif page == 'Weekly Summary':
     
     # Date selection
     col1, col2 = st.columns(2)
+    # Widget temporary variables (Streamlit may return multiple types)
     with col1:
-        start_date = st.date_input(
+        weekly_start_widget = st.date_input(
             "Week Start Date",
-            value=datetime.now() - timedelta(days=7)
+            value=(datetime.now() - timedelta(days=7)).date()
         )
     with col2:
-        end_date = st.date_input(
+        weekly_end_widget = st.date_input(
             "Week End Date",
-            value=datetime.now()
+            value=datetime.now().date()
         )
+    # Normalize date widget returns
+    weekly_start_date = _normalize_date_widget(weekly_start_widget)
+    weekly_end_date = _normalize_date_widget(weekly_end_widget)
+    # Coerce defaults if normalization returned None (shouldn't normally happen)
+    if weekly_start_date is None:
+        weekly_start_date = (datetime.now() - timedelta(days=7)).date()
+    if weekly_end_date is None:
+        weekly_end_date = datetime.now().date()
+
+    # Cast to concrete date types for downstream usage
+    weekly_start_date = cast(date, weekly_start_date)
+    weekly_end_date = cast(date, weekly_end_date)
     
     # Generate Summary button
     if st.button("Generate Summary") or st.session_state.show_notes_form:
         try:
             response = requests.get(
-                f"http://localhost:8000/summary/generate",
+                "http://localhost:8000/summary/generate",
                 params={
-                    "start_date": start_date.strftime('%Y-%m-%d'),
-                    "end_date": end_date.strftime('%Y-%m-%d')
+                    "start_date": weekly_start_date.strftime('%Y-%m-%d'),
+                    "end_date": weekly_end_date.strftime('%Y-%m-%d')
                 }
             )
             
@@ -2077,8 +2336,8 @@ elif page == 'Weekly Summary':
                         text_content = response.text
                         st.text("Raw API Response (truncated):")
                         st.text(text_content[:1000] + "..." if len(text_content) > 1000 else text_content)
-                    except:
-                        pass
+                    except Exception as e:
+                        st.warning(f"Could not extract raw API response text: {e}")
                 
                 # Store summary in session state for form processing
                 st.session_state.current_summary = summary
@@ -2272,8 +2531,8 @@ elif page == 'Weekly Summary':
                         
                         # The final sanitized summary data
                         summary_data = {
-                            'start_date': start_date.isoformat(),
-                            'end_date': end_date.isoformat(),
+                            'start_date': weekly_start_date.isoformat(),
+                            'end_date': weekly_end_date.isoformat(),
                             'total_tss': total_tss,
                             'total_training_hours': total_training_hours,
                             'sessions_completed': sessions_completed,
@@ -2321,8 +2580,8 @@ elif page == 'Weekly Summary':
                         export_response = requests.get(
                             "http://localhost:8000/summary/export",
                             params={
-                                "start_date": start_date.isoformat(),
-                                "end_date": end_date.isoformat()
+                                "start_date": weekly_start_date.isoformat(),
+                                "end_date": weekly_end_date.isoformat()
                             }
                         )
                         if export_response.status_code == 200:
@@ -2330,7 +2589,7 @@ elif page == 'Weekly Summary':
                             st.download_button(
                                 label="Download Summary",
                                 data=export_data['content'],
-                                file_name=f"weekly_summary_{start_date.isoformat()}.txt",
+                                file_name=f"weekly_summary_{weekly_start_date.isoformat()}.txt",
                                 mime="text/plain",
                                 key="download_button"
                             )
@@ -2340,7 +2599,7 @@ elif page == 'Weekly Summary':
                 # Add a reset button
                 if st.button("Start New Summary"):
                     reset_form_state()
-                    st.experimental_rerun()
+                    st.experimental_rerun()  # type: ignore[attr-defined]
                     
             else:
                 st.error(f"Error generating summary: {response.json().get('detail', 'Unknown error')}")
