@@ -5,7 +5,11 @@ A comprehensive fitness tracking application with Zwift workout generation, FIT 
 ## Features
 
 - **FIT File Processing**: Parse and analyze Garmin/cycling computer data
-- **Zwift Workout Generation**: Generate .zwo workout files with accurate power calculations
+- **Dynamic Zwift Workout Generation**: Generate .zwo workout files with:
+  - Accurate power calculations using explicit FTP values
+  - Fresh, API-driven motivational content (quotes, cycling facts, humor)
+  - Context-aware messaging (recovery vs. intensity workouts)
+  - Anti-repetition logic for varied workout experiences
 - **Training Analytics**: Track TSS, power zones, and training load
 - **Weekly Planning**: Process structured training plans with automatic FTP detection
 - **API & Web Interface**: RESTful API and Streamlit dashboard
@@ -13,23 +17,27 @@ A comprehensive fitness tracking application with Zwift workout generation, FIT 
 ## Setup
 
 1. **Clone the repository**:
+
    ```bash
    git clone https://github.com/SneakyAnalytics/fitness_tracker.git
    cd fitness_tracker
    ```
 
 2. **Create virtual environment**:
+
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
 3. **Install dependencies**:
+
    ```bash
    pip install -r requirements.txt
    ```
 
 4. **Configure paths** (optional):
+
    ```bash
    cp .env.example .env
    # Edit .env with your specific paths
@@ -44,16 +52,19 @@ A comprehensive fitness tracking application with Zwift workout generation, FIT 
 ## Usage
 
 ### API Server
+
 ```bash
 uvicorn src.api.app:app --reload
 ```
 
 ### Web Interface
+
 ```bash
 streamlit run src/ui/streamlit_app.py
 ```
 
 ### Process Workout Plans
+
 ```python
 from src.utils.proposed_workouts_processor import process_proposed_workouts
 process_proposed_workouts('path/to/workout_plan.json')
@@ -111,6 +122,7 @@ Set these environment variables in `.env`:
 ## Development
 
 Run tests:
+
 ```bash
 pytest
 ```
