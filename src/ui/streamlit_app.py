@@ -69,7 +69,7 @@ def apply_custom_styling():
     <style>
     /* Main app styling */
     .main-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
         color: white;
         padding: 1.5rem;
         border-radius: 10px;
@@ -87,12 +87,12 @@ def apply_custom_styling():
     
     /* Sidebar styling */
     .css-1d391kg {
-        background-color: #f8f9fa;
+        background-color: #f8fdf4;
     }
     
     /* Metric cards styling */
     [data-testid="metric-container"] {
-        background: linear-gradient(45deg, #f093fb 0%, #f5576c 100%);
+        background: linear-gradient(45deg, #a8e063 0%, #56ab2f 100%);
         border: none;
         padding: 1rem;
         border-radius: 10px;
@@ -111,7 +111,7 @@ def apply_custom_styling():
     
     /* Custom metric card variants */
     .metric-card-blue {
-        background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+        background: linear-gradient(45deg, #56ab2f 0%, #7fb800 100%);
         padding: 1rem;
         border-radius: 10px;
         color: white;
@@ -121,17 +121,18 @@ def apply_custom_styling():
     }
     
     .metric-card-green {
-        background: linear-gradient(45deg, #43e97b 0%, #38f9d7 100%);
+        background: linear-gradient(45deg, #a8e063 0%, #d4fc79 100%);
         padding: 1rem;
         border-radius: 10px;
-        color: white;
+        color: #2d5016;
         text-align: center;
         margin-bottom: 1rem;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        font-weight: 600;
     }
     
     .metric-card-orange {
-        background: linear-gradient(45deg, #fa709a 0%, #fee140 100%);
+        background: linear-gradient(45deg, #f9ca24 0%, #f0932b 100%);
         padding: 1rem;
         border-radius: 10px;
         color: white;
@@ -141,10 +142,10 @@ def apply_custom_styling():
     }
     
     .metric-card-purple {
-        background: linear-gradient(45deg, #a8edea 0%, #fed6e3 100%);
+        background: linear-gradient(45deg, #badc58 0%, #6c5ce7 100%);
         padding: 1rem;
         border-radius: 10px;
-        color: #333;
+        color: white;
         text-align: center;
         margin-bottom: 1rem;
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
@@ -152,7 +153,7 @@ def apply_custom_styling():
     
     /* Button styling */
     .stButton > button {
-        background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(45deg, #56ab2f 0%, #a8e063 100%);
         color: white;
         border: none;
         border-radius: 8px;
@@ -165,14 +166,17 @@ def apply_custom_styling():
     .stButton > button:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        background: linear-gradient(45deg, #4a9a26 0%, #9fd157 100%);
     }
     
     /* Expander styling */
     .streamlit-expanderHeader {
-        background: linear-gradient(45deg, #ffecd2 0%, #fcb69f 100%);
+        background: linear-gradient(45deg, #f9ca24 0%, #a8e063 100%);
         border-radius: 8px;
         padding: 0.5rem;
         margin-bottom: 0.5rem;
+        color: #2d5016;
+        font-weight: 600;
     }
     
     /* Table styling */
@@ -184,23 +188,23 @@ def apply_custom_styling():
     
     /* Success/Info messages */
     .stSuccess {
-        background: linear-gradient(45deg, #56ab2f 0%, #a8e6cf 100%);
+        background: linear-gradient(45deg, #56ab2f 0%, #a8e063 100%);
         border-radius: 8px;
     }
     
     .stInfo {
-        background: linear-gradient(45deg, #3498db 0%, #85c1e9 100%);
+        background: linear-gradient(45deg, #7fb800 0%, #badc58 100%);
         border-radius: 8px;
     }
     
     .stError {
-        background: linear-gradient(45deg, #e74c3c 0%, #f1948a 100%);
+        background: linear-gradient(45deg, #eb4d4b 0%, #f0932b 100%);
         border-radius: 8px;
     }
     
     /* Custom section headers */
     .section-header {
-        background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(45deg, #56ab2f 0%, #a8e063 100%);
         color: white;
         padding: 0.8rem;
         border-radius: 8px;
@@ -212,7 +216,7 @@ def apply_custom_styling():
     
     /* Workout type badges */
     .workout-badge-cycling {
-        background: linear-gradient(45deg, #ff6b6b 0%, #ee5a24 100%);
+        background: linear-gradient(45deg, #f9ca24 0%, #f0932b 100%);
         color: white;
         padding: 0.3rem 0.8rem;
         border-radius: 15px;
@@ -223,7 +227,7 @@ def apply_custom_styling():
     }
     
     .workout-badge-running {
-        background: linear-gradient(45deg, #4ecdc4 0%, #44a08d 100%);
+        background: linear-gradient(45deg, #56ab2f 0%, #7fb800 100%);
         color: white;
         padding: 0.3rem 0.8rem;
         border-radius: 15px;
@@ -234,7 +238,7 @@ def apply_custom_styling():
     }
     
     .workout-badge-strength {
-        background: linear-gradient(45deg, #f093fb 0%, #f5576c 100%);
+        background: linear-gradient(45deg, #badc58 0%, #6c5ce7 100%);
         color: white;
         padding: 0.3rem 0.8rem;
         border-radius: 15px;
@@ -254,13 +258,13 @@ def apply_custom_styling():
     }
     
     .calendar-day:hover {
-        border-color: #667eea;
+        border-color: #56ab2f;
         transform: scale(1.02);
     }
     
     .calendar-day-has-workout {
-        background: linear-gradient(45deg, #a8edea 0%, #fed6e3 100%);
-        border-color: #667eea;
+        background: linear-gradient(45deg, #a8e063 0%, #d4fc79 100%);
+        border-color: #56ab2f;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -580,11 +584,145 @@ def display_workout_calendar():
     
     # Get current week number and date
     today = datetime.now().date()
+    now = datetime.now()
     # Local variables may be a date or None after normalization
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     start_of_week = today - timedelta(days=today.weekday())
     end_of_week = start_of_week + timedelta(days=6)
+    
+    # ================== SIDEBAR PANELS ==================
+    # Quick Stats Panel
+    with st.sidebar:
+        st.markdown("---")
+        st.markdown("### 📊 Current Week Stats")
+        
+        try:
+            # Fetch current week's workouts
+            week_response = requests.get(
+                "http://localhost:8000/proposed_workouts/week",
+                params={
+                    "start_date": start_of_week.strftime('%Y-%m-%d'),
+                    "end_date": end_of_week.strftime('%Y-%m-%d')
+                }
+            )
+            
+            if week_response.status_code == 200:
+                week_data = week_response.json()
+                daily_workouts = week_data.get('daily_workouts', [])
+                
+                # Calculate stats
+                total_workouts = len(daily_workouts)
+                completed_workouts = sum(1 for w in daily_workouts if w.get('date') and datetime.strptime(w['date'], '%Y-%m-%d').date() < today)
+                
+                # Calculate TSS
+                total_tss = 0
+                for workout in daily_workouts:
+                    intervals = workout.get('intervals', [])
+                    if isinstance(intervals, list):
+                        for interval in intervals:
+                            if isinstance(interval, dict):
+                                total_tss += interval.get('tss', 0) or 0
+                
+                # Get planned TSS range from weekly plan
+                weekly_plan = week_data.get('weekly_plan', {})
+                planned_tss_min = weekly_plan.get('plannedTSS_min', 0)
+                planned_tss_max = weekly_plan.get('plannedTSS_max', 0)
+                
+                # Display metrics with green/yellow gradient styling
+                st.markdown(f"""
+                <div style='background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%); 
+                            padding: 1rem; border-radius: 10px; margin-bottom: 0.5rem; color: white;'>
+                    <div style='font-size: 0.9rem; opacity: 0.9;'>Total Workouts</div>
+                    <div style='font-size: 1.8rem; font-weight: bold;'>{total_workouts}</div>
+                    <div style='font-size: 0.8rem; opacity: 0.8;'>{completed_workouts} completed</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.markdown(f"""
+                <div style='background: linear-gradient(135deg, #a8e063 0%, #d4fc79 100%); 
+                            padding: 1rem; border-radius: 10px; margin-bottom: 0.5rem; color: #2d5016;'>
+                    <div style='font-size: 0.9rem; opacity: 0.9; font-weight: 600;'>Planned TSS</div>
+                    <div style='font-size: 1.8rem; font-weight: bold;'>{planned_tss_min}-{planned_tss_max}</div>
+                    <div style='font-size: 0.8rem; opacity: 0.8;'>Week {datetime.now().isocalendar()[1]}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Weekly focus if available
+                if weekly_plan.get('notes'):
+                    try:
+                        notes = json.loads(weekly_plan['notes'])
+                        week_focus = notes.get('weekFocus', '')
+                        if week_focus:
+                            st.markdown(f"""
+                            <div style='background: linear-gradient(135deg, #f9ca24 0%, #f0932b 100%); 
+                                        padding: 0.8rem; border-radius: 8px; color: white;'>
+                                <div style='font-size: 0.8rem; opacity: 0.9;'>🎯 WEEK FOCUS</div>
+                                <div style='font-size: 0.9rem; margin-top: 0.3rem;'>{week_focus}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    except:
+                        pass
+        except Exception as e:
+            st.warning("Unable to load week stats")
+        
+        # Upcoming Workouts Panel
+        st.markdown("---")
+        st.markdown("### 📅 Upcoming This Week")
+        
+        try:
+            # Get remaining workouts for the week
+            upcoming_workouts = []
+            for workout in daily_workouts:
+                workout_date_str = workout.get('date')
+                if workout_date_str:
+                    workout_date = datetime.strptime(workout_date_str, '%Y-%m-%d')
+                    # Include today and future workouts
+                    if workout_date.date() >= today:
+                        upcoming_workouts.append({
+                            'date': workout_date,
+                            'name': workout.get('name', 'Workout'),
+                            'type': workout.get('type', 'unknown'),
+                            'duration': workout.get('duration', 0)
+                        })
+            
+            # Sort by date
+            upcoming_workouts.sort(key=lambda x: x['date'])
+            
+            if upcoming_workouts:
+                for workout in upcoming_workouts[:5]:  # Show max 5 upcoming
+                    workout_type = workout['type'].lower()
+                    icon = "🚴" if workout_type == "bike" else "💪" if workout_type == "strength" else "🏃" if workout_type == "run" else "🧘"
+                    
+                    # Determine if it's today
+                    is_today = workout['date'].date() == today
+                    bg_color = "linear-gradient(135deg, #56ab2f 0%, #a8e063 100%)" if is_today else "#f8fdf4"
+                    text_color = "white" if is_today else "#2d5016"
+                    
+                    day_label = "Today" if is_today else workout['date'].strftime("%a")
+                    
+                    st.markdown(f"""
+                    <div style='background: {bg_color}; 
+                                padding: 0.6rem; border-radius: 8px; margin-bottom: 0.5rem;
+                                border: 2px solid {"#56ab2f" if is_today else "#e1e1e1"};'>
+                        <div style='color: {text_color}; font-weight: 600; font-size: 0.85rem;'>
+                            {icon} {day_label} • {workout['duration']}min
+                        </div>
+                        <div style='color: {text_color}; font-size: 0.75rem; opacity: 0.9; margin-top: 0.2rem;'>
+                            {workout['name'][:30]}{"..." if len(workout['name']) > 30 else ""}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.markdown("""
+                <div style='background: #f8fdf4; padding: 1rem; border-radius: 8px; 
+                            text-align: center; color: #2d5016; opacity: 0.7;'>
+                    <div style='font-size: 2rem;'>✅</div>
+                    <div style='font-size: 0.85rem; margin-top: 0.5rem;'>All done for this week!</div>
+                </div>
+                """, unsafe_allow_html=True)
+        except Exception as e:
+            st.info("No upcoming workouts")
     
     # Date range selector with default to current week
     col1, col2 = st.columns(2)
@@ -701,10 +839,6 @@ def display_workout_calendar():
         
         # Create tabs for each day with unique formatted labels
         day_tabs = st.tabs([day.strftime("%a %d") for day in days])
-        
-        # Create the workout timer just once in the sidebar, outside of day tabs
-        # This ensures it's always visible regardless of which tab is active
-        create_workout_timer()
         
         # Fill each day tab with workout information
         for i, day in enumerate(days):
@@ -1587,8 +1721,8 @@ apply_custom_styling()
 # Enhanced main title
 st.markdown("""
 <div class="main-header">
-    <h1>🏋️‍♂️ Fitness Tracker Pro</h1>
-    <p style="margin: 0; opacity: 0.9; font-size: 1.1rem;">Track • Analyze • Improve</p>
+    <h1>🦆 QuackTrack Pro</h1>
+    <p style="margin: 0; opacity: 0.9; font-size: 1.1rem;">AI-Powered Fitness Intelligence • Track • Analyze • Optimize</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -2808,7 +2942,7 @@ elif page == '📈 Weekly Summary':
 st.markdown("---")
 st.markdown("""
 <div style="
-    background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(45deg, #56ab2f 0%, #a8e063 100%);
     color: white;
     padding: 1rem;
     border-radius: 10px;
@@ -2816,12 +2950,12 @@ st.markdown("""
     margin-top: 2rem;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 ">
-    <h4 style="margin: 0; color: white;">🏋️‍♂️ Fitness Tracker Pro</h4>
+    <h4 style="margin: 0; color: white;">🦆 QuackTrack Pro</h4>
     <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">
-        Track your journey • Analyze your progress • Achieve your goals
+        AI-Powered Fitness Tracking • Smart Training for the Digital Athlete
     </p>
     <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; opacity: 0.8;">
-        Made with ❤️ and Streamlit
+        Made with 🤖 and Streamlit
     </p>
 </div>
 """, unsafe_allow_html=True)
