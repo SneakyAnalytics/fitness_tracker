@@ -679,11 +679,26 @@ def display_workout_calendar():
                     workout_date = datetime.strptime(workout_date_str, '%Y-%m-%d')
                     # Include today and future workouts
                     if workout_date.date() >= today:
+                        # Calculate duration - try plannedDuration first, then sum intervals
+                        duration = workout.get('plannedDuration', 0)
+                        if not duration:
+                            # Calculate from intervals
+                            intervals = workout.get('intervals', [])
+                            if isinstance(intervals, list):
+                                for interval in intervals:
+                                    if isinstance(interval, dict):
+                                        # Duration might be in seconds, convert to minutes
+                                        interval_duration = interval.get('duration', 0)
+                                        if interval_duration > 300:  # Likely in seconds
+                                            duration += interval_duration / 60
+                                        else:
+                                            duration += interval_duration
+                        
                         upcoming_workouts.append({
                             'date': workout_date,
                             'name': workout.get('name', 'Workout'),
                             'type': workout.get('type', 'unknown'),
-                            'duration': workout.get('duration', 0)
+                            'duration': int(duration) if duration else 0
                         })
             
             # Sort by date
@@ -701,6 +716,10 @@ def display_workout_calendar():
                     
                     day_label = "Today" if is_today else workout['date'].strftime("%a")
                     
+                    # Smart truncation - keep full name but limit to 2 lines worth
+                    workout_name = workout['name']
+                    display_name = workout_name if len(workout_name) <= 45 else workout_name[:42] + "..."
+                    
                     st.markdown(f"""
                     <div style='background: {bg_color}; 
                                 padding: 0.6rem; border-radius: 8px; margin-bottom: 0.5rem;
@@ -708,8 +727,9 @@ def display_workout_calendar():
                         <div style='color: {text_color}; font-weight: 600; font-size: 0.85rem;'>
                             {icon} {day_label} • {workout['duration']}min
                         </div>
-                        <div style='color: {text_color}; font-size: 0.75rem; opacity: 0.9; margin-top: 0.2rem;'>
-                            {workout['name'][:30]}{"..." if len(workout['name']) > 30 else ""}
+                        <div style='color: {text_color}; font-size: 0.75rem; opacity: 0.9; margin-top: 0.2rem;
+                                    line-height: 1.3; max-height: 2.6em; overflow: hidden;'>
+                            {display_name}
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
