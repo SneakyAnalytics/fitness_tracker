@@ -8,3 +8,6 @@ typing-extensions==4.15.0
 pydantic==2.5.3
 plotly==5.18.0
 requests==2.31.0
+python-dotenv==1.0.0
+playwright==1.55.0
+nest-asyncio==1.6.0
