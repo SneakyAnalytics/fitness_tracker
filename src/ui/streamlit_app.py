@@ -63,26 +63,265 @@ import plotly.express as px
 import os
 import math
 
+def apply_custom_styling():
+    """Apply custom CSS styling to enhance the app's appearance"""
+    st.markdown("""
+    <style>
+    /* Main app styling */
+    .main-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .main-header h1 {
+        color: white !important;
+        font-size: 2.5rem !important;
+        margin: 0 !important;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    /* Sidebar styling */
+    .css-1d391kg {
+        background-color: #f8f9fa;
+    }
+    
+    /* Metric cards styling */
+    [data-testid="metric-container"] {
+        background: linear-gradient(45deg, #f093fb 0%, #f5576c 100%);
+        border: none;
+        padding: 1rem;
+        border-radius: 10px;
+        color: white;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    [data-testid="metric-container"] > div {
+        color: white !important;
+    }
+    
+    [data-testid="metric-container"] label {
+        color: white !important;
+        font-weight: 600;
+    }
+    
+    /* Custom metric card variants */
+    .metric-card-blue {
+        background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+        padding: 1rem;
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    .metric-card-green {
+        background: linear-gradient(45deg, #43e97b 0%, #38f9d7 100%);
+        padding: 1rem;
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    .metric-card-orange {
+        background: linear-gradient(45deg, #fa709a 0%, #fee140 100%);
+        padding: 1rem;
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    .metric-card-purple {
+        background: linear-gradient(45deg, #a8edea 0%, #fed6e3 100%);
+        padding: 1rem;
+        border-radius: 10px;
+        color: #333;
+        text-align: center;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    /* Button styling */
+    .stButton > button {
+        background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Expander styling */
+    .streamlit-expanderHeader {
+        background: linear-gradient(45deg, #ffecd2 0%, #fcb69f 100%);
+        border-radius: 8px;
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Table styling */
+    .dataframe {
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Success/Info messages */
+    .stSuccess {
+        background: linear-gradient(45deg, #56ab2f 0%, #a8e6cf 100%);
+        border-radius: 8px;
+    }
+    
+    .stInfo {
+        background: linear-gradient(45deg, #3498db 0%, #85c1e9 100%);
+        border-radius: 8px;
+    }
+    
+    .stError {
+        background: linear-gradient(45deg, #e74c3c 0%, #f1948a 100%);
+        border-radius: 8px;
+    }
+    
+    /* Custom section headers */
+    .section-header {
+        background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.8rem;
+        border-radius: 8px;
+        margin: 1rem 0 0.5rem 0;
+        text-align: center;
+        font-weight: 600;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Workout type badges */
+    .workout-badge-cycling {
+        background: linear-gradient(45deg, #ff6b6b 0%, #ee5a24 100%);
+        color: white;
+        padding: 0.3rem 0.8rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin: 0.2rem;
+        display: inline-block;
+    }
+    
+    .workout-badge-running {
+        background: linear-gradient(45deg, #4ecdc4 0%, #44a08d 100%);
+        color: white;
+        padding: 0.3rem 0.8rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin: 0.2rem;
+        display: inline-block;
+    }
+    
+    .workout-badge-strength {
+        background: linear-gradient(45deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        padding: 0.3rem 0.8rem;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin: 0.2rem;
+        display: inline-block;
+    }
+    
+    /* Calendar styling */
+    .calendar-day {
+        border: 2px solid #e1e1e1;
+        border-radius: 8px;
+        padding: 0.5rem;
+        margin: 0.2rem;
+        transition: all 0.3s ease;
+    }
+    
+    .calendar-day:hover {
+        border-color: #667eea;
+        transform: scale(1.02);
+    }
+    
+    .calendar-day-has-workout {
+        background: linear-gradient(45deg, #a8edea 0%, #fed6e3 100%);
+        border-color: #667eea;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+def create_custom_metric(title, value, icon="📊", color="blue"):
+    """Create a custom styled metric card"""
+    color_class = f"metric-card-{color}"
+    st.markdown(f"""
+    <div class="{color_class}">
+        <h3>{icon} {title}</h3>
+        <h2>{value}</h2>
+    </div>
+    """, unsafe_allow_html=True)
+
+def create_section_header(text, icon="🏃‍♂️"):
+    """Create a styled section header"""
+    st.markdown(f"""
+    <div class="section-header">
+        {icon} {text}
+    </div>
+    """, unsafe_allow_html=True)
+
+def create_workout_badge(workout_type):
+    """Create a styled workout type badge"""
+    badges = {
+        "cycling": ("🚴‍♂️", "workout-badge-cycling"),
+        "bike": ("🚴‍♂️", "workout-badge-cycling"), 
+        "running": ("🏃‍♂️", "workout-badge-running"),
+        "run": ("🏃‍♂️", "workout-badge-running"),
+        "strength": ("💪", "workout-badge-strength"),
+        "swim": ("🏊‍♂️", "workout-badge-cycling"),
+        "other": ("⚡", "workout-badge-strength")
+    }
+    
+    workout_lower = workout_type.lower()
+    icon, css_class = badges.get(workout_lower, badges["other"])
+    
+    return f'<span class="{css_class}">{icon} {workout_type.title()}</span>'
+
 def display_weekly_summary(summary):
-    """Display weekly summary data with error handling"""
-    # Display summary metrics
-    st.subheader("Weekly Totals")
+    """Display weekly summary data with enhanced styling"""
+    # Enhanced summary metrics with custom styling
+    create_section_header("Weekly Training Summary", "📊")
+    
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Total TSS", f"{summary.get('total_tss', 0):.1f}")
+        create_custom_metric("Total TSS", f"{summary.get('total_tss', 0):.1f}", "🎯", "blue")
     with col2:
-        st.metric("Training Hours", f"{summary.get('total_training_hours', 0):.1f}")
+        create_custom_metric("Training Hours", f"{summary.get('total_training_hours', 0):.1f}", "⏱️", "green") 
     with col3:
-        st.metric("Sessions", summary.get('sessions_completed', 0))
+        create_custom_metric("Sessions", str(summary.get('sessions_completed', 0)), "🏃‍♂️", "orange")
     
-    # Workout Types
+    # Workout Types with badges
     workout_types = summary.get('workout_types', [])
     if workout_types:
-        st.subheader("Workout Types")
-        st.write(", ".join(workout_types))
+        create_section_header("Workout Types", "🏋️‍♂️")
+        badges_html = " ".join([create_workout_badge(wt) for wt in workout_types])
+        st.markdown(badges_html, unsafe_allow_html=True)
     
-    # Qualitative Feedback
-    st.subheader("Daily Notes")
+    # Enhanced Daily Notes
+    create_section_header("Daily Training Notes", "📝")
     qualitative_feedback = summary.get('qualitative_feedback', [])
     if qualitative_feedback and isinstance(qualitative_feedback, list):
         for note in qualitative_feedback:
@@ -1342,34 +1581,51 @@ def reset_form_state():
     st.session_state.show_notes_form = False
     st.session_state.notes_saved = False
 
-st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ['Dashboard', 'Workout Calendar', 'Import Data', 'Weekly Summary', 'View Data', 'Proposed Workouts'])
+# Apply custom styling
+apply_custom_styling()
 
-# Main content
-st.title("Fitness Tracker")
+# Enhanced main title
+st.markdown("""
+<div class="main-header">
+    <h1>🏋️‍♂️ Fitness Tracker Pro</h1>
+    <p style="margin: 0; opacity: 0.9; font-size: 1.1rem;">Track • Analyze • Improve</p>
+</div>
+""", unsafe_allow_html=True)
 
-if page == 'Workout Calendar':
+# Enhanced sidebar
+st.sidebar.markdown("### 🎯 Navigation")
+page = st.sidebar.radio("Go to", [
+    '📊 Dashboard', 
+    '📅 Workout Calendar', 
+    '📥 Import Data', 
+    '📈 Weekly Summary', 
+    '🗂️ View Data', 
+    '📋 Proposed Workouts'
+], index=0)
+
+if page == '📅 Workout Calendar':
     display_workout_calendar()
 
-elif page == 'Dashboard':
-    st.header("Training Dashboard")
+elif page == '📊 Dashboard':
+    create_section_header("Training Dashboard", "📊")
     
-    # Date range selector for the dashboard
-    st.sidebar.subheader("Time Period")
+    # Enhanced sidebar with styling
+    st.sidebar.markdown("### ⏰ Time Period")
     time_period = st.sidebar.radio("Select Time Period", 
-                                  ["Last 4 Weeks", "Last 8 Weeks", "Last 12 Weeks", "Custom"])
+                                  ["📅 Last 4 Weeks", "📅 Last 8 Weeks", "📅 Last 12 Weeks", "🎯 Custom"])
     
     today = datetime.now().date()
-    if time_period == "Last 4 Weeks":
+    if time_period == "📅 Last 4 Weeks":
         dashboard_end_date = today
         dashboard_start_date = dashboard_end_date - timedelta(days=28)
-    elif time_period == "Last 8 Weeks":
+    elif time_period == "📅 Last 8 Weeks":
         dashboard_end_date = today
         dashboard_start_date = dashboard_end_date - timedelta(days=56)
-    elif time_period == "Last 12 Weeks":
+    elif time_period == "📅 Last 12 Weeks":
         dashboard_end_date = today
         dashboard_start_date = dashboard_end_date - timedelta(days=84)
     else:  # Custom
+        st.sidebar.markdown("#### 🗓️ Custom Date Range")
         col1, col2 = st.sidebar.columns(2)
         with col1:
             dashboard_start_date = st.date_input("Start Date", today - timedelta(days=28))
@@ -1473,64 +1729,34 @@ elif page == 'Dashboard':
                 avg_sleep_quality = summaries_df['avg_sleep_quality'].mean()
                 avg_energy = summaries_df['avg_daily_energy'].mean()
             
-            # Display key metrics in a 3x2 grid
+            # Display key metrics with enhanced styling
+            create_section_header("Training Overview", "📊")
+            
             col1, col2, col3 = st.columns(3)
             
             with col1:
-                st.metric(
-                    "Total Training Sessions", 
-                    f"{total_workouts}",
-                    delta=None
-                )
-                st.metric(
-                    "Training Hours", 
-                    f"{training_hours:.1f}",
-                    delta=None
-                )
+                create_custom_metric("Training Sessions", str(total_workouts), "🏃‍♂️", "blue")
+                create_custom_metric("Training Hours", f"{training_hours:.1f}", "⏱️", "green")
             
             with col2:
-                st.metric(
-                    "Total TSS", 
-                    f"{total_tss:.0f}",
-                    delta=None
-                )
-                st.metric(
-                    "Avg TSS per Workout", 
-                    f"{avg_tss_per_workout:.0f}",
-                    delta=None
-                )
+                create_custom_metric("Total TSS", f"{total_tss:.0f}", "🎯", "purple")
+                create_custom_metric("Avg TSS/Workout", f"{avg_tss_per_workout:.0f}", "📊", "orange")
             
             with col3:
                 if avg_sleep_quality is not None:
-                    st.metric(
-                        "Avg Sleep Quality", 
-                        f"{avg_sleep_quality:.1f}/5",
-                        delta=None
-                    )
+                    create_custom_metric("Sleep Quality", f"{avg_sleep_quality:.1f}/5", "😴", "blue")
                 else:
-                    st.metric(
-                        "Bike Workouts", 
-                        f"{bike_workouts}",
-                        delta=None
-                    )
+                    create_custom_metric("Bike Workouts", str(bike_workouts), "🚴‍♂️", "blue")
                     
                 if avg_energy is not None:
-                    st.metric(
-                        "Avg Energy Level", 
-                        f"{avg_energy:.1f}/5",
-                        delta=None
-                    )
+                    create_custom_metric("Energy Level", f"{avg_energy:.1f}/5", "⚡", "orange")
                 else:
-                    st.metric(
-                        "Strength Workouts", 
-                        f"{strength_workouts}",
-                        delta=None
-                    )
+                    create_custom_metric("Strength Workouts", str(strength_workouts), "💪", "purple")
             
             # ================== TRENDS SECTION ==================
-            st.subheader("Training Trends")
+            create_section_header("Training Trends", "📈")
             
-            trend_tabs = st.tabs(["TSS & Intensity", "Workout Balance", "Sleep & Recovery"])
+            trend_tabs = st.tabs(["📊 TSS & Intensity", "⚖️ Workout Balance", "😴 Sleep & Recovery"])
             
             with trend_tabs[0]:  # TSS & Intensity Tab
                 col1, col2 = st.columns([3, 2])
@@ -1900,15 +2126,15 @@ elif page == 'Dashboard':
         st.error(f"Error loading dashboard data: {str(e)}")
         st.exception(e)
 
-elif page == 'Import Data':
-    st.header("Import Workout Data")
+elif page == '📥 Import Data':
+    create_section_header("Import Training Data", "📥")
     
     # Initialize session state for workouts if not exists
     if 'current_workouts' not in st.session_state:
         st.session_state.current_workouts = None
     
-    # File upload section
-    st.subheader("Upload Training Peaks Export")
+    # Enhanced file upload section
+    st.markdown("### 📊 Upload Training Peaks Export")
     col1, col2 = st.columns(2)
     with col1:
         workouts_file = st.file_uploader(
@@ -2057,10 +2283,10 @@ elif page == 'Import Data':
         except Exception as e:
             st.error(f"Error: {str(e)}")
 
-elif page == 'View Data':
-    st.header("View Data")
+elif page == '🗂️ View Data':
+    create_section_header("View Training Data", "🗂️")
     
-    tab1, tab2 = st.tabs(["Workouts", "Weekly Summaries"])
+    tab1, tab2 = st.tabs(["🏃‍♂️ Workouts", "📊 Weekly Summaries"])
     
     with tab1:
         try:
@@ -2093,10 +2319,10 @@ elif page == 'View Data':
             st.error(f"Could not connect to the API: {str(e)}")
 
 # In the Weekly Summary page section:
-elif page == 'Proposed Workouts':
-    st.header("Proposed Workouts")
+elif page == '📋 Proposed Workouts':
+    create_section_header("Proposed Training Plans", "📋")
     
-    # Create tabs for different functionalities
+    # Create enhanced tabs for different functionalities
     upload_tab, zwift_tab = st.tabs(["Upload Workouts", "Generate Zwift Files"])
     
     with upload_tab:
@@ -2242,10 +2468,10 @@ elif page == 'Proposed Workouts':
                 st.error(f"Error connecting to the API: {str(e)}")
 
 # In the Weekly Summary page section:
-elif page == 'Weekly Summary':
-    st.header("Weekly Summary")
+elif page == '📈 Weekly Summary':
+    create_section_header("Weekly Training Summary", "📈")
     
-    # Date selection
+    # Enhanced date selection
     col1, col2 = st.columns(2)
     # Widget temporary variables (Streamlit may return multiple types)
     with col1:
@@ -2577,3 +2803,25 @@ elif page == 'Weekly Summary':
                 
         except Exception as e:
             st.error(f"Error generating summary: {str(e)}")
+
+# ================== FOOTER ==================
+st.markdown("---")
+st.markdown("""
+<div style="
+    background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem;
+    border-radius: 10px;
+    text-align: center;
+    margin-top: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+">
+    <h4 style="margin: 0; color: white;">🏋️‍♂️ Fitness Tracker Pro</h4>
+    <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">
+        Track your journey • Analyze your progress • Achieve your goals
+    </p>
+    <p style="margin: 0.5rem 0 0 0; font-size: 0.8rem; opacity: 0.8;">
+        Made with ❤️ and Streamlit
+    </p>
+</div>
+""", unsafe_allow_html=True)
