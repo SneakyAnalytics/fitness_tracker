@@ -4,6 +4,11 @@ A comprehensive fitness tracking application with Zwift workout generation, FIT 
 
 ## Features
 
+- **Automated TrainingPeaks Sync**: One-click automation to sync data from TrainingPeaks
+  - Downloads FIT files, workout summaries, and daily metrics
+  - Automatically processes and uploads to local database
+  - Deduplicates files to prevent data corruption
+  - Preserves proposed workout matching for weekly summaries
 - **FIT File Processing**: Parse and analyze Garmin/cycling computer data
 - **Dynamic Zwift Workout Generation**: Generate .zwo workout files with:
   - Accurate power calculations using explicit FTP values
@@ -36,20 +41,54 @@ A comprehensive fitness tracking application with Zwift workout generation, FIT 
    pip install -r requirements.txt
    ```
 
-4. **Configure paths** (optional):
+4. **Configure paths and credentials**:
 
    ```bash
    cp .env.example .env
-   # Edit .env with your specific paths
+   # Edit .env with your specific paths and TrainingPeaks credentials
    ```
 
-5. **Initialize database**:
+   Required environment variables:
+
+   - `TRAININGPEAKS_USERNAME`: Your TrainingPeaks login email
+   - `TRAININGPEAKS_PASSWORD`: Your TrainingPeaks password
+   - `ZWIFT_WORKOUTS_DIR`: Path to Zwift workouts folder (optional)
+   - `DB_PATH`: Database file path (optional)
+
+5. **Install Playwright browsers** (for TrainingPeaks automation):
+
+   ```bash
+   playwright install chromium
+   ```
+
+6. **Initialize database**:
    ```bash
    mkdir -p data
    # Database will be created automatically on first run
    ```
 
 ## Usage
+
+### Automated TrainingPeaks Sync
+
+The easiest way to sync your TrainingPeaks data:
+
+1. Start the API server (see below)
+2. Open the Streamlit web interface
+3. Go to the "Automated" tab
+4. Click "Start Automated Sync"
+5. Complete CAPTCHA when browser opens
+6. Wait for sync to complete (downloads FIT files, workouts, and metrics)
+
+The automation will:
+
+- Download all data for the selected date range
+- Process and upload FIT files to the database
+- Extract and upload workout summaries
+- Import daily metrics (sleep, HRV, stress, etc.)
+- Automatically deduplicate files to prevent duplicates
+
+**Manual Alternative**: Use the "Manual" tab to upload CSV files and FIT files individually.
 
 ### API Server
 
@@ -116,8 +155,17 @@ process_proposed_workouts('path/to/workout_plan.json')
 
 Set these environment variables in `.env`:
 
+### TrainingPeaks Automation (Required for automated sync)
+
+- `TRAININGPEAKS_USERNAME`: Your TrainingPeaks login email
+- `TRAININGPEAKS_PASSWORD`: Your TrainingPeaks password
+
+### Optional Settings
+
 - `ZWIFT_WORKOUTS_DIR`: Path to Zwift workouts folder (default: `~/Documents/Zwift/Workouts/6870291`)
 - `DB_PATH`: Database file path (default: `data/fitness_data.db`)
+
+**Security Note**: The `.env` file is git-ignored. Never commit credentials to version control.
 
 ## Development
 

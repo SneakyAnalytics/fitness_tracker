@@ -24,6 +24,12 @@ data/fitness_data.db.backup
 data/fitness_data.db.bak.*
 data/fitness_data.db.manual_migrate_*
 data/**/
+data/temp/
+data/proposed_workout_jsons/
+
+# TrainingPeaks automation downloads (temporary)
+trainingpeaks_exports/
+downloads/trainingpeaks_exports/
 
 # Personal workout data
 Week_*/

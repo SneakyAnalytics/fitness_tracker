@@ -32,6 +32,14 @@ import json
 import importlib
 import types as _types
 
+# Try to import python-dotenv for environment variable loading
+try:
+    from dotenv import load_dotenv
+    DOTENV_AVAILABLE = True
+except ImportError:
+    DOTENV_AVAILABLE = False
+    load_dotenv = lambda: None  # No-op function if dotenv not available
+
 # Some versions of plotly may expect a submodule `plotly.graph_objs._densitymap`
 # to exist (older code paths). If that submodule is missing in the installed
 # plotly package, create a compatibility alias pointing at a closely related
@@ -2292,155 +2300,244 @@ elif page == '📥 Import Data':
     if 'current_workouts' not in st.session_state:
         st.session_state.current_workouts = None
     
-    # Enhanced file upload section
-    st.markdown("### 📊 Upload Training Peaks Export")
-    col1, col2 = st.columns(2)
-    with col1:
-        workouts_file = st.file_uploader(
-            "Upload Workouts CSV",
-            type=['csv'],
-            key="workouts_csv_uploader"
-        )
-    with col2:
-        metrics_file = st.file_uploader(
-            "Upload Metrics CSV",
-            type=['csv'],
-            key="metrics_csv_uploader"
-        )
-
-    st.subheader("Upload Workout Files")
-    fit_files = st.file_uploader(
-        "Upload FIT Files (Zwift/Garmin)",
-        type=['fit', 'fit.gz'],
-        accept_multiple_files=True,
-        key="fit_files_uploader"
-    )
+    # Create tabs for Manual and Automated upload
+    automated_tab, manual_tab = st.tabs(["🤖 Automated TrainingPeaks Sync", "📁 Manual Upload"])
     
-    if fit_files:
-        st.subheader("Workout Analysis")
+    with manual_tab:
+        st.markdown("### 📊 Manual Training Peaks Data Upload")
+        st.info("💡 Upload exported CSV and FIT files from TrainingPeaks manually")
         
-        # Create tabs for each FIT file
-        file_tabs = st.tabs([f"Workout {i+1}: {fit_file.name}" for i, fit_file in enumerate(fit_files)])
+        col1, col2 = st.columns(2)
+        with col1:
+            workouts_file = st.file_uploader(
+                "Upload Workouts CSV",
+                type=['csv'],
+                key="workouts_csv_uploader"
+            )
+        with col2:
+            metrics_file = st.file_uploader(
+                "Upload Metrics CSV",
+                type=['csv'],
+                key="metrics_csv_uploader"
+            )
+
+        st.subheader("Upload Workout Files")
+        fit_files = st.file_uploader(
+            "Upload FIT Files (Zwift/Garmin)",
+            type=['fit', 'fit.gz'],
+            accept_multiple_files=True,
+            key="fit_files_uploader"
+        )
         
-        for fit_file, tab in zip(fit_files, file_tabs):
-            with tab:
-                try:
-                    files = {'file': fit_file}
-                    response = requests.post(
-                        "http://localhost:8000/upload/fit",
-                        files=files
-                    )
+        if fit_files:
+            st.subheader("Workout Analysis")
+            
+            # Create tabs for each FIT file
+            file_tabs = st.tabs([f"Workout {i+1}: {fit_file.name}" for i, fit_file in enumerate(fit_files)])
+            
+            for fit_file, tab in zip(fit_files, file_tabs):
+                with tab:
+                    try:
+                        files = {'file': fit_file}
+                        response = requests.post(
+                            "http://localhost:8000/upload/fit",
+                            files=files
+                        )
+                        
+                        if response.status_code == 200:
+                            workout_data = response.json()['workout_data']
+                            display_fit_file_analysis(fit_file, workout_data)
+                        else:
+                            error_detail = response.json().get('detail', 'Unknown error')
+                            st.error(f"Error processing {fit_file.name}: {error_detail}")
+                            st.write("Full error details:", str(error_detail))
+                            
+                    except Exception as e:
+                        st.error(f"Error processing {fit_file.name}: {str(e)}")
+                        st.write("Full error details:", str(e))
+
+        # Process workout file upload
+        if workouts_file is not None and st.session_state.current_workouts is None:
+            files = {'file': workouts_file}
+            try:
+                response = requests.post("http://localhost:8000/upload/workouts", files=files)
+                if response.status_code == 200:
+                    st.session_state.current_workouts = response.json()['workouts']
+                    st.success(f"Successfully processed {len(st.session_state.current_workouts)} workouts!")
+                else:
+                    st.error("Error processing workouts file")
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+        
+        # Process metrics file
+        if metrics_file is not None:
+            files = {'file': metrics_file}
+            try:
+                response = requests.post("http://localhost:8000/upload/metrics", files=files)
+                if response.status_code == 200:
+                    metrics = response.json()['metrics']
+                    st.success(f"Successfully processed {len(metrics)} metrics!")
                     
-                    if response.status_code == 200:
-                        workout_data = response.json()['workout_data']
-                        display_fit_file_analysis(fit_file, workout_data)
+                    st.subheader("Metrics Summary")
+                    metrics_df = pd.DataFrame(metrics)
+                    st.dataframe(metrics_df)
+            except Exception as e:
+                st.error(f"Error: {str(e)}")
+        
+        # Clear data button
+        if st.session_state.current_workouts is not None:
+                if st.button("Clear Uploaded Data", key="clear_manual"):
+                    st.session_state.current_workouts = None
+                    st.experimental_rerun()  # type: ignore[attr-defined]
+        
+        # Display workouts and qualitative data form
+        if st.session_state.current_workouts:
+            st.subheader("Add Qualitative Data")
+            
+            for idx, workout in enumerate(st.session_state.current_workouts):
+                unique_key = f"{workout['workout_day']}_{workout['title']}_{idx}"
+                
+                with st.expander(f"{workout['workout_day']} - {workout['type']} ({workout['title']})"):
+                    with st.form(key=f"form_{unique_key}"):
+                        # Pre-fill any existing data
+
+                        athlete_comments = st.text_area(
+                            "Athlete Comments",
+                            value=workout.get('athlete_comments', ''),
+                            key=f"comments_{unique_key}"
+                        )
+                        
+                        # Show quantitative data for reference
+                        st.write("Workout Details:")
+                        if workout.get('power_data'):
+                            st.write(f"- TSS: {workout['power_data'].get('tss', 'N/A')}")
+                            st.write(f"- IF: {workout['power_data'].get('if', 'N/A')}")
+                        
+                        if workout.get('heart_rate_data'):
+                            st.write(f"- Avg HR: {workout['heart_rate_data'].get('average', 'N/A')}")
+                            st.write(f"- Max HR: {workout['heart_rate_data'].get('max', 'N/A')}")
+                        
+                        if workout.get('actual_duration'):
+                            st.write(f"- Duration: {workout['actual_duration']:.1f} minutes")
+                        
+                        # Submit button for this workout's form
+                        submit_button = st.form_submit_button("Save Notes")
+                        if submit_button:
+                            try:
+                                response = requests.post(
+                                    "http://localhost:8000/workouts/qualitative",
+                                    json={
+                                        "workout_day": workout['workout_day'],
+                                        "workout_title": workout['title'],
+                                        "athlete_comments": athlete_comments
+                                    }
+                                )
+                                
+                                if response.status_code == 200:
+                                    st.success(f"Notes saved successfully for {workout['title']}!")
+                                else:
+                                    st.error(f"Error saving notes: {response.json().get('detail', 'Unknown error')}")
+                            except Exception as e:
+                                st.error(f"Error saving notes: {str(e)}")
+    
+    with automated_tab:
+        st.markdown("### 🤖 Automated TrainingPeaks Sync")
+        st.info("💡 Automatically download and process your TrainingPeaks data with one click!")
+        
+        # Check for credentials
+        import os
+        load_dotenv()
+        
+        tp_username = os.getenv("TRAININGPEAKS_USERNAME")
+        tp_password = os.getenv("TRAININGPEAKS_PASSWORD")
+        
+        if not tp_username or not tp_password:
+            st.warning("⚠️ TrainingPeaks credentials not configured!")
+            if not DOTENV_AVAILABLE:
+                st.error("📦 python-dotenv is not installed. Install it with: `pip install python-dotenv`")
+            st.markdown("""
+            **Setup Instructions:**
+            1. Install python-dotenv: `pip install python-dotenv`
+            2. Create a `.env` file in your project root
+            3. Add your credentials:
+            ```
+            TRAININGPEAKS_USERNAME=your_username
+            TRAININGPEAKS_PASSWORD=your_password
+            ```
+            4. Reload this page
+            """)
+        else:
+            st.success(f"✅ Logged in as: {tp_username}")
+            
+            # Date range selection
+            st.markdown("#### 📅 Select Date Range")
+            
+            from datetime import timedelta
+            today = datetime.now().date()
+            days_since_monday = today.weekday()  # 0-6 where 0 is Monday
+            this_monday = today - timedelta(days=days_since_monday)
+            this_sunday = this_monday + timedelta(days=6)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                start_date = st.date_input(
+                    "Start Date (Monday)",
+                    value=this_monday,
+                    key="auto_start_date"
+                )
+            with col2:
+                end_date = st.date_input(
+                    "End Date (Sunday)", 
+                    value=this_sunday,
+                    key="auto_end_date"
+                )
+            
+            # Handle date_input return types
+            if isinstance(start_date, date) and isinstance(end_date, date):
+                st.info(f"📊 Syncing data from **{start_date.strftime('%A, %B %d, %Y')}** to **{end_date.strftime('%A, %B %d, %Y')}**")
+            else:
+                st.warning("Please select both start and end dates")
+            
+            # Sync button
+            if st.button("🚀 Start Automated Sync", type="primary", use_container_width=True):
+                st.markdown("---")
+                
+                # Format dates
+                start_date_str = start_date.strftime("%m/%d/%Y") if isinstance(start_date, date) else ""
+                end_date_str = end_date.strftime("%m/%d/%Y") if isinstance(end_date, date) else ""
+                
+                st.info(f"📅 **Syncing data from {start_date_str} to {end_date_str}**")
+                st.info("🔐 **Note:** You may need to solve a captcha if one appears in the browser")
+                
+                # Run the automation
+                try:
+                    from ..utils.trainingpeaks_sync import TrainingPeaksSync
+                    
+                    with st.spinner("🌐 Opening browser and running automation..."):
+                        sync = TrainingPeaksSync()
+                        results = sync.run_sync(start_date, end_date)
+                    
+                    if results:
+                        st.success(f"""
+                        ✅ **Sync Complete!**
+                        
+                        - FIT Files Uploaded: **{results['fit_files']}**
+                        - Workouts CSV: **{'✅ Success' if results['workouts'] else '❌ Failed'}**
+                        - Metrics CSV: **{'✅ Success' if results['metrics'] else '❌ Failed'}**
+                        """)
+                        
+                        if results['errors']:
+                            st.warning(f"⚠️ {len(results['errors'])} errors occurred:")
+                            for error in results['errors']:
+                                st.text(f"  • {error}")
                     else:
-                        error_detail = response.json().get('detail', 'Unknown error')
-                        st.error(f"Error processing {fit_file.name}: {error_detail}")
-                        st.write("Full error details:", str(error_detail))
+                        st.error("❌ Sync failed. Check the console output for details.")
                         
                 except Exception as e:
-                    st.error(f"Error processing {fit_file.name}: {str(e)}")
-                    st.write("Full error details:", str(e))
+                    st.error(f"❌ Error: {str(e)}")
+                    import traceback
+                    st.code(traceback.format_exc())
 
-    # Process workout file upload
-    if workouts_file is not None and st.session_state.current_workouts is None:
-        files = {'file': workouts_file}
-        try:
-            response = requests.post("http://localhost:8000/upload/workouts", files=files)
-            if response.status_code == 200:
-                st.session_state.current_workouts = response.json()['workouts']
-                st.success(f"Successfully processed {len(st.session_state.current_workouts)} workouts!")
-            else:
-                st.error("Error processing workouts file")
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
-    
-    # Process metrics file
-    if metrics_file is not None:
-        files = {'file': metrics_file}
-        try:
-            response = requests.post("http://localhost:8000/upload/metrics", files=files)
-            if response.status_code == 200:
-                metrics = response.json()['metrics']
-                st.success(f"Successfully processed {len(metrics)} metrics!")
-                
-                st.subheader("Metrics Summary")
-                metrics_df = pd.DataFrame(metrics)
-                st.dataframe(metrics_df)
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
-    
-    # Clear data button
-    if st.session_state.current_workouts is not None:
-            if st.button("Clear Uploaded Data"):
-                st.session_state.current_workouts = None
-                st.experimental_rerun()  # type: ignore[attr-defined]
-    
-    # Display workouts and qualitative data form
-    if st.session_state.current_workouts:
-        st.subheader("Add Qualitative Data")
-        
-        for idx, workout in enumerate(st.session_state.current_workouts):
-            unique_key = f"{workout['workout_day']}_{workout['title']}_{idx}"
-            
-            with st.expander(f"{workout['workout_day']} - {workout['type']} ({workout['title']})"):
-                with st.form(key=f"form_{unique_key}"):
-                    # Pre-fill any existing data
-
-                    athlete_comments = st.text_area(
-                        "Athlete Comments",
-                        value=workout.get('athlete_comments', ''),
-                        key=f"comments_{unique_key}"
-                    )
-                    
-                    # Show quantitative data for reference
-                    st.write("Workout Details:")
-                    if workout.get('power_data'):
-                        st.write(f"- TSS: {workout['power_data'].get('tss', 'N/A')}")
-                        st.write(f"- IF: {workout['power_data'].get('if', 'N/A')}")
-                    
-                    if workout.get('heart_rate_data'):
-                        st.write(f"- Avg HR: {workout['heart_rate_data'].get('average', 'N/A')}")
-                        st.write(f"- Max HR: {workout['heart_rate_data'].get('max', 'N/A')}")
-                    
-                    if workout.get('actual_duration'):
-                        st.write(f"- Duration: {workout['actual_duration']:.1f} minutes")
-                    
-                    # Submit button for this workout's form
-                    submit_button = st.form_submit_button("Save Notes")
-                    if submit_button:
-                        try:
-                            response = requests.post(
-                                "http://localhost:8000/workouts/qualitative",
-                                json={
-                                    "workout_day": workout['workout_day'],
-                                    "workout_title": workout['title'],
-                                    "athlete_comments": athlete_comments
-                                }
-                            )
-                            
-                            if response.status_code == 200:
-                                st.success(f"Notes saved successfully for {workout['title']}!")
-                            else:
-                                st.error(f"Error saving notes: {response.json().get('detail', 'Unknown error')}")
-                        except Exception as e:
-                            st.error(f"Error saving notes: {str(e)}")
-    
-    # Process metrics file
-    if metrics_file is not None:
-        files = {'file': metrics_file}
-        try:
-            response = requests.post("http://localhost:8000/upload/metrics", files=files)
-            if response.status_code == 200:
-                metrics = response.json()['metrics']
-                st.success(f"Successfully processed {len(metrics)} metrics!")
-                
-                st.subheader("Metrics Summary")
-                metrics_df = pd.DataFrame(metrics)
-                st.dataframe(metrics_df)
-        except Exception as e:
-            st.error(f"Error: {str(e)}")
 
 elif page == '🗂️ View Data':
     create_section_header("View Training Data", "🗂️")

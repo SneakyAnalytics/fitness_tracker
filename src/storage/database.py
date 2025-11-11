@@ -295,33 +295,55 @@ class WorkoutDatabase:
             return 1.0
 
     def save_fit_data(self, workout_day: str, workout_title: str, fit_data: Dict[str, Any], file_name: str) -> bool:
-        """Save or update FIT file data with sequence number support for duplicates"""
+        """Save or update FIT file data, avoiding duplicates based on file_name"""
         conn = sqlite3.connect(self.db_path)
         c = conn.cursor()
 
         try:
-            # Find the next available sequence number for this day/title combination
+            # Check if this exact file already exists (same day, title, and filename)
             c.execute('''
-                SELECT COALESCE(MAX(sequence_number), 0) + 1
-                FROM fit_files
-                WHERE workout_day = ? AND workout_title = ?
-            ''', (workout_day, workout_title))
-            next_sequence = c.fetchone()[0]
+                SELECT id, sequence_number FROM fit_files
+                WHERE workout_day = ? AND workout_title = ? AND file_name = ?
+            ''', (workout_day, workout_title, file_name))
+            existing = c.fetchone()
             
-            c.execute(
-                '''
-                INSERT OR REPLACE INTO fit_files
-                (workout_day, workout_title, fit_data, file_name, sequence_number)
-                VALUES (?, ?, ?, ?, ?)
-                ''',
-                (
-                    workout_day,
-                    workout_title,
-                    json.dumps(fit_data),
-                    file_name,
-                    next_sequence
+            if existing:
+                # File already exists - update it instead of creating duplicate
+                fit_id, sequence_number = existing
+                print(f"DEBUG: FIT file already exists (id={fit_id}, seq={sequence_number}). Updating instead of duplicating.")
+                c.execute(
+                    '''
+                    UPDATE fit_files
+                    SET fit_data = ?, file_name = ?
+                    WHERE id = ?
+                    ''',
+                    (json.dumps(fit_data), file_name, fit_id)
                 )
-            )
+            else:
+                # New file - find the next available sequence number for this day/title combination
+                c.execute('''
+                    SELECT COALESCE(MAX(sequence_number), 0) + 1
+                    FROM fit_files
+                    WHERE workout_day = ? AND workout_title = ?
+                ''', (workout_day, workout_title))
+                next_sequence = c.fetchone()[0]
+                
+                print(f"DEBUG: Creating new FIT file entry with sequence {next_sequence}")
+                c.execute(
+                    '''
+                    INSERT INTO fit_files
+                    (workout_day, workout_title, fit_data, file_name, sequence_number)
+                    VALUES (?, ?, ?, ?, ?)
+                    ''',
+                    (
+                        workout_day,
+                        workout_title,
+                        json.dumps(fit_data),
+                        file_name,
+                        next_sequence
+                    )
+                )
+            
             conn.commit()
             return True
         except Exception as e:
