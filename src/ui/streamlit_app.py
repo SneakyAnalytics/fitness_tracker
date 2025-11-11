@@ -716,9 +716,8 @@ def display_workout_calendar():
                     
                     day_label = "Today" if is_today else workout['date'].strftime("%a")
                     
-                    # Smart truncation - keep full name but limit to 2 lines worth
+                    # Use full workout name - CSS will handle wrapping to 2 lines
                     workout_name = workout['name']
-                    display_name = workout_name if len(workout_name) <= 45 else workout_name[:42] + "..."
                     
                     st.markdown(f"""
                     <div style='background: {bg_color}; 
@@ -728,8 +727,14 @@ def display_workout_calendar():
                             {icon} {day_label} • {workout['duration']}min
                         </div>
                         <div style='color: {text_color}; font-size: 0.75rem; opacity: 0.9; margin-top: 0.2rem;
-                                    line-height: 1.3; max-height: 2.6em; overflow: hidden;'>
-                            {display_name}
+                                    line-height: 1.4;
+                                    max-height: 2.8em;
+                                    overflow: hidden;
+                                    word-wrap: break-word;
+                                    display: -webkit-box;
+                                    -webkit-line-clamp: 2;
+                                    -webkit-box-orient: vertical;'>
+                            {workout_name}
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
