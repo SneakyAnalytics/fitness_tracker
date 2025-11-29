@@ -70,87 +70,118 @@ class TrainingPeaksSync:
         
         # Navigate to Settings
         print("⚙️  Navigating to Settings...")
-        page.click("button:has-text('Calendar')")
+        
+        # First, click Calendar to go to the main app
+        try:
+            page.click("button:has-text('Calendar')", timeout=5000)
+            print("   ✓ Clicked Calendar button")
+        except Exception as e:
+            print(f"   ⚠️  Could not find Calendar button: {e}")
+            print("   Trying to continue anyway...")
         
         # Give the page a moment to load
-        time.sleep(2)
+        time.sleep(3)
+        
+        # Debug: Take a screenshot to see what's on the page
+        try:
+            screenshot_path = self.downloads_dir / "debug_after_login.png"
+            page.screenshot(path=str(screenshot_path))
+            print(f"   📸 Screenshot saved to: {screenshot_path}")
+        except:
+            pass
         
         # Click user menu - this is typically your name displayed in the top right
-        print("   Opening user menu (looking for your display name)...")
+        print("   Opening user menu (looking for 'Jake Robinson')...")
         
         # Try to find and click the user menu by various methods
         user_menu_clicked = False
         
-        # Method 1: Try clicking on any visible name/user menu button
+        # Method 1: Try clicking directly on "Jake Robinson"
         try:
-            # Look for common user menu patterns
+            page.click("text=Jake Robinson", timeout=3000)
+            user_menu_clicked = True
+            print("   ✓ Clicked on 'Jake Robinson'")
+        except Exception as e:
+            print(f"   ⚠️  Could not click 'Jake Robinson' directly: {e}")
+        
+        # Method 2: Try common user menu patterns
+        if not user_menu_clicked:
+            print("   Trying alternative selectors...")
             selectors = [
                 "button[class*='userMenu']",
                 "div[class*='userMenu'] button",
                 "button[aria-label*='menu']",
                 "button[aria-label*='account']",
-                # Try finding by the Settings option being visible (reverse approach)
-                "xpath=//label[contains(text(), 'Settings')]/ancestor::div[contains(@class, 'menu')]//button"
+                "p.MuiTypography-root:has-text('Jake Robinson')",
             ]
             
             for selector in selectors:
                 try:
                     page.click(selector, timeout=2000)
                     user_menu_clicked = True
-                    print(f"   ✓ User menu opened")
+                    print(f"   ✓ User menu opened with: {selector}")
                     break
                 except:
                     continue
-                    
-        except Exception as e:
-            print(f"   ⚠️  Standard selectors failed: {e}")
         
-        # Method 2: If standard selectors fail, try to find any clickable text that might be a username
+        # Method 3: JavaScript fallback
         if not user_menu_clicked:
-            print("   Trying to find username text...")
+            print("   Trying JavaScript to find clickable elements...")
             try:
-                # Get all p tags with MuiTypography class (common for user display)
-                page.evaluate("""
+                # Log all clickable text elements
+                elements_info = page.evaluate("""
                     () => {
-                        const elements = document.querySelectorAll('p.MuiTypography-root');
-                        console.log('Found typography elements:', elements.length);
-                        elements.forEach((el, i) => {
-                            console.log(`Element ${i}: "${el.textContent}"`);
+                        const elements = document.querySelectorAll('p, button, a, span');
+                        const result = [];
+                        elements.forEach((el) => {
+                            const text = el.textContent.trim();
+                            if (text && text.length > 0 && text.length < 50) {
+                                result.push(text);
+                            }
                         });
+                        return result.slice(0, 30); // First 30 elements
                     }
                 """)
+                print(f"   Found {len(elements_info)} clickable elements:")
+                for i, text in enumerate(elements_info[:10]):
+                    print(f"     {i}: '{text}'")
                 
-                # Try clicking elements that might be usernames (not "Calendar", "Dashboard", etc.)
-                excluded_texts = ['Calendar', 'Dashboard', 'Workouts', 'Reports', 'Training', 'Metrics']
-                page.evaluate(f"""
-                    () => {{
-                        const excluded = {json.dumps(excluded_texts)};
-                        const elements = document.querySelectorAll('p.MuiTypography-root');
-                        for (let el of elements) {{
-                            const text = el.textContent.trim();
-                            if (text && text.length > 2 && !excluded.includes(text)) {{
-                                console.log('Trying to click:', text);
+                # Try to click "Jake Robinson" via JavaScript
+                clicked = page.evaluate("""
+                    () => {
+                        const elements = document.querySelectorAll('p, button, span');
+                        for (let el of elements) {
+                            if (el.textContent.includes('Jake Robinson')) {
+                                console.log('Found and clicking:', el.textContent);
                                 el.click();
                                 return true;
-                            }}
-                        }}
+                            }
+                        }
                         return false;
-                    }}
+                    }
                 """)
-                time.sleep(1)
-                user_menu_clicked = True
-                print("   ✓ Clicked potential user menu element")
+                if clicked:
+                    user_menu_clicked = True
+                    print("   ✓ Clicked 'Jake Robinson' via JavaScript")
+                    time.sleep(2)
             except Exception as e:
-                print(f"   ⚠️  Could not find username: {e}")
-        
-        # Final attempt: Just wait for Settings to appear and click it directly
-        if not user_menu_clicked:
-            print("   ⚠️  Waiting for Settings option to appear...")
-            time.sleep(3)
+                print(f"   ⚠️  JavaScript method failed: {e}")
         
         # Click Settings from the dropdown menu (should be visible now)
         print("   Clicking Settings option...")
-        page.click("label.userSettingsOption:has-text('Settings')", timeout=10000)
+        try:
+            page.click("label.userSettingsOption:has-text('Settings')", timeout=10000)
+            print("   ✓ Settings clicked")
+        except Exception as e:
+            print(f"   ❌ Could not click Settings: {e}")
+            # Take another screenshot to see the menu
+            try:
+                screenshot_path = self.downloads_dir / "debug_after_usermenu.png"
+                page.screenshot(path=str(screenshot_path))
+                print(f"   📸 Screenshot saved to: {screenshot_path}")
+            except:
+                pass
+            raise
         
         # Wait for export page
         page.wait_for_selector("input.datepicker.startDate", timeout=10000)
