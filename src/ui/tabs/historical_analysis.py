@@ -46,7 +46,7 @@ def render_historical_analysis_tab():
                         
                         with st.spinner(f"Syncing {start_date} to {end_date}..."):
                             # Step 1: Sync entire date range in one TrainingPeaks session
-                            tp_sync = TrainingPeaksSync('data/fitness_data.db')
+                            tp_sync = TrainingPeaksSync()
                             sync_results = tp_sync.run_sync(
                                 start_date=start_date,
                                 end_date=end_date,
