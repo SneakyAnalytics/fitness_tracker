@@ -53,6 +53,10 @@ def render_historical_analysis_tab():
                                 cleanup_fit_files=False  # Keep files for analysis
                             )
                             
+                            if not sync_results:
+                                st.error("❌ TrainingPeaks sync failed. Check terminal output for details.")
+                                return
+                            
                             st.success(f"✅ Synced {sync_results.get('fit_files_uploaded', 0)} FIT files")
                         
                         # Step 2: Analyze all workouts in the range
