@@ -627,8 +627,8 @@ def display_performance_analytics():
                     '3min': 3,
                     '5min': 4,
                     '10min': 5,
-                    '18min': 6,
-                    '20min': 7,
+                    '20min': 6,
+                    '45min': 7,
                     '60min': 8
                 }
                 
