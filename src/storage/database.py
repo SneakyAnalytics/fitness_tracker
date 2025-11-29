@@ -132,6 +132,55 @@ class WorkoutDatabase:
             # Column already exists
             pass
 
+        # Create workout_analyses table for AI-generated workout insights
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS workout_analyses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                workout_id INTEGER,
+                fit_file_id INTEGER,
+                analysis_text TEXT NOT NULL,
+                analysis_data TEXT,
+                peak_efforts TEXT,
+                analyzed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                model_used TEXT,
+                FOREIGN KEY (workout_id) REFERENCES workouts(id),
+                FOREIGN KEY (fit_file_id) REFERENCES fit_files(id)
+            )
+        ''')
+        
+        # Migrate existing workout_analyses table if needed
+        c.execute("PRAGMA table_info(workout_analyses)")
+        columns = [col[1] for col in c.fetchall()]
+        if 'analysis_data' not in columns:
+            print("Migrating workout_analyses table: adding analysis_data column...")
+            c.execute('ALTER TABLE workout_analyses ADD COLUMN analysis_data TEXT')
+        if 'peak_efforts' not in columns:
+            print("Migrating workout_analyses table: adding peak_efforts column...")
+            c.execute('ALTER TABLE workout_analyses ADD COLUMN peak_efforts TEXT')
+
+        # Create personal_bests table for tracking peak efforts
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS personal_bests (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                athlete_id TEXT DEFAULT 'default',
+                effort_type TEXT NOT NULL,
+                effort_value REAL NOT NULL,
+                workout_id INTEGER,
+                fit_file_id INTEGER,
+                achieved_date TEXT NOT NULL,
+                rank INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (workout_id) REFERENCES workouts(id),
+                FOREIGN KEY (fit_file_id) REFERENCES fit_files(id)
+            )
+        ''')
+
+        # Create index for faster personal best queries
+        c.execute('''
+            CREATE INDEX IF NOT EXISTS idx_personal_bests_effort 
+            ON personal_bests(athlete_id, effort_type, effort_value DESC)
+        ''')
+
         conn.commit()
         conn.close()
         
@@ -1378,6 +1427,19 @@ class WorkoutDatabase:
                 'weekly_plan': weekly_plan_data,
                 'proposed_workouts': proposed_workouts
             })
+            
+            # Add qualitative data (muscle soreness and fatigue patterns) if available
+            qual_data = self.get_weekly_summary_qualitative_data(start_date, end_date)
+            if qual_data:
+                print(f"\nDEBUG: Adding qualitative data to summary: {json.dumps(qual_data, indent=2)}")
+                summary['muscle_soreness_patterns'] = qual_data.get('muscle_soreness_patterns')
+                summary['general_fatigue_level'] = qual_data.get('general_fatigue_level')
+            
+            # Add AI workout analyses if available
+            ai_analyses = self.get_weekly_workout_analyses(start_date, end_date)
+            if ai_analyses:
+                print(f"\nDEBUG: Adding {len(ai_analyses)} AI workout analyses to summary")
+                summary['ai_workout_analyses'] = ai_analyses
 
             return summary
                 
@@ -1523,6 +1585,28 @@ class WorkoutDatabase:
         except Exception as e:
             print(f"Error loading athlete settings: {e}")
             return None
+
+    def get_athlete_settings(self, athlete_id: str = 'default') -> Dict[str, Any]:
+        """
+        Convenience method to get athlete settings with defaults.
+        Returns the settings dict, with fallback defaults if not found.
+        
+        Args:
+            athlete_id: The athlete ID (defaults to 'default')
+            
+        Returns:
+            Settings dictionary with at least ftp, hr_zones, power_zones
+        """
+        settings = self.load_athlete_settings(athlete_id)
+        if settings:
+            return settings
+        
+        # Return defaults if no settings found
+        return {
+            'ftp': 300,
+            'hr_zones': '138,156,165,173,200',
+            'power_zones': [165, 225, 270, 315, 9999]
+        }
 
     def delete_weekly_plan_cascade(self, weekNumber: int) -> bool:
         """Delete a weekly plan and all associated daily plans and proposed workouts"""
@@ -2147,5 +2231,535 @@ class WorkoutDatabase:
             import traceback
             traceback.print_exc()
             return {'completed_workouts': [], 'proposed_workouts': []}
+        finally:
+            conn.close()
+    
+    def get_fit_file_id_by_name(self, file_name: str) -> Optional[int]:
+        """
+        Get FIT file database ID by filename.
+        
+        Args:
+            file_name: FIT file name
+            
+        Returns:
+            FIT file ID or None if not found
+        """
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        try:
+            c.execute('SELECT id FROM fit_files WHERE file_name = ?', (file_name,))
+            result = c.fetchone()
+            return result[0] if result else None
+        finally:
+            conn.close()
+    
+    def store_workout_analysis(self, workout_id: Optional[int] = None, 
+                               fit_file_id: Optional[int] = None,
+                               analysis_text: str = "",
+                               analysis_data: Optional[Dict[str, Any]] = None,
+                               peak_efforts: Optional[Dict[str, float]] = None,
+                               model_used: str = "gemini-2.0-flash-exp") -> int:
+        """
+        Store or update AI-generated workout analysis (upsert behavior).
+        If an analysis already exists for the workout_id, it will be updated.
+        This prevents duplicate analyses during testing.
+        
+        Args:
+            workout_id: Optional ID of associated workout
+            fit_file_id: Optional ID of associated FIT file
+            analysis_text: AI-generated analysis text
+            analysis_data: Structured analysis data (dict)
+            peak_efforts: Peak effort data (dict)
+            model_used: Name of the AI model used
+            
+        Returns:
+            ID of the created/updated analysis record
+        """
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        
+        try:
+            # Convert dicts to JSON strings
+            analysis_data_json = json.dumps(analysis_data) if analysis_data else None
+            peak_efforts_json = json.dumps(peak_efforts) if peak_efforts else None
+            
+            # Check if analysis already exists for this workout
+            existing_id = None
+            if workout_id:
+                c.execute('SELECT id FROM workout_analyses WHERE workout_id = ?', (workout_id,))
+                result = c.fetchone()
+                if result:
+                    existing_id = result[0]
+            elif fit_file_id:
+                c.execute('SELECT id FROM workout_analyses WHERE fit_file_id = ?', (fit_file_id,))
+                result = c.fetchone()
+                if result:
+                    existing_id = result[0]
+            
+            if existing_id:
+                # Update existing analysis
+                print(f"Updating existing analysis {existing_id} for workout_id={workout_id}")
+                c.execute('''
+                    UPDATE workout_analyses 
+                    SET analysis_text = ?, 
+                        analysis_data = ?,
+                        peak_efforts = ?,
+                        model_used = ?,
+                        analyzed_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ''', (analysis_text, analysis_data_json, peak_efforts_json, model_used, existing_id))
+                analysis_id = existing_id
+            else:
+                # Insert new analysis
+                c.execute('''
+                    INSERT INTO workout_analyses 
+                    (workout_id, fit_file_id, analysis_text, analysis_data, peak_efforts, model_used)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (workout_id, fit_file_id, analysis_text, analysis_data_json, peak_efforts_json, model_used))
+                analysis_id = c.lastrowid
+            
+            conn.commit()
+            return analysis_id
+            
+        except Exception as e:
+            print(f"Error storing workout analysis: {e}")
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+    
+    def get_workout_analysis(self, workout_id: Optional[int] = None, 
+                            fit_file_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve workout analysis
+        
+        Args:
+            workout_id: Optional workout ID
+            fit_file_id: Optional FIT file ID
+            
+        Returns:
+            Dictionary with analysis data or None
+        """
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        
+        try:
+            if workout_id:
+                c.execute('''
+                    SELECT id, analysis_text, analyzed_at, model_used
+                    FROM workout_analyses
+                    WHERE workout_id = ?
+                    ORDER BY analyzed_at DESC
+                    LIMIT 1
+                ''', (workout_id,))
+            elif fit_file_id:
+                c.execute('''
+                    SELECT id, analysis_text, analyzed_at, model_used
+                    FROM workout_analyses
+                    WHERE fit_file_id = ?
+                    ORDER BY analyzed_at DESC
+                    LIMIT 1
+                ''', (fit_file_id,))
+            else:
+                return None
+            
+            row = c.fetchone()
+            if row:
+                return {
+                    'id': row[0],
+                    'analysis_text': row[1],
+                    'analyzed_at': row[2],
+                    'model_used': row[3]
+                }
+            return None
+            
+        except Exception as e:
+            print(f"Error retrieving workout analysis: {e}")
+            return None
+        finally:
+            conn.close()
+    
+    def get_weekly_workout_analyses(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
+        """
+        Retrieve all AI workout analyses for a date range
+        
+        Args:
+            start_date: Start date (YYYY-MM-DD)
+            end_date: End date (YYYY-MM-DD)
+            
+        Returns:
+            List of dictionaries with workout and analysis data
+        """
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        
+        try:
+            # Query to get workouts with their analyses
+            c.execute('''
+                SELECT 
+                    w.id as workout_id,
+                    w.workout_date,
+                    w.workout_name,
+                    w.workout_type,
+                    w.duration,
+                    w.tss,
+                    wa.id as analysis_id,
+                    wa.analysis_text,
+                    wa.analysis_data,
+                    wa.peak_efforts,
+                    wa.analyzed_at,
+                    wa.model_used
+                FROM workouts w
+                LEFT JOIN workout_analyses wa ON w.id = wa.workout_id
+                WHERE w.workout_date BETWEEN ? AND ?
+                    AND wa.id IS NOT NULL
+                ORDER BY w.workout_date ASC
+            ''', (start_date, end_date))
+            
+            rows = c.fetchall()
+            analyses = []
+            
+            for row in rows:
+                analysis = {
+                    'workout_id': row[0],
+                    'workout_date': row[1],
+                    'workout_name': row[2],
+                    'workout_type': row[3],
+                    'duration': row[4],
+                    'tss': row[5],
+                    'analysis_id': row[6],
+                    'analysis_text': row[7],
+                    'analysis_data': json.loads(row[8]) if row[8] else None,
+                    'peak_efforts': json.loads(row[9]) if row[9] else None,
+                    'analyzed_at': row[10],
+                    'model_used': row[11]
+                }
+                analyses.append(analysis)
+            
+            print(f"\nDEBUG: Retrieved {len(analyses)} workout analyses for {start_date} to {end_date}")
+            return analyses
+            
+        except Exception as e:
+            print(f"Error retrieving weekly workout analyses: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
+        finally:
+            conn.close()
+    
+    def store_personal_best(self, effort_type: str, effort_value: float, 
+                           achieved_date: str, workout_id: Optional[int] = None,
+                           fit_file_id: Optional[int] = None,
+                           athlete_id: str = 'default') -> Optional[int]:
+        """
+        Store a personal best effort and update rankings
+        
+        Args:
+            effort_type: Type of effort (e.g., '30s_power', '5min_power')
+            effort_value: Value of the effort (watts, mph, etc.)
+            achieved_date: Date achieved (YYYY-MM-DD)
+            workout_id: Optional associated workout ID
+            fit_file_id: Optional associated FIT file ID
+            athlete_id: Athlete identifier
+            
+        Returns:
+            ID of created record or None if not a top 3 effort
+        """
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        
+        try:
+            # Check if this exact value already exists (prevent duplicates)
+            c.execute('''
+                SELECT id FROM personal_bests
+                WHERE athlete_id = ? AND effort_type = ? AND effort_value = ?
+            ''', (athlete_id, effort_type, effort_value))
+            
+            existing = c.fetchone()
+            if existing:
+                # This exact value already exists, don't create duplicate
+                return None
+            
+            # Get current top 3 for this effort type
+            c.execute('''
+                SELECT id, effort_value, rank
+                FROM personal_bests
+                WHERE athlete_id = ? AND effort_type = ?
+                ORDER BY effort_value DESC
+                LIMIT 3
+            ''', (athlete_id, effort_type))
+            
+            current_top_3 = c.fetchall()
+            
+            # Determine if this is a new PB and what rank
+            rank = None
+            if len(current_top_3) < 3:
+                # Not enough history, automatically a PB
+                rank = len(current_top_3) + 1
+            else:
+                # Check if better than bronze (3rd place)
+                bronze_value = current_top_3[2][1]
+                if effort_value > bronze_value:
+                    # Find the rank
+                    for i, (pb_id, pb_value, pb_rank) in enumerate(current_top_3):
+                        if effort_value > pb_value:
+                            rank = i + 1
+                            break
+                    if rank is None:
+                        rank = 4  # Better than bronze but not top 3
+            
+            if rank and rank <= 3:
+                # This is a top 3 effort, store it
+                c.execute('''
+                    INSERT INTO personal_bests 
+                    (athlete_id, effort_type, effort_value, workout_id, fit_file_id, achieved_date, rank)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (athlete_id, effort_type, effort_value, workout_id, fit_file_id, achieved_date, rank))
+                
+                pb_id = c.lastrowid
+                
+                # Update rankings for all PBs of this type
+                self._update_pb_rankings(c, athlete_id, effort_type)
+                
+                conn.commit()
+                return pb_id
+            
+            return None
+            
+        except Exception as e:
+            print(f"Error storing personal best: {e}")
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+    
+    def _update_pb_rankings(self, cursor, athlete_id: str, effort_type: str):
+        """Update rankings for all PBs of a given type (called within transaction)"""
+        cursor.execute('''
+            SELECT id, effort_value
+            FROM personal_bests
+            WHERE athlete_id = ? AND effort_type = ?
+            ORDER BY effort_value DESC
+        ''', (athlete_id, effort_type))
+        
+        all_pbs = cursor.fetchall()
+        
+        # Update ranks (1-3 for top 3, NULL for rest)
+        for i, (pb_id, pb_value) in enumerate(all_pbs):
+            new_rank = i + 1 if i < 3 else None
+            cursor.execute('''
+                UPDATE personal_bests
+                SET rank = ?
+                WHERE id = ?
+            ''', (new_rank, pb_id))
+    
+    def get_personal_bests(self, athlete_id: str = 'default', 
+                          effort_type: Optional[str] = None) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Get personal bests for an athlete
+        
+        Args:
+            athlete_id: Athlete identifier
+            effort_type: Optional filter by specific effort type
+            
+        Returns:
+            Dictionary mapping effort type to list of top 3 PBs
+        """
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        
+        try:
+            if effort_type:
+                c.execute('''
+                    SELECT id, effort_type, effort_value, achieved_date, rank, workout_id, fit_file_id
+                    FROM personal_bests
+                    WHERE athlete_id = ? AND effort_type = ? AND rank IS NOT NULL
+                    ORDER BY effort_value DESC
+                    LIMIT 3
+                ''', (athlete_id, effort_type))
+                
+                rows = c.fetchall()
+                return {effort_type: [
+                    {
+                        'id': row[0],
+                        'effort_type': row[1],
+                        'effort_value': row[2],
+                        'achieved_date': row[3],
+                        'rank': row[4],
+                        'medal': {1: '🥇', 2: '🥈', 3: '🥉'}.get(row[4], ''),
+                        'workout_id': row[5],
+                        'fit_file_id': row[6]
+                    }
+                    for row in rows
+                ]}
+            else:
+                # Get all effort types
+                c.execute('''
+                    SELECT DISTINCT effort_type
+                    FROM personal_bests
+                    WHERE athlete_id = ?
+                ''', (athlete_id,))
+                
+                effort_types = [row[0] for row in c.fetchall()]
+                
+                result = {}
+                for et in effort_types:
+                    c.execute('''
+                        SELECT id, effort_type, effort_value, achieved_date, rank, workout_id, fit_file_id
+                        FROM personal_bests
+                        WHERE athlete_id = ? AND effort_type = ? AND rank IS NOT NULL
+                        ORDER BY effort_value DESC
+                        LIMIT 3
+                    ''', (athlete_id, et))
+                    
+                    rows = c.fetchall()
+                    result[et] = [
+                        {
+                            'id': row[0],
+                            'effort_type': row[1],
+                            'effort_value': row[2],
+                            'achieved_date': row[3],
+                            'rank': row[4],
+                            'medal': {1: '🥇', 2: '🥈', 3: '🥉'}.get(row[4], ''),
+                            'workout_id': row[5],
+                            'fit_file_id': row[6]
+                        }
+                        for row in rows
+                    ]
+                
+                return result
+                
+        except Exception as e:
+            print(f"Error retrieving personal bests: {e}")
+            return {}
+        finally:
+            conn.close()
+
+    def get_historical_analyses(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        Retrieve historical workout analyses with full details.
+        
+        Args:
+            limit: Maximum number of records to return
+            
+        Returns:
+            List of analysis dictionaries
+        """
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        
+        try:
+            # Get all workout_analyses records with their associated data
+            query = '''
+                SELECT 
+                    wa.id as analysis_id,
+                    wa.analyzed_at,
+                    wa.analysis_text,
+                    wa.analysis_data,
+                    wa.peak_efforts,
+                    wa.workout_id,
+                    wa.fit_file_id,
+                    COALESCE(w.workout_day, f.workout_day) as workout_day,
+                    COALESCE(w.workout_title, f.workout_title) as workout_title,
+                    w.workout_data,
+                    f.fit_data,
+                    f.file_name
+                FROM workout_analyses wa
+                LEFT JOIN workouts w ON wa.workout_id = w.id
+                LEFT JOIN fit_files f ON wa.fit_file_id = f.id
+                ORDER BY wa.analyzed_at DESC
+                LIMIT ?
+            '''
+            
+            c.execute(query, (limit,))
+            rows = c.fetchall()
+            
+            results = []
+            for row in rows:
+                # Parse analysis_data which contains the full analysis result
+                analysis_data = None
+                if row['analysis_data']:
+                    try:
+                        # Try parsing as JSON
+                        analysis_data = json.loads(row['analysis_data'])
+                        # If it's a string (double-encoded), parse again
+                        if isinstance(analysis_data, str):
+                            analysis_data = json.loads(analysis_data)
+                    except (json.JSONDecodeError, TypeError):
+                        analysis_data = None
+                
+                # Parse peak_efforts
+                peak_efforts = {}
+                if row['peak_efforts']:
+                    try:
+                        peak_efforts = json.loads(row['peak_efforts'])
+                        if isinstance(peak_efforts, str):
+                            peak_efforts = json.loads(peak_efforts)
+                    except (json.JSONDecodeError, TypeError):
+                        peak_efforts = {}
+                
+                # Extract workout date and fit data from analysis_data if available
+                workout_date = row['workout_day']
+                fit_data = None
+                ai_analysis = row['analysis_text']
+                file_name = row['file_name']
+                title = row['workout_title']
+                
+                if analysis_data:
+                    # Get workout date from analysis_data if not in workouts table
+                    if not workout_date and 'workout_date' in analysis_data:
+                        workout_date = analysis_data.get('workout_date')
+                    
+                    # Get parsed FIT data from analysis_data
+                    if 'parsed_data' in analysis_data:
+                        fit_data = analysis_data['parsed_data']
+                    
+                    # Get AI analysis text
+                    if not ai_analysis and 'ai_analysis' in analysis_data:
+                        ai_analysis = analysis_data['ai_analysis']
+                    
+                    # Get file name
+                    if not file_name and 'file_name' in analysis_data:
+                        file_name = analysis_data['file_name']
+                
+                # Fall back to fit_files table if no fit_data from analysis
+                if not fit_data and row['fit_data']:
+                    try:
+                        fit_data = json.loads(row['fit_data'])
+                    except (json.JSONDecodeError, TypeError):
+                        fit_data = None
+                
+                # Determine best title - prefer workout_title from workouts table
+                display_title = title
+                if not display_title or 'zwift-activity' in display_title.lower():
+                    # Try to get a better title from the file name or use a default
+                    if file_name and 'zwift-activity' not in file_name.lower():
+                        display_title = file_name.replace('.fit', '')
+                    else:
+                        # Use workout date and type as fallback
+                        display_title = f"Workout - {workout_date or 'Unknown Date'}"
+                
+                # Construct result object
+                result = {
+                    'analysis_id': row['analysis_id'],
+                    'analyzed_at': row['analyzed_at'],
+                    'analysis_text': ai_analysis or 'No analysis text available',
+                    'peak_efforts': peak_efforts,
+                    'workout_date': workout_date or 'Unknown',
+                    'title': display_title,
+                    'file_name': file_name,
+                    'fit_data': fit_data,
+                    'analysis_data': analysis_data
+                }
+                results.append(result)
+                
+            return results
+            
+        except Exception as e:
+            print(f"Error retrieving historical analyses: {e}")
+            import traceback
+            traceback.print_exc()
+            return []
         finally:
             conn.close()

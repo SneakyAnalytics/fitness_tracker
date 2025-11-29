@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from playwright.sync_api import sync_playwright, Page
 import requests
 from dotenv import load_dotenv
-from trainingpeaks_file_processor import TrainingPeaksFileProcessor
+from .trainingpeaks_file_processor import TrainingPeaksFileProcessor
 import nest_asyncio
 
 # Allow nested event loops (needed when running from Streamlit)
@@ -25,7 +25,7 @@ class TrainingPeaksSync:
         self.username = os.getenv("TRAININGPEAKS_USERNAME")
         self.password = os.getenv("TRAININGPEAKS_PASSWORD")
         self.downloads_dir = Path.home() / "Downloads"
-        self.extract_dir = Path.home() / "Downloads" / "trainingpeaks_extracted"
+        self.extract_dir = Path("/tmp") / "trainingpeaks_extracted"
         self.api_base = "http://localhost:8000"
     
     def get_current_week_dates(self):
@@ -159,8 +159,12 @@ class TrainingPeaksSync:
         
         print(f"✅ Downloaded and saved {len(saved_files)} files!")
     
-    def process_and_upload_files(self):
-        """Process downloaded files and upload to database"""
+    def process_and_upload_files(self, cleanup_fit_files: bool = True):
+        """Process downloaded files and upload to database
+        
+        Args:
+            cleanup_fit_files: If False, FIT files are kept after upload for further processing
+        """
         print("\n📦 Processing downloaded files...")
         
         processor = TrainingPeaksFileProcessor(self.downloads_dir, self.extract_dir)
@@ -176,25 +180,38 @@ class TrainingPeaksSync:
             'fit_files': 0,
             'workouts': False,
             'metrics': False,
-            'errors': []
+            'errors': [],
+            'fit_file_paths': []  # Track extracted FIT file paths
         }
         
+        extracted_fit_files = []  # Track extracted FIT file paths at function level
+        
         # Process FIT files
+        extracted_fit_files = []  # Track extracted FIT file paths
         if workout_files_path:
             print(f"📦 Processing FIT files from {workout_files_path.name}...")
             try:
                 # Check if it's a directory or ZIP
                 if workout_files_path.is_dir():
-                    # Already extracted - find .fit.gz files directly
+                    # Already extracted - find both .fit.gz and .FIT.gz files (case-insensitive)
                     fit_gz_files = list(workout_files_path.rglob('*.fit.gz'))
+                    fit_gz_files.extend(list(workout_files_path.rglob('*.FIT.gz')))  # Add uppercase variant
                     fit_files = []
+                    # Decompress .fit.gz/.FIT.gz files
                     for fit_gz in fit_gz_files:
                         fit_file = processor.decompress_fit_gz(fit_gz)
                         fit_files.append(fit_file)
+                    # Also find plain .fit/.FIT files (case-insensitive)
+                    plain_fit_files = list(workout_files_path.rglob('*.fit'))
+                    plain_fit_files.extend(list(workout_files_path.rglob('*.FIT')))
+                    # Filter out any files that were just decompressed
+                    plain_fit_files = [f for f in plain_fit_files if not any(str(f).endswith(str(gz.with_suffix(''))) for gz in fit_gz_files)]
+                    fit_files.extend(plain_fit_files)
                 else:
                     # It's a ZIP - use the processor method
                     fit_files = processor.process_workout_files_export(workout_files_path)
                 
+                extracted_fit_files = fit_files  # Save for later analysis
                 print(f"   Found {len(fit_files)} FIT files")
                 
                 # Upload each FIT file
@@ -212,6 +229,36 @@ class TrainingPeaksSync:
                     except Exception as e:
                         print(f"   ❌ Error uploading {fit_file}: {str(e)}")
                         results['errors'].append(f"FIT error: {str(e)}")
+                
+                # Store FIT file paths in results
+                results['fit_file_paths'] = extracted_fit_files
+                
+                # Clean up FIT files after upload (if enabled)
+                if cleanup_fit_files:
+                    print("🗑️  Cleaning up FIT files...")
+                    for fit_file in fit_files:
+                        try:
+                            Path(fit_file).unlink()
+                        except Exception as cleanup_err:
+                            print(f"   ⚠️  Could not delete {Path(fit_file).name}: {cleanup_err}")
+                
+                # Clean up extraction directory if it's in /tmp (if cleanup enabled)
+                if cleanup_fit_files and workout_files_path and str(workout_files_path).startswith('/tmp'):
+                    try:
+                        import shutil
+                        # Find the top-level extraction directory
+                        extract_base = workout_files_path
+                        while extract_base.parent != Path('/tmp/trainingpeaks_extracted') and extract_base.parent.name != 'trainingpeaks_extracted':
+                            extract_base = extract_base.parent
+                            if extract_base == Path('/tmp'):
+                                break
+                        
+                        if extract_base != Path('/tmp') and extract_base.exists():
+                            shutil.rmtree(extract_base)
+                            print(f"   🗑️  Removed extraction directory: {extract_base.name}")
+                    except Exception as cleanup_err:
+                        print(f"   ⚠️  Could not clean extraction directory: {cleanup_err}")
+                
             except Exception as e:
                 print(f"❌ Error processing FIT files: {str(e)}")
                 results['errors'].append(f"FIT processing error: {str(e)}")
@@ -274,8 +321,14 @@ class TrainingPeaksSync:
         
         return results
     
-    def run_sync(self, start_date=None, end_date=None):
-        """Run the complete sync process"""
+    def run_sync(self, start_date=None, end_date=None, cleanup_fit_files=True):
+        """Run the complete sync process
+        
+        Args:
+            start_date: Start date for sync
+            end_date: End date for sync
+            cleanup_fit_files: If False, FIT files are kept after upload for further processing
+        """
         # Get dates
         if start_date is None or end_date is None:
             start_date, end_date = self.get_current_week_dates()
@@ -305,7 +358,7 @@ class TrainingPeaksSync:
                 browser.close()
             
             # Process and upload files
-            results = self.process_and_upload_files()
+            results = self.process_and_upload_files(cleanup_fit_files=cleanup_fit_files)
             
             print("\n" + "=" * 60)
             print("✅ SYNC COMPLETE!")

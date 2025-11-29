@@ -8,6 +8,28 @@ from .dynamic_workout_content import dynamic_content
 # Default user FTP in watts - adjust this as your fitness changes
 DEFAULT_FTP = 258
 
+def clean_zwift_text(text: str) -> str:
+    """
+    Clean text for Zwift compatibility:
+    1. Remove emojis and non-ASCII characters
+    2. Replace double quotes with single quotes
+    3. Remove newlines
+    """
+    if not text:
+        return ""
+    
+    # Remove emojis and non-ASCII characters (keep only basic ASCII)
+    # This effectively strips emojis while keeping English text
+    text = text.encode('ascii', 'ignore').decode('ascii')
+    
+    # Replace double quotes with single quotes to avoid XML attribute issues
+    text = text.replace('"', "'")
+    
+    # Remove newlines
+    text = text.replace('\n', ' ').replace('\r', '')
+    
+    return text.strip()
+
 def get_random_text_alert(workout_type: str = "general", interval_name: str = "", duration: int = 0) -> str:
     """Get a dynamic entertaining text alert based on context"""
     return dynamic_content.get_fresh_content("general", workout_type, interval_name, duration)
@@ -159,26 +181,67 @@ def generate_zwift_workout(workout_date: str, workout_name: str, intervals: List
             '  <tags/>',
             '  <workout>',
             '    <!-- Welcome message -->',
-            '    <textevent timeoffset="5" message="' + dynamic_content.get_fresh_content("welcome") + '"/>',
-            '    <textevent timeoffset="15" message="' + dynamic_content.get_fresh_content("encouragement") + '"/>',
-            '    <!-- Daily special content -->',
-            '    <textevent timeoffset="25" message="' + dynamic_content.get_fresh_content("daily_special", workout_date=workout_date_obj) + '"/>'
+            '    <textevent timeoffset="5" message="' + clean_zwift_text(dynamic_content.get_fresh_content("welcome")) + '"/>'
         ]
+        
+        # Calculate total workout duration to space out messages
+        total_duration = sum(interval.get('duration', 0) for interval in intervals)
+        
+        # Add 10-15 text events throughout the workout (one every ~2-3 minutes)
+        num_messages = min(15, max(10, total_duration // 180))  # 1 per 3 minutes, 10-15 total
+        message_interval = total_duration / (num_messages + 1)  # Space evenly
+        
+        # Collect all text events first with their absolute time offsets
+        text_events = []
+        
+        for i in range(num_messages):
+            offset = int((i + 1) * message_interval)
+            
+            # Add trivia question, then answer 60 seconds later
+            if i % 4 == 0:  # Every 4th message is trivia
+                trivia_q = dynamic_content.get_fresh_content("general")
+                if '🏆 Sports Trivia:' in trivia_q:  # Check if it's actually trivia
+                    # Get answer immediately after getting question (they're paired)
+                    trivia_answer = dynamic_content.get_trivia_answer()
+                    text_events.append((offset, clean_zwift_text(trivia_q)))
+                    # Add answer 60 seconds later if there's time
+                    if trivia_answer and offset + 60 < total_duration:
+                        text_events.append((offset + 60, clean_zwift_text(trivia_answer)))
+                    continue
+            
+            # Regular varied content
+            message = dynamic_content.get_fresh_content("general")
+            text_events.append((offset, clean_zwift_text(message)))
+        
+        # Add motivational closing message
+        chosen_closing = dynamic_content.get_fresh_content("closing")
+        # Add it 10 seconds before the end if possible, or just append at the end
+        if total_duration > 10:
+             text_events.append((total_duration - 10, clean_zwift_text(chosen_closing)))
         
         # Reset used messages for fresh workout content
         dynamic_content.reset_used_messages()
         
-        # Process intervals
+        # Process intervals and embed text events
         print(f"DEBUG: Using FTP: {ftp}W for workout generation")
+        current_workout_time = 0
+        
         for interval in intervals:
             print(f"DEBUG: Processing interval: {interval.get('name', 'unnamed')}")
-            interval_type, xml_element = convert_interval_to_zwift(interval, ftp)
+            duration = interval.get('duration', 0)
+            
+            # Find events that fall within this interval
+            interval_events = []
+            for time, msg in text_events:
+                if current_workout_time <= time < current_workout_time + duration:
+                    relative_time = time - current_workout_time
+                    interval_events.append((relative_time, msg))
+            
+            interval_type, xml_element = convert_interval_to_zwift(interval, ftp, interval_events)
             if xml_element:
                 xml_content.append(f'    {xml_element}')
-        
-        # Add motivational closing message
-        chosen_closing = dynamic_content.get_fresh_content("closing")
-        xml_content.append(f'    <textevent timeoffset="10" message="{chosen_closing}"/>')
+            
+            current_workout_time += duration
         
         # Close the XML
         xml_content.extend([
@@ -220,13 +283,14 @@ def fix_xml_tag_in_file(file_path: str) -> None:
     except Exception as e:
         print(f"Warning: Could not fix XML tag in {file_path}: {str(e)}")
 
-def convert_interval_to_zwift(interval: Dict[str, Any], ftp: int) -> Tuple[str, str]:
+def convert_interval_to_zwift(interval: Dict[str, Any], ftp: int, text_events: Optional[List[Tuple[int, str]]] = None) -> Tuple[str, str]:
     """
     Convert an interval dictionary to Zwift XML format.
     
     Args:
         interval: Dictionary containing interval data
         ftp: FTP value in watts for power calculations
+        text_events: List of (relative_time_offset, message) tuples to embed in this interval
         
     Returns:
         Tuple of (interval_type, xml_element)
@@ -284,19 +348,19 @@ def convert_interval_to_zwift(interval: Dict[str, Any], ftp: int) -> Tuple[str, 
         if cadence_min and cadence_max:
             xml_element += f' Cadence="{cadence_min}-{cadence_max}"'
     
-    # Add interval description and entertaining alerts as text events
-    if interval_type or duration > 120:  # Add text events for intervals longer than 2 minutes
+    # If there are text events, we need to close the tag with > and add children
+    if text_events:
         xml_element += '>'
+        for offset, message in text_events:
+            xml_element += f'\n      <textevent timeoffset="{offset}" message="{message}"/>'
         
-        # Get contextual message sequence for this interval
-        messages = dynamic_content.get_contextual_message_sequence(interval_type, duration)
-        
-        # Add all messages to the XML
-        for msg in messages:
-            xml_element += f'\n      <textevent timeoffset="{msg["timeoffset"]}" message="{msg["message"]}"/>'
-        
-        xml_element += '\n    </SteadyState>' if 'SteadyState' in xml_element else '\n    </Ramp>'
+        # Close the element with the correct tag name
+        if xml_element.startswith('<Ramp'):
+            xml_element += '\n    </Ramp>'
+        else:
+            xml_element += '\n    </SteadyState>'
     else:
+        # Close the interval element (self-closing)
         xml_element += '/>'
     
     return interval_type, xml_element

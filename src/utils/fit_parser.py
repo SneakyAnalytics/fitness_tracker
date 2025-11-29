@@ -50,9 +50,18 @@ class FitParser:
         }
     
     def calculate_tss(self, normalized_power: float, duration_hours: float, ftp: float) -> float:
-        """Calculate Training Stress Score (TSS)"""
-        intensity_factor = safe_divide(normalized_power, ftp)
-        return (duration_hours * normalized_power * intensity_factor * 100) / (ftp * 3600)
+        """Calculate Training Stress Score (TSS)
+        
+        TSS = (duration_seconds × NP × IF) / (FTP × 3600) × 100
+        where IF = NP / FTP
+        """
+        if ftp <= 0 or duration_hours <= 0:
+            return 0.0
+        
+        intensity_factor = normalized_power / ftp
+        duration_seconds = duration_hours * 3600
+        tss = (duration_seconds * normalized_power * intensity_factor) / (ftp * 3600) * 100
+        return tss
 
     
     def calculate_hr_zones(self, hr_data: List[int], max_hr: Optional[int] = None) -> Dict[str, float]:
@@ -237,11 +246,21 @@ class FitParser:
                     print("DEBUG: No valid heart rate data after filtering")
                 else:
                     hr_array = np.array(hr_data_filtered)
+                    
+                    # Get athlete max HR from environment or use estimate
+                    athlete_max_hr = None
+                    try:
+                        env_max_hr = os.environ.get('ATHLETE_MAX_HR')
+                        athlete_max_hr = int(env_max_hr) if env_max_hr else None
+                    except Exception:
+                        athlete_max_hr = None
+                    
                     hr_metrics = {
                         'average_hr': float(np.mean(hr_array)),
                         'max_hr': float(np.max(hr_array)),
                         'min_hr': float(np.min(hr_array)),
-                        'zones': self.calculate_hr_zones(hr_data_filtered)  # Use filtered data
+                        'zones': self.calculate_hr_zones(hr_data_filtered, max_hr=athlete_max_hr),  # Pass athlete max HR
+                        'hr_series': convert_numpy(hr_array)  # Include time series
                     }
             # Detect sport type from session data
             sport = None
@@ -269,12 +288,22 @@ class FitParser:
                         break
             except Exception as e:
                 print(f"DEBUG: Could not detect sport: {e}")
+            # Include time series data for visualization
+            time_series = {
+                'timestamps': [t.isoformat() for t in timestamps] if timestamps else [],
+                'power': convert_numpy(power_array) if power_data else [],
+                'hr': convert_numpy([x if x and x > 0 else None for x in hr_data]) if hr_data else [],
+                'cadence': convert_numpy([x if x and x > 0 else None for x in cadence_data]) if cadence_data else []
+            }
+            
             return {
                 'sport': sport,
                 'start_time': timestamps[0].isoformat() if timestamps else None,
                 'duration_hours': duration_hours,
+                'duration_seconds': duration_seconds if timestamps else 0,
                 'power_metrics': power_metrics,
                 'hr_metrics': hr_metrics,
+                'time_series': time_series,  # Add time series data
                 'metrics': {
                     'tss': power_metrics['tss'] if power_metrics else None,
                     'duration': duration_hours * 60,  # Convert to minutes

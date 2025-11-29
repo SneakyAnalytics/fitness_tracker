@@ -110,42 +110,110 @@ Story Points:
 10. Setup zwift files to land in the appropriate user folder, creating a new folder within that folder for each week making it easy to know which folder I should open each week (2 points)✓
 11. Ensure that the processing of the intervals in biking workouts is correctly being calculated as a percentage of FTP as there are some issues in the users testing process, specifically with the second bike workout which is supposed to be a light effort (around 170-190 watts) but is registering as (400+ watts) (2 points)✓
 
-[ ] AI Analysis of fit file results
+[X] TrainingPeaks Automation
 Description:
 
-- The raw fit files that I upload into my database after I have completed the workouts have an enormous amount of moment by moment data from my workouts, this data would provide tremendous benefit, if a set of non-biased qualitative responses could be given to answer a subset of questions surrounding key measures I am tracking that show signs of positive/negative changes to my fitness
-- I am want this AI summary analysis to be performed for my bike workouts only
-- I want these responses to be included in my weekly workout analysis text file in the daily analysis sections
-- I want to use the google gemini or another free model to provide this analysis (as I want this analysis to be free since I will be using this application long term)
-- There are existing portions of the application that started to build out this AI analysis structure, and these likely can be removed as a part of this build (or repurposed if there are reusable elements)
-- I would like the AI to have the context frame that they are a professional athlete trainer, focused on improving this one athlete to achieve their fitness goals which include 50-100 mile gravel bike rides in his state of Oregon in the USA, which encompass large amounts of climbing and challenging terrain, as well as overall improving his endurance, strength, and fitness over time.
-- If there are any other suggested opportunities for improving this type of workout analysis within this build to improve the overall effectiveness, or quality insights, feel free to have flexibility to explore these
-- The questions for the bike workouts I would like answered along with any other notable fitness trends are as follows:
+- Automated sync of workout data from TrainingPeaks website
+- Eliminates manual CSV export and FIT file download process
+- Uses Playwright browser automation to log in, export data, and download FIT files
+- Implements filename-based deduplication to prevent duplicate workout entries
+- Preserves all existing manual upload functionality as backup
+- Integrated into Streamlit UI with credential management
 
-1. Heart Rate Response Questions:
+Implementation Notes:
 
-   - Does HR steadily increase during steady power?
-   - How long to recover between intervals?
-   - Any unusual heart rate spikes?
-
-2. Power Delivery Response Questions:
-   - Ability to maintain cadence?
-   - Any power drops or apparent struggles based on the data set?
-   - Any other notable Power Delivery Trends?
+- Created trainingpeaks_sync.py orchestrator using Playwright sync API
+- Built trainingpeaks_file_processor.py for FIT file parsing and database insertion
+- Added deduplication logic in database.py checking (workout_day, workout_title, file_name)
+- Updated .gitignore to exclude automation downloads and temp directories
+- Added comprehensive documentation to README.md with setup and usage instructions
+- Maintains sequence numbers for multiple workouts per day while keeping matching algorithm independent
 
 Story Points:
 
-1. Research and set up Google Gemini API (3 points)
-2. Analyze fit file structure and extract relevant data points (5 points)
-3. Develop data processing pipeline for heart rate analysis (5 points)
-4. Implement power delivery analysis (5 points)
-5. Create AI prompt engineering with professional trainer context (3 points)
-6. Implement API integration and response handling (3 points)
-7. Integrate AI analysis into weekly summary generation (4 points)
-8. Add caching to minimize API costs (2 points)
-9. Testing with different workout types and intensities (3 points)
-10. Refactor/remove existing partial AI implementation (2 points)
-11. Add documentation and monitoring (2 points)
+1. Research Playwright automation approach (2 points) ✓
+2. Implement TrainingPeaks login and navigation (3 points) ✓
+3. Build CSV export automation (3 points) ✓
+4. Create FIT file download automation (4 points) ✓
+5. Implement file processing and database insertion (4 points) ✓
+6. Add filename-based deduplication logic (3 points) ✓
+7. Create Streamlit UI integration (3 points) ✓
+8. Add credential management and validation (2 points) ✓
+9. Testing and error handling (3 points) ✓
+10. Documentation and cleanup (2 points) ✓
+
+[ ] AI Coaching System - Full Automation Loop
+Description:
+
+- Implement end-to-end AI coaching system that analyzes weekly workout data and generates proposed workouts for the upcoming week
+- AI coach reviews weekly summary data, queries historical database for context, and provides:
+  1. Weekly performance analysis (highlights, lowlights, coaching insights)
+  2. Trend analysis and improvement suggestions
+  3. Generated JSON for proposed workouts matching app requirements
+  4. High-level overview of constructed workouts for following week
+- AI coach maintains continuity via "coaching notes" file that persists personality, athlete observations, and coaching focus areas
+- User provides weekly input for scheduling constraints (e.g., "snow on mountain, add XC skiing workout")
+- Approval workflow: user reviews AI-generated workouts before they're processed into Zwift files and weekly dashboard
+- Preserves all existing manual workflow options during development and testing
+
+Technical Implementation:
+
+- AI Model: Claude Sonnet 4.5 via API (testing with cheaper models initially)
+- Database Access: AI coach has SQL query tool to analyze full training history
+- Knowledge Base: Import cycling science principles and workout format requirements from Claude Project
+- Memory System: Persistent coaching notes file stores:
+  - Athlete behavior patterns and observations
+  - Coaching focus areas and goals
+  - Personality/style preferences (can be customized for different coaching styles)
+  - Week-to-week continuity notes
+- Input: Streamlit form for weekly scheduling constraints and preferences
+- Output: Combined markdown analysis + validated JSON workout plan
+- Integration: New "AI Coach" tab in Streamlit (separate from manual workflow)
+- Validation: Multi-layer validation during development:
+  - JSON schema validation
+  - Workout parameter bounds checking
+  - Manual review/approval step before finalizing
+  - Gradual removal of validation layers as confidence grows
+
+Workflow:
+
+1. Generate weekly summary (existing functionality)
+2. User opens "AI Coach" tab, inputs any scheduling constraints/notes
+3. AI coach queries database for historical context
+4. AI coach reads previous coaching notes for continuity
+5. AI analyzes weekly summary + historical data + coaching notes
+6. AI generates:
+   - Detailed weekly analysis (markdown/text)
+   - Proposed workouts JSON (validated against schema)
+   - Updated coaching notes for next week
+7. User reviews analysis and proposed workouts
+8. User approves/edits workouts
+9. System processes approved JSON:
+   - Saves to proposed_workouts table
+   - Generates Zwift .zwo files
+   - Updates weekly dashboard
+10. AI coaching notes saved for next week
+
+Story Points:
+
+1. Research and configure Claude API integration (3 points)
+2. Design coaching notes file structure and persistence (2 points)
+3. Build database query tool for AI coach (5 points)
+4. Create knowledge base from Claude Project resources (4 points)
+5. Design Streamlit "AI Coach" tab UI (3 points)
+6. Implement weekly constraints/preferences input form (2 points)
+7. Build AI prompt engineering with trainer context (5 points)
+8. Implement coaching notes read/write logic (3 points)
+9. Create weekly analysis generation pipeline (4 points)
+10. Build proposed workout JSON generation (5 points)
+11. Implement multi-layer validation system (4 points)
+12. Create user review/approval interface (3 points)
+13. Integrate with existing proposed workout processing (3 points)
+14. Build automatic Zwift file generation trigger (2 points)
+15. Add cost tracking and model switching capability (3 points)
+16. Testing with multiple weeks of data (4 points)
+17. Create coaching personality customization options (2 points)
+18. Documentation and user guide (3 points)
 
 [ ] Stylize Streamlit pages
 Description:
@@ -170,32 +238,36 @@ Story Points:
 8. Add animated transitions and micro-interactions (2 points)
 9. User testing and refinement (2 points)
 
-[ ] Build AI Workout Planner into the application based on the historical context
+[ ] AI Analysis of Individual Workout FIT Files (Future Enhancement)
 Description:
 
-- Currently I use the text output generated from my weekly summary text files to feed into an AI conversation, which has the context of all of my previous weeks of workouts, and progress over time, to then have the AI agent provide a set of weekly proposed workouts for the following week based on the results
-- In this conversation I will note if I have any upcoming conflicts or special scenarios which would prevent me from doing daily workouts for the week, and a few brief weekly notes occasionally if I have other context to add aside from the data I am providing
-- I would love if all of this context could be provided within my application using my database, with an AI, to look back at the history of my workout data (whatever amount of time makes sense), to create the proposed workouts for the next week (instead of me having to generate this manually by taking the data and feeding it into an AI prompt service)
-- In this conversation I have noted any small/large goals that I am working towards, but in general I just want to always be improving my fitness, while being highly intelligent and following best industry practices and scientifically backed from an athlete training perspective, using all the most up to date and data backed strategies to ensure I am healthily improving while maximizing my time and effort for the best improvements
-- I have the general guidance of being comfortable working out for an hour to two hours a day during the week (with also the occasional day where I am comfortable doing multiple workouts in a day), with generally more time available on the weekends
-- I like going off of the recent trends of my conversation with an AI agent, to help generally steer the types of activities I am interested in doing (like seasonally I do XC skiing in the winter, and some more running, hiking etc. in the spring fall and summertime, and sometimes I just want to focus on cycling)
-- I would like if the results of this AI analysis could be delivered into my database, instead of me needing to upload a json with all the proposed workout data, but I am sure the elements of my application in which I have built to show the proposed workout data, and merge that data into the weekly summary could be repurposed easily to maintain all of these functionalities just removing the need to get a file and deliver it back into the application
-- I am flexible about this overall design but obviously am trying to build an end to end data application that manages and provides professional training all in one utilizing AI for workout suggestion, and analysis
+- Deep-dive analysis of individual cycling workout FIT files for per-workout insights
+- This is a complementary feature to the weekly AI coaching system
+- Analyzes moment-by-moment data from bike workouts only
+- Provides detailed qualitative responses about workout execution quality
+- Could be integrated into weekly summary or accessed on-demand per workout
 
-Story Points:
+Key Analysis Questions:
 
-1. Research and select appropriate AI model (3 points)
-2. Design database schema for storing training goals and preferences (3 points)
-3. Create data extraction pipeline for historical workout analysis (5 points)
-4. Develop input interface for weekly conflicts and special notes (3 points)
-5. Implement prompt engineering for workout planning (8 points)
-6. Create seasonal activity preference logic (3 points)
-7. Design workout generation algorithm with validation rules (5 points)
-8. Develop database integration for storing AI-generated workouts (4 points)
-9. Create UI for reviewing and modifying AI suggestions (4 points)
-10. Implement feedback loop to improve future suggestions (3 points)
-11. Add extensive testing with various scenarios (3 points)
-12. Create documentation and user guide (2 points)
+1. Heart Rate Response:
+
+   - Does HR steadily increase during steady power?
+   - Recovery time between intervals
+   - Unusual heart rate spikes or drift
+
+2. Power Delivery:
+   - Ability to maintain target cadence
+   - Power drops or struggles during intervals
+   - Consistency and smoothness trends
+
+Implementation Considerations:
+
+- May use cheaper/free model (Google Gemini) since it's per-workout analysis
+- Could be optional add-on to weekly coaching analysis
+- Lower priority than full coaching system
+- May repurpose or remove existing partial AI implementation
+
+Story Points: TBD (lower priority than main AI coaching system)
 
 [ ] Repo Clean Up
 Description:

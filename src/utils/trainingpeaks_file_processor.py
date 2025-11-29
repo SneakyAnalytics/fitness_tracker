@@ -68,7 +68,7 @@ class TrainingPeaksFileProcessor:
     
     def process_workout_files_export(self, zip_path: Path) -> List[Path]:
         """
-        Process WorkoutFileExport ZIP containing .fit.gz files.
+        Process WorkoutFileExport ZIP containing .fit.gz and .FIT.gz files.
         
         Args:
             zip_path: Path to WorkoutFileExport ZIP
@@ -79,14 +79,21 @@ class TrainingPeaksFileProcessor:
         # Extract ZIP
         extract_path = self.extract_zip(zip_path)
         
-        # Find all .fit.gz files
+        # Find all .fit.gz and .FIT.gz files (case-insensitive)
         fit_gz_files = list(extract_path.rglob('*.fit.gz'))
+        fit_gz_files.extend(list(extract_path.rglob('*.FIT.gz')))  # Add uppercase variant
         
-        # Decompress each file
         fit_files = []
         for fit_gz in fit_gz_files:
             fit_file = self.decompress_fit_gz(fit_gz)
             fit_files.append(fit_file)
+        
+        # Also find plain .fit/.FIT files (case-insensitive)
+        plain_fit_files = list(extract_path.rglob('*.fit'))
+        plain_fit_files.extend(list(extract_path.rglob('*.FIT')))
+        # Filter out any files that were just decompressed (avoid duplicates)
+        plain_fit_files = [f for f in plain_fit_files if not any(str(f).endswith(str(gz_file.with_suffix(''))) for gz_file in fit_gz_files)]
+        fit_files.extend(plain_fit_files)
         
         return fit_files
     
