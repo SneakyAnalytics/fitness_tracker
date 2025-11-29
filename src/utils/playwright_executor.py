@@ -100,8 +100,8 @@ class PlaywrightAutomationExecutor:
             {
                 "step": 10,
                 "action": "click",
-                "params": {"selector": "p.MuiTypography-root:has-text('Jake Robinson')"},
-                "description": "Open user menu"
+                "params": {"selector": "p.MuiTypography-root:has-text('YOUR_NAME_HERE')"},
+                "description": "Open user menu (replace YOUR_NAME_HERE with your TrainingPeaks display name)"
             },
             {
                 "step": 11,

@@ -70,7 +70,13 @@ class TrainingPeaksSync:
         # Navigate to Settings
         print("⚙️  Navigating to Settings...")
         page.click("button:has-text('Calendar')")
-        page.click("p.MuiTypography-root:has-text('Jake Robinson')")
+        # Get username from environment or use generic selector
+        username = os.getenv('TRAININGPEAKS_USERNAME', '').split('@')[0]
+        # Click user menu - try username first, fallback to generic selector
+        try:
+            page.click("p.MuiTypography-root[class*='userMenuButton']", timeout=5000)
+        except:
+            page.click("button:has-text('Settings')", timeout=5000)
         page.click("label.userSettingsOption:has-text('Settings')")
         
         # Wait for export page

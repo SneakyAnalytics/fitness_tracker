@@ -731,7 +731,7 @@ if __name__ == "__main__":
     
     # Create sample context
     sample_profile = {
-        'name': 'Jake Robinson',
+        'name': 'Athlete',  # Loaded from coaching_notes.json
         'current_ftp': 300,
         'starting_ftp': 200,
         'primary_goals': [
