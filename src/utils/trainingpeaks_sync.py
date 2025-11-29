@@ -5,6 +5,7 @@ Standalone script that runs browser automation directly
 
 import os
 import time
+import json
 from pathlib import Path
 from datetime import datetime, timedelta
 from playwright.sync_api import sync_playwright, Page
@@ -71,33 +72,84 @@ class TrainingPeaksSync:
         print("⚙️  Navigating to Settings...")
         page.click("button:has-text('Calendar')")
         
-        # Click user menu - try multiple selectors
-        print("   Opening user menu...")
+        # Give the page a moment to load
+        time.sleep(2)
+        
+        # Click user menu - this is typically your name displayed in the top right
+        print("   Opening user menu (looking for your display name)...")
+        
+        # Try to find and click the user menu by various methods
         user_menu_clicked = False
-        selectors_to_try = [
-            "p.MuiTypography-root[class*='userMenuButton']",
-            "button[aria-label*='user menu']",
-            "button[class*='userMenuButton']",
-            "div[class*='userMenu']",
-            # Generic fallback - any element containing username
-            f"p.MuiTypography-root:has-text('{self.username.split('@')[0]}')" if '@' in self.username else None
-        ]
         
-        for selector in selectors_to_try:
-            if selector is None:
-                continue
-            try:
-                page.click(selector, timeout=3000)
-                user_menu_clicked = True
-                print(f"   ✓ User menu opened with selector: {selector[:50]}...")
-                break
-            except:
-                continue
+        # Method 1: Try clicking on any visible name/user menu button
+        try:
+            # Look for common user menu patterns
+            selectors = [
+                "button[class*='userMenu']",
+                "div[class*='userMenu'] button",
+                "button[aria-label*='menu']",
+                "button[aria-label*='account']",
+                # Try finding by the Settings option being visible (reverse approach)
+                "xpath=//label[contains(text(), 'Settings')]/ancestor::div[contains(@class, 'menu')]//button"
+            ]
+            
+            for selector in selectors:
+                try:
+                    page.click(selector, timeout=2000)
+                    user_menu_clicked = True
+                    print(f"   ✓ User menu opened")
+                    break
+                except:
+                    continue
+                    
+        except Exception as e:
+            print(f"   ⚠️  Standard selectors failed: {e}")
         
+        # Method 2: If standard selectors fail, try to find any clickable text that might be a username
         if not user_menu_clicked:
-            print("   ⚠️  Could not find user menu - trying direct Settings link")
+            print("   Trying to find username text...")
+            try:
+                # Get all p tags with MuiTypography class (common for user display)
+                page.evaluate("""
+                    () => {
+                        const elements = document.querySelectorAll('p.MuiTypography-root');
+                        console.log('Found typography elements:', elements.length);
+                        elements.forEach((el, i) => {
+                            console.log(`Element ${i}: "${el.textContent}"`);
+                        });
+                    }
+                """)
+                
+                # Try clicking elements that might be usernames (not "Calendar", "Dashboard", etc.)
+                excluded_texts = ['Calendar', 'Dashboard', 'Workouts', 'Reports', 'Training', 'Metrics']
+                page.evaluate(f"""
+                    () => {{
+                        const excluded = {json.dumps(excluded_texts)};
+                        const elements = document.querySelectorAll('p.MuiTypography-root');
+                        for (let el of elements) {{
+                            const text = el.textContent.trim();
+                            if (text && text.length > 2 && !excluded.includes(text)) {{
+                                console.log('Trying to click:', text);
+                                el.click();
+                                return true;
+                            }}
+                        }}
+                        return false;
+                    }}
+                """)
+                time.sleep(1)
+                user_menu_clicked = True
+                print("   ✓ Clicked potential user menu element")
+            except Exception as e:
+                print(f"   ⚠️  Could not find username: {e}")
         
-        # Click Settings from the dropdown menu
+        # Final attempt: Just wait for Settings to appear and click it directly
+        if not user_menu_clicked:
+            print("   ⚠️  Waiting for Settings option to appear...")
+            time.sleep(3)
+        
+        # Click Settings from the dropdown menu (should be visible now)
+        print("   Clicking Settings option...")
         page.click("label.userSettingsOption:has-text('Settings')", timeout=10000)
         
         # Wait for export page
