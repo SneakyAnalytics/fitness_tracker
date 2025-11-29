@@ -70,14 +70,35 @@ class TrainingPeaksSync:
         # Navigate to Settings
         print("⚙️  Navigating to Settings...")
         page.click("button:has-text('Calendar')")
-        # Get username from environment or use generic selector
-        username = os.getenv('TRAININGPEAKS_USERNAME', '').split('@')[0]
-        # Click user menu - try username first, fallback to generic selector
-        try:
-            page.click("p.MuiTypography-root[class*='userMenuButton']", timeout=5000)
-        except:
-            page.click("button:has-text('Settings')", timeout=5000)
-        page.click("label.userSettingsOption:has-text('Settings')")
+        
+        # Click user menu - try multiple selectors
+        print("   Opening user menu...")
+        user_menu_clicked = False
+        selectors_to_try = [
+            "p.MuiTypography-root[class*='userMenuButton']",
+            "button[aria-label*='user menu']",
+            "button[class*='userMenuButton']",
+            "div[class*='userMenu']",
+            # Generic fallback - any element containing username
+            f"p.MuiTypography-root:has-text('{self.username.split('@')[0]}')" if '@' in self.username else None
+        ]
+        
+        for selector in selectors_to_try:
+            if selector is None:
+                continue
+            try:
+                page.click(selector, timeout=3000)
+                user_menu_clicked = True
+                print(f"   ✓ User menu opened with selector: {selector[:50]}...")
+                break
+            except:
+                continue
+        
+        if not user_menu_clicked:
+            print("   ⚠️  Could not find user menu - trying direct Settings link")
+        
+        # Click Settings from the dropdown menu
+        page.click("label.userSettingsOption:has-text('Settings')", timeout=10000)
         
         # Wait for export page
         page.wait_for_selector("input.datepicker.startDate", timeout=10000)
