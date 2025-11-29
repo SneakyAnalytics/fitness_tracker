@@ -155,6 +155,7 @@ class FitFileAnalyzer:
             '5min': 300,
             '10min': 600,
             '20min': 1200,
+            '45min': 2700,
             '60min': 3600
         }
         
