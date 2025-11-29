@@ -22,7 +22,7 @@ from dataclasses import dataclass, asdict
 @dataclass
 class AthleteProfile:
     """Core athlete information and goals"""
-    name: str = "Jake Robinson"
+    name: str = "Athlete"  # Configure in data/coaching_notes.json
     current_ftp: int = 300
     starting_ftp: int = 200  # Impressive 100W improvement!
     

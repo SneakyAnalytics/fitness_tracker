@@ -9,7 +9,13 @@ __pycache__/
 venv/
 .venv/
 env/
+
+# Environment variables and credentials (CRITICAL - NEVER COMMIT)
 .env
+.env.local
+.env.*.local
+*.env
+coaching_notes.json
 
 # IDE and editor files
 .vscode/
@@ -26,19 +32,32 @@ data/fitness_data.db.manual_migrate_*
 data/**/
 data/temp/
 data/proposed_workout_jsons/
+data/coaching_notes.json
+data/ai_coach_output/
 
 # TrainingPeaks automation downloads (temporary)
 trainingpeaks_exports/
 downloads/trainingpeaks_exports/
+/tmp/trainingpeaks_extracted/
+
+# Personal credentials and API keys (CRITICAL)
+**/credentials.json
+**/secrets.json
+**/*password*
+**/*apikey*
+**/*api_key*
 
 # Personal workout data
 Week_*/
 WorkoutFileExport-*/
 
-# Personal files and logs
+# Personal files and logs (may contain usernames/personal data)
 *.log
 api.log
 api_debug.log
+logs/
+logs/*.out
+logs/*.err
 metrics*.csv
 workouts*.csv
 weekly_summary_*.json
