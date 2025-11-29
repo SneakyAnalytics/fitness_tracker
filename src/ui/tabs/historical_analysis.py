@@ -98,8 +98,6 @@ def render_historical_analysis_tab():
     st.markdown("---")
     
     try:
-        from datetime import datetime, timedelta
-        
         db = WorkoutDatabase('data/fitness_data.db')
         
         # Week navigation
