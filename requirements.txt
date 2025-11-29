@@ -1,13 +1,25 @@
 # requirements.txt
 
+# Core API & UI
 fastapi==0.109.0
 uvicorn==0.27.0
 streamlit==1.29.0
+
+# Data processing
 python-dateutil==2.8.2
 typing-extensions==4.15.0
 pydantic==2.5.3
 plotly==5.18.0
 requests==2.31.0
 python-dotenv==1.0.0
+
+# FIT file parsing
+fitparse==1.2.0
+
+# AI APIs
+google-generativeai>=0.3.0
+anthropic>=0.7.0
+
+# Browser automation
 playwright==1.55.0
 nest-asyncio==1.6.0

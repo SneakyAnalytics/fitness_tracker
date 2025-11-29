@@ -823,16 +823,22 @@ async def upload_fit(file: UploadFile = File(...)):
             start_time_str = parsed_data.get('start_time')
             if start_time_str:
                 try:
-                    # Convert to datetime object
+                    import pytz
+                    # Convert to datetime object (assume UTC if no timezone)
                     start_time = datetime.fromisoformat(start_time_str)
+                    
+                    # If timezone-naive, assume it's UTC
+                    if start_time.tzinfo is None:
+                        utc = pytz.UTC
+                        start_time = utc.localize(start_time)
     
                     # Convert to Los Angeles timezone
                     la_timezone = pytz.timezone('America/Los_Angeles')
                     la_start_time = start_time.astimezone(la_timezone)
     
                     # Log times for debugging
-                    print(f"Original start_time: {start_time}")
-                    print(f"LA start_time: {la_start_time}")
+                    print(f"Original start_time (UTC): {start_time}")
+                    print(f"LA start_time (PST/PDT): {la_start_time}")
     
                     # Extract date in YYYY-MM-DD format
                     date = la_start_time.strftime('%Y-%m-%d')

@@ -1,23 +1,36 @@
 # Fitness Tracker
 
-A comprehensive fitness tracking application with Zwift workout generation, FIT file parsing, and training analytics.
+A comprehensive AI-powered fitness tracking system with automated TrainingPeaks sync, workout analysis, and Zwift integration.
 
-## Features
+## 🌟 Key Features
 
-- **Automated TrainingPeaks Sync**: One-click automation to sync data from TrainingPeaks
-  - Downloads FIT files, workout summaries, and daily metrics
-  - Automatically processes and uploads to local database
-  - Deduplicates files to prevent data corruption
-  - Preserves proposed workout matching for weekly summaries
-- **FIT File Processing**: Parse and analyze Garmin/cycling computer data
-- **Dynamic Zwift Workout Generation**: Generate .zwo workout files with:
-  - Accurate power calculations using explicit FTP values
-  - Fresh, API-driven motivational content (quotes, cycling facts, humor)
-  - Context-aware messaging (recovery vs. intensity workouts)
-  - Anti-repetition logic for varied workout experiences
-- **Training Analytics**: Track TSS, power zones, and training load
-- **Weekly Planning**: Process structured training plans with automatic FTP detection
-- **API & Web Interface**: RESTful API and Streamlit dashboard
+### 🤖 Automated Daily Workflow
+
+- **TrainingPeaks Auto-Sync**: Headless browser automation logs in, downloads workouts
+- **AI Analysis**: Gemini-powered workout insights and peak effort detection
+- **Personal Best Tracking**: Medal system (🥇🥈🥉) for 7 effort durations
+- **Auto-Cleanup**: Removes temporary files after processing
+- **10pm PST Scheduling**: Runs automatically via cron job
+
+### 💪 AI Workout Generation
+
+- **Claude-Powered Planning**: Uses Haiku for analysis + Sonnet for generation
+- **Weekly Plans**: Structured workouts based on your fitness data and goals
+- **Zwift File Export**: Auto-generates .zwo files with dynamic alerts
+
+### 📊 Workout Analysis
+
+- **FIT File Parsing**: Complete power, HR, cadence data extraction
+- **Peak Efforts**: 30s, 1min, 3min, 5min, 10min, 20min, 60min
+- **AI Insights**: Quality ratings, recovery recommendations, training suggestions
+- **Interactive Graphs**: Power curves, zone distribution, multi-panel dashboards
+
+### 🚴 Zwift Integration
+
+- **Dynamic Content**: API-based jokes, facts, trivia, cycling tips
+- **Zero Repetition**: Never see the same message twice
+- **Smart Spacing**: 10-15 messages evenly distributed per workout
+- **Trivia Split**: Questions followed by answers 60s later
 
 ## Setup
 
@@ -39,74 +52,86 @@ A comprehensive fitness tracking application with Zwift workout generation, FIT 
 
    ```bash
    pip install -r requirements.txt
-   ```
 
-4. **Configure paths and credentials**:
-
-   ```bash
-   cp .env.example .env
-   # Edit .env with your specific paths and TrainingPeaks credentials
-   ```
-
-   Required environment variables:
-
-   - `TRAININGPEAKS_USERNAME`: Your TrainingPeaks login email
-   - `TRAININGPEAKS_PASSWORD`: Your TrainingPeaks password
-   - `ZWIFT_WORKOUTS_DIR`: Path to Zwift workouts folder (optional)
-   - `DB_PATH`: Database file path (optional)
-
-5. **Install Playwright browsers** (for TrainingPeaks automation):
-
-   ```bash
+   # Install Playwright browsers (required for TrainingPeaks automation)
    playwright install chromium
    ```
 
-6. **Initialize database**:
+4. **Configure environment**:
+
    ```bash
-   mkdir -p data
+   cp .env.example .env
+   # Edit .env with your credentials
+   ```
+
+   **Required variables:**
+
+   ```bash
+   TRAININGPEAKS_USERNAME=your_email@example.com
+   TRAININGPEAKS_PASSWORD=your_password
+   GEMINI_API_KEY=your_gemini_key
+
+   # Optional
+   ANTHROPIC_API_KEY=your_claude_key
+   ZWIFT_WORKOUTS_DIR=~/Documents/Zwift/Workouts/6870291
+   ```
+
+5. **Initialize database**:
+   ```bash
+   mkdir -p data logs
    # Database will be created automatically on first run
    ```
 
-## Usage
+## 🚀 Quick Start
 
-### Automated TrainingPeaks Sync
+### 1. Automated Daily Workflow (Recommended)
 
-The easiest way to sync your TrainingPeaks data:
-
-1. Start the API server (see below)
-2. Open the Streamlit web interface
-3. Go to the "Automated" tab
-4. Click "Start Automated Sync"
-5. Complete CAPTCHA when browser opens
-6. Wait for sync to complete (downloads FIT files, workouts, and metrics)
-
-The automation will:
-
-- Download all data for the selected date range
-- Process and upload FIT files to the database
-- Extract and upload workout summaries
-- Import daily metrics (sleep, HRV, stress, etc.)
-- Automatically deduplicate files to prevent duplicates
-
-**Manual Alternative**: Use the "Manual" tab to upload CSV files and FIT files individually.
-
-### API Server
+Set up automatic TrainingPeaks sync & analysis at 10pm PST:
 
 ```bash
-uvicorn src.api.app:app --reload
+# Run setup script
+./setup_daily_automation.sh
+
+# Add to crontab (edit with: crontab -e)
+0 22 * * * cd /path/to/fitness_tracker && /path/to/venv/bin/python -m src.utils.daily_auto_sync_and_analyze >> logs/daily_automation.log 2>&1
 ```
 
-### Web Interface
+**What it does every day:**
+
+1. 🔄 Logs into TrainingPeaks at 10pm
+2. 📥 Downloads today's workout files
+3. 💾 Stores in database
+4. 🤖 Runs AI analysis with Gemini
+5. 🏅 Updates personal bests
+6. 🧹 Cleans up temp files
+
+### 2. Manual Run (Streamlit UI)
 
 ```bash
+# Start API server (terminal 1)
+uvicorn src.api.app:app --reload
+
+# Start web interface (terminal 2)
 streamlit run src/ui/streamlit_app.py
 ```
 
-### Process Workout Plans
+Then navigate to:
 
-```python
-from src.utils.proposed_workouts_processor import process_proposed_workouts
-process_proposed_workouts('path/to/workout_plan.json')
+- **Performance Analytics** → Auto Analysis → "Run Analysis Now"
+- **AI Coaching** → Generate weekly workout plans
+- **Zwift Generator** → Create workout files with dynamic alerts
+
+### 3. Command Line Usage
+
+```bash
+# Run today's automation
+python -m src.utils.daily_auto_sync_and_analyze
+
+# Run for specific date
+python -m src.utils.daily_auto_sync_and_analyze 2025-11-18
+
+# Weekly TrainingPeaks sync (full week)
+python -m src.utils.trainingpeaks_sync
 ```
 
 ## Workout Plan JSON Format
@@ -151,21 +176,54 @@ process_proposed_workouts('path/to/workout_plan.json')
 }
 ```
 
-## Configuration
+## ⚙️ Configuration
 
-Set these environment variables in `.env`:
+Create a `.env` file with your credentials:
 
-### TrainingPeaks Automation (Required for automated sync)
+```bash
+# Required for TrainingPeaks automation
+TRAININGPEAKS_USERNAME=your_email@example.com
+TRAININGPEAKS_PASSWORD=your_password
 
-- `TRAININGPEAKS_USERNAME`: Your TrainingPeaks login email
-- `TRAININGPEAKS_PASSWORD`: Your TrainingPeaks password
+# Required for AI analysis
+GEMINI_API_KEY=your_gemini_api_key
 
-### Optional Settings
+# Optional: Claude AI for workout generation
+ANTHROPIC_API_KEY=your_anthropic_key
 
-- `ZWIFT_WORKOUTS_DIR`: Path to Zwift workouts folder (default: `~/Documents/Zwift/Workouts/6870291`)
-- `DB_PATH`: Database file path (default: `data/fitness_data.db`)
+# Optional: Custom paths
+ZWIFT_WORKOUTS_DIR=~/Documents/Zwift/Workouts/6870291
+DB_PATH=data/fitness_data.db
+```
 
-**Security Note**: The `.env` file is git-ignored. Never commit credentials to version control.
+**Cost Estimate:**
+
+- **Gemini (Analysis)**: $0.0001-0.0003 per workout (~$0.02/week)
+- **Claude (Generation)**: Haiku ($0.008) + Sonnet ($0.156) = $0.164/week
+- **Total**: ~$0.18/week for full automation
+
+## 📂 Project Structure
+
+```
+fitness_tracker/
+├── src/
+│   ├── api/                    # FastAPI server
+│   ├── models/                 # Data models
+│   ├── storage/                # Database layer
+│   ├── ui/                     # Streamlit interface
+│   └── utils/
+│       ├── daily_auto_sync_and_analyze.py    # Main automation
+│       ├── trainingpeaks_sync.py             # TP browser automation
+│       ├── fit_file_analyzer.py              # AI workout analysis
+│       ├── ai_coach_engine.py                # Workout generation
+│       ├── zwift_workout_generator.py        # .zwo file creation
+│       └── dynamic_workout_content.py        # API-based alerts
+├── data/                       # Database & workout files
+├── logs/                       # Automation logs
+├── archive/                    # Old documentation
+├── setup_daily_automation.sh   # Setup script
+└── README.md                   # This file
+```
 
 ## Development
 
