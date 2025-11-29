@@ -620,8 +620,26 @@ def display_performance_analytics():
             personal_bests = db.get_personal_bests(athlete_id='default')
             
             if personal_bests:
+                # Define custom sort order by duration
+                duration_order = {
+                    '30s': 1,
+                    '1min': 2,
+                    '3min': 3,
+                    '5min': 4,
+                    '10min': 5,
+                    '18min': 6,
+                    '20min': 7,
+                    '60min': 8
+                }
+                
+                # Sort by duration order instead of alphabetically
+                sorted_efforts = sorted(
+                    personal_bests.items(),
+                    key=lambda x: duration_order.get(x[0], 999)
+                )
+                
                 # Display in a nice format
-                for effort_type, bests in sorted(personal_bests.items()):
+                for effort_type, bests in sorted_efforts:
                     st.markdown(f"#### {effort_type.upper().replace('_', ' ')}")
                     
                     cols = st.columns(3)
