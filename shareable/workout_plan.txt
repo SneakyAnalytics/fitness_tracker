@@ -1,18 +1,32 @@
 ================================================================================
-CYCLING TRAINING PLAN - LAST 2 MONTHS
+COMPLETE TRAINING PLAN - LAST 2 MONTHS
 Generated: December 04, 2025
 Period: 2025-10-05 to 2025-12-04
 ================================================================================
 
 NOTE: All power targets are expressed as % of FTP (Functional Threshold Power)
-Adjust intervals based on your individual FTP value.
+for cycling workouts. Adjust intervals based on your individual FTP value.
+
+This plan includes all training activities: cycling, running, strength,
+yoga, and other cross-training to show the complete training structure.
 
 ================================================================================
 
 
 ================================================================================
 DATE: 2025-10-05
+WORKOUT: Weekly Recovery Sauna
+TYPE: OTHER
+DURATION: 22 minutes
+TARGET TSS: 11-16
+================================================================================
+
+
+
+================================================================================
+DATE: 2025-10-05
 WORKOUT: Controlled Endurance
+TYPE: BIKE
 DURATION: 150 minutes
 TARGET TSS: 130-150
 ================================================================================
@@ -22,7 +36,7 @@ INTERVAL BREAKDOWN:
 
 1. Warmup
    Duration: 20.0 min (1200s)
-   Power: N/A @ 85-95 rpm
+   Cadence: 85-95 rpm
 
 2. Steady Endurance
    Duration: 110.0 min (6600s)
@@ -30,13 +44,34 @@ INTERVAL BREAKDOWN:
 
 3. Cool-down
    Duration: 20.0 min (1200s)
-   Power: N/A @ 90-100 rpm
+   Cadence: 90-100 rpm
+
+
+
+================================================================================
+DATE: 2025-10-13
+WORKOUT: Hawaii Vacation - Final Day
+TYPE: REST
+DURATION: 0 minutes
+TARGET TSS: 0-0
+================================================================================
+
+
+
+================================================================================
+DATE: 2025-10-14
+WORKOUT: Travel Day Home
+TYPE: REST
+DURATION: 0 minutes
+TARGET TSS: 0-0
+================================================================================
 
 
 
 ================================================================================
 DATE: 2025-10-15
 WORKOUT: Return to Training
+TYPE: BIKE
 DURATION: 60 minutes
 TARGET TSS: 40-50
 ================================================================================
@@ -53,6 +88,7 @@ INTERVAL BREAKDOWN:
 ================================================================================
 DATE: 2025-10-16
 WORKOUT: Tempo Test
+TYPE: BIKE
 DURATION: 75 minutes
 TARGET TSS: 65-75
 ================================================================================
@@ -62,7 +98,7 @@ INTERVAL BREAKDOWN:
 
 1. Warmup
    Duration: 15.0 min (900s)
-   Power: N/A @ 85-95 rpm
+   Cadence: 85-95 rpm
 
 2. Tempo Block 1
    Duration: 10.0 min (600s)
@@ -70,7 +106,7 @@ INTERVAL BREAKDOWN:
 
 3. Recovery 1
    Duration: 5.0 min (300s)
-   Power: N/A @ 90-95 rpm
+   Cadence: 90-95 rpm
 
 4. Tempo Block 2
    Duration: 10.0 min (600s)
@@ -78,7 +114,7 @@ INTERVAL BREAKDOWN:
 
 5. Recovery 2
    Duration: 5.0 min (300s)
-   Power: N/A @ 90-95 rpm
+   Cadence: 90-95 rpm
 
 6. Tempo Block 3
    Duration: 10.0 min (600s)
@@ -86,13 +122,14 @@ INTERVAL BREAKDOWN:
 
 7. Cool-down
    Duration: 15.0 min (900s)
-   Power: N/A @ 90-100 rpm
+   Cadence: 90-100 rpm
 
 
 
 ================================================================================
 DATE: 2025-10-17
 WORKOUT: Short VO2max
+TYPE: BIKE
 DURATION: 60 minutes
 TARGET TSS: 65-75
 ================================================================================
@@ -106,39 +143,39 @@ INTERVAL BREAKDOWN:
 
 2. VO2 1
    Duration: 2.0 min (120s)
-   Power: N/A @ 90-95 rpm
+   Cadence: 90-95 rpm
 
 3. Recovery 1
    Duration: 3.0 min (180s)
-   Power: N/A @ 85-90 rpm
+   Cadence: 85-90 rpm
 
 4. VO2 2
    Duration: 2.0 min (120s)
-   Power: N/A @ 90-95 rpm
+   Cadence: 90-95 rpm
 
 5. Recovery 2
    Duration: 3.0 min (180s)
-   Power: N/A @ 85-90 rpm
+   Cadence: 85-90 rpm
 
 6. VO2 3
    Duration: 2.0 min (120s)
-   Power: N/A @ 90-95 rpm
+   Cadence: 90-95 rpm
 
 7. Recovery 3
    Duration: 3.0 min (180s)
-   Power: N/A @ 85-90 rpm
+   Cadence: 85-90 rpm
 
 8. VO2 4
    Duration: 2.0 min (120s)
-   Power: N/A @ 90-95 rpm
+   Cadence: 90-95 rpm
 
 9. Recovery 4
    Duration: 3.0 min (180s)
-   Power: N/A @ 85-90 rpm
+   Cadence: 85-90 rpm
 
 10. VO2 5
    Duration: 2.0 min (120s)
-   Power: N/A @ 90-95 rpm
+   Cadence: 90-95 rpm
 
 11. Cool-down
    Duration: 15.0 min (900s)
@@ -147,8 +184,19 @@ INTERVAL BREAKDOWN:
 
 
 ================================================================================
+DATE: 2025-10-18
+WORKOUT: Pre-Test Rest
+TYPE: REST
+DURATION: 0 minutes
+TARGET TSS: 0-0
+================================================================================
+
+
+
+================================================================================
 DATE: 2025-10-19
 WORKOUT: FTP Test
+TYPE: BIKE
 DURATION: 75 minutes
 TARGET TSS: 90-110
 ================================================================================
@@ -158,23 +206,23 @@ INTERVAL BREAKDOWN:
 
 1. Extended Warmup
    Duration: 20.0 min (1200s)
-   Power: N/A @ 85-95 rpm
+   Cadence: 85-95 rpm
 
 2. Primer 1
    Duration: 1.0 min (60s)
-   Power: N/A @ 95-100 rpm
+   Cadence: 95-100 rpm
 
 3. Recovery
    Duration: 2.0 min (120s)
-   Power: N/A @ 85-90 rpm
+   Cadence: 85-90 rpm
 
 4. Primer 2
    Duration: 1.0 min (60s)
-   Power: N/A @ 95-100 rpm
+   Cadence: 95-100 rpm
 
 5. Recovery
    Duration: 4.0 min (240s)
-   Power: N/A @ 85-90 rpm
+   Cadence: 85-90 rpm
 
 6. 20-Minute FTP Test
    Duration: 20.0 min (1200s)
@@ -182,13 +230,14 @@ INTERVAL BREAKDOWN:
 
 7. Cool-down
    Duration: 15.0 min (900s)
-   Power: N/A @ 80-90 rpm
+   Cadence: 80-90 rpm
 
 
 
 ================================================================================
 DATE: 2025-10-20
 WORKOUT: Recovery Spin
+TYPE: BIKE
 DURATION: 60 minutes
 TARGET TSS: 35-40
 ================================================================================
@@ -205,6 +254,7 @@ INTERVAL BREAKDOWN:
 ================================================================================
 DATE: 2025-10-21
 WORKOUT: Zwift Race Intervals
+TYPE: BIKE
 DURATION: 75 minutes
 TARGET TSS: 85-95
 ================================================================================
@@ -214,61 +264,72 @@ INTERVAL BREAKDOWN:
 
 1. Warmup
    Duration: 15.0 min (900s)
-   Power: N/A @ 85-95 rpm
+   Cadence: 85-95 rpm
 
 2. Sprint 1
    Duration: 0.2 min (15s)
-   Power: N/A @ 110-120 rpm
+   Cadence: 110-120 rpm
 
 3. Recovery
    Duration: 4.8 min (285s)
-   Power: N/A @ 85-90 rpm
+   Cadence: 85-90 rpm
 
 4. 1-Min Surge 1
    Duration: 1.0 min (60s)
-   Power: N/A @ 95-100 rpm
+   Cadence: 95-100 rpm
 
 5. Recovery
    Duration: 4.0 min (240s)
-   Power: N/A @ 85-90 rpm
+   Cadence: 85-90 rpm
 
 6. Sprint 2
    Duration: 0.2 min (15s)
-   Power: N/A @ 110-120 rpm
+   Cadence: 110-120 rpm
 
 7. Recovery
    Duration: 4.8 min (285s)
-   Power: N/A @ 85-90 rpm
+   Cadence: 85-90 rpm
 
 8. 1-Min Surge 2
    Duration: 1.0 min (60s)
-   Power: N/A @ 95-100 rpm
+   Cadence: 95-100 rpm
 
 9. Recovery
    Duration: 4.0 min (240s)
-   Power: N/A @ 85-90 rpm
+   Cadence: 85-90 rpm
 
 10. 3-Min Race Pace
    Duration: 3.0 min (180s)
-   Power: N/A @ 90-95 rpm
+   Cadence: 90-95 rpm
 
 11. Recovery
    Duration: 5.0 min (300s)
-   Power: N/A @ 85-90 rpm
+   Cadence: 85-90 rpm
 
 12. Sprint 3
    Duration: 0.2 min (15s)
-   Power: N/A @ 110-120 rpm
+   Cadence: 110-120 rpm
 
 13. Cool-down
    Duration: 15.0 min (900s)
-   Power: N/A @ 85-90 rpm
+   Cadence: 85-90 rpm
+
+
+
+================================================================================
+DATE: 2025-10-22
+WORKOUT: Easy Recovery Run
+TYPE: RUN
+DURATION: 30 minutes
+TARGET TSS: 25-30
+================================================================================
 
 
 
 ================================================================================
 DATE: 2025-10-22
 WORKOUT: Evening Endurance
+TYPE: BIKE
 DURATION: 45 minutes
 TARGET TSS: 35-45
 ================================================================================
@@ -285,6 +346,7 @@ INTERVAL BREAKDOWN:
 ================================================================================
 DATE: 2025-10-23
 WORKOUT: Threshold Progression
+TYPE: BIKE
 DURATION: 80 minutes
 TARGET TSS: 95-105
 ================================================================================
@@ -294,7 +356,7 @@ INTERVAL BREAKDOWN:
 
 1. Warmup
    Duration: 15.0 min (900s)
-   Power: N/A @ 85-95 rpm
+   Cadence: 85-95 rpm
 
 2. Threshold 1
    Duration: 12.0 min (720s)
@@ -302,7 +364,7 @@ INTERVAL BREAKDOWN:
 
 3. Recovery 1
    Duration: 4.0 min (240s)
-   Power: N/A @ 90-95 rpm
+   Cadence: 90-95 rpm
 
 4. Threshold 2
    Duration: 12.0 min (720s)
@@ -310,7 +372,7 @@ INTERVAL BREAKDOWN:
 
 5. Recovery 2
    Duration: 4.0 min (240s)
-   Power: N/A @ 90-95 rpm
+   Cadence: 90-95 rpm
 
 6. Threshold 3
    Duration: 12.0 min (720s)
@@ -318,13 +380,14 @@ INTERVAL BREAKDOWN:
 
 7. Cool-down
    Duration: 15.0 min (900s)
-   Power: N/A @ 90-100 rpm
+   Cadence: 90-100 rpm
 
 
 
 ================================================================================
 DATE: 2025-10-24
 WORKOUT: Race Openers
+TYPE: BIKE
 DURATION: 45 minutes
 TARGET TSS: 40-50
 ================================================================================
@@ -334,27 +397,27 @@ INTERVAL BREAKDOWN:
 
 1. Warmup
    Duration: 15.0 min (900s)
-   Power: N/A @ 85-95 rpm
+   Cadence: 85-95 rpm
 
 2. Opener 1
    Duration: 0.5 min (30s)
-   Power: N/A @ 95-100 rpm
+   Cadence: 95-100 rpm
 
 3. Recovery
    Duration: 2.5 min (150s)
-   Power: N/A @ 85-90 rpm
+   Cadence: 85-90 rpm
 
 4. Opener 2
    Duration: 0.5 min (30s)
-   Power: N/A @ 95-100 rpm
+   Cadence: 95-100 rpm
 
 5. Recovery
    Duration: 2.5 min (150s)
-   Power: N/A @ 85-90 rpm
+   Cadence: 85-90 rpm
 
 6. Sprint Opener
    Duration: 0.2 min (10s)
-   Power: N/A @ 105-115 rpm
+   Cadence: 105-115 rpm
 
 7. Cool-down
    Duration: 20.0 min (1200s)
@@ -365,6 +428,7 @@ INTERVAL BREAKDOWN:
 ================================================================================
 DATE: 2025-10-25
 WORKOUT: Zwift Practice Race
+TYPE: BIKE
 DURATION: 60 minutes
 TARGET TSS: 80-100
 ================================================================================
@@ -373,7 +437,18 @@ TARGET TSS: 80-100
 
 ================================================================================
 DATE: 2025-10-26
+WORKOUT: Recovery Run
+TYPE: RUN
+DURATION: 35 minutes
+TARGET TSS: 30-35
+================================================================================
+
+
+
+================================================================================
+DATE: 2025-10-26
 WORKOUT: Optional PM Spin
+TYPE: BIKE
 DURATION: 45 minutes
 TARGET TSS: 30-40
 ================================================================================
@@ -390,6 +465,7 @@ INTERVAL BREAKDOWN:
 ================================================================================
 DATE: 2025-10-27
 WORKOUT: Active Recovery Spin - Lab Test Prep
+TYPE: BIKE
 DURATION: 45 minutes
 TARGET TSS: 25-30
 ================================================================================
@@ -412,8 +488,19 @@ INTERVAL BREAKDOWN:
 
 
 ================================================================================
+DATE: 2025-10-28
+WORKOUT: VO2max Lab Test - Nike Research
+TYPE: OTHER
+DURATION: 90 minutes
+TARGET TSS: 120-140
+================================================================================
+
+
+
+================================================================================
 DATE: 2025-10-29
 WORKOUT: Post-Lab Recovery Spin
+TYPE: BIKE
 DURATION: 50 minutes
 TARGET TSS: 30-35
 ================================================================================
@@ -438,6 +525,7 @@ INTERVAL BREAKDOWN:
 ================================================================================
 DATE: 2025-10-30
 WORKOUT: Threshold Intervals - Return to Structure
+TYPE: BIKE
 DURATION: 75 minutes
 TARGET TSS: 85-95
 ================================================================================
@@ -476,8 +564,19 @@ INTERVAL BREAKDOWN:
 
 
 ================================================================================
+DATE: 2025-10-31
+WORKOUT: Race Prep Mobility & Yoga
+TYPE: MOBILITY
+DURATION: 35 minutes
+TARGET TSS: 0-0
+================================================================================
+
+
+
+================================================================================
 DATE: 2025-11-01
 WORKOUT: Zwift Race Simulation Workout
+TYPE: BIKE
 DURATION: 60 minutes
 TARGET TSS: 95-105
 ================================================================================
@@ -568,8 +667,29 @@ INTERVAL BREAKDOWN:
 
 
 ================================================================================
+DATE: 2025-11-02
+WORKOUT: Easy Endurance Run - Active Recovery
+TYPE: RUN
+DURATION: 35 minutes
+TARGET TSS: 25-30
+================================================================================
+
+
+
+================================================================================
+DATE: 2025-11-02
+WORKOUT: Post-Run Sauna Recovery
+TYPE: OTHER
+DURATION: 20 minutes
+TARGET TSS: 10-15
+================================================================================
+
+
+
+================================================================================
 DATE: 2025-11-03
 WORKOUT: Recovery Spin - Race Week Prep
+TYPE: BIKE
 DURATION: 45 minutes
 TARGET TSS: 25-30
 ================================================================================
@@ -594,6 +714,7 @@ INTERVAL BREAKDOWN:
 ================================================================================
 DATE: 2025-11-04
 WORKOUT: OPTION A: First Zwift Racing League Race
+TYPE: BIKE
 DURATION: 75 minutes
 TARGET TSS: 100-130
 ================================================================================
@@ -603,6 +724,7 @@ TARGET TSS: 100-130
 ================================================================================
 DATE: 2025-11-04
 WORKOUT: OPTION B: Threshold Development (if NO race)
+TYPE: BIKE
 DURATION: 75 minutes
 TARGET TSS: 90-100
 ================================================================================
@@ -651,6 +773,7 @@ INTERVAL BREAKDOWN:
 ================================================================================
 DATE: 2025-11-05
 WORKOUT: Active Recovery Spin
+TYPE: BIKE
 DURATION: 50 minutes
 TARGET TSS: 30-35
 ================================================================================
@@ -675,6 +798,7 @@ INTERVAL BREAKDOWN:
 ================================================================================
 DATE: 2025-11-06
 WORKOUT: VO2max Intervals - Race Power Development
+TYPE: BIKE
 DURATION: 75 minutes
 TARGET TSS: 95-105
 ================================================================================
@@ -737,8 +861,59 @@ INTERVAL BREAKDOWN:
 
 
 ================================================================================
+DATE: 2025-11-07
+WORKOUT: Evening Sauna Session
+TYPE: OTHER
+DURATION: 20 minutes
+TARGET TSS: 10-15
+================================================================================
+
+
+
+================================================================================
+DATE: 2025-11-07
+WORKOUT: Travel Prep Mobility Session
+TYPE: MOBILITY
+DURATION: 30 minutes
+TARGET TSS: 0-0
+================================================================================
+
+
+
+================================================================================
+DATE: 2025-11-08
+WORKOUT: Bend Oregon Run 1 - Easy Aerobic
+TYPE: RUN
+DURATION: 40 minutes
+TARGET TSS: 30-35
+================================================================================
+
+
+
+================================================================================
+DATE: 2025-11-09
+WORKOUT: Bend Oregon Run 2 - Recovery Run
+TYPE: RUN
+DURATION: 35 minutes
+TARGET TSS: 25-30
+================================================================================
+
+
+
+================================================================================
+DATE: 2025-11-09
+WORKOUT: Travel Day Recovery Protocol
+TYPE: OTHER
+DURATION: 30 minutes
+TARGET TSS: 0-0
+================================================================================
+
+
+
+================================================================================
 DATE: 2025-11-10
 WORKOUT: Pre-Race Recovery Spin
+TYPE: BIKE
 DURATION: 45 minutes
 TARGET TSS: 25-30
 ================================================================================
@@ -767,6 +942,7 @@ INTERVAL BREAKDOWN:
 ================================================================================
 DATE: 2025-11-11
 WORKOUT: Zwift Racing League - Rising Empire Points Race
+TYPE: BIKE
 DURATION: 90 minutes
 TARGET TSS: 110-130
 ================================================================================
@@ -780,6 +956,7 @@ NOTES:
 ================================================================================
 DATE: 2025-11-12
 WORKOUT: Post-Race Recovery Spin
+TYPE: BIKE
 DURATION: 50 minutes
 TARGET TSS: 30-35
 ================================================================================
@@ -808,6 +985,7 @@ INTERVAL BREAKDOWN:
 ================================================================================
 DATE: 2025-11-13
 WORKOUT: VO2max Intervals - Rebuild to 5x4min
+TYPE: BIKE
 DURATION: 70 minutes
 TARGET TSS: 85-95
 ================================================================================
@@ -874,8 +1052,37 @@ INTERVAL BREAKDOWN:
 
 
 ================================================================================
+DATE: 2025-11-14
+WORKOUT: Evening Sauna Recovery
+TYPE: OTHER
+DURATION: 20 minutes
+TARGET TSS: 10-15
+================================================================================
+
+NOTES:
+["Post-mobility sauna session", "18-22 minutes at 175-180\u00b0F", "Recovery from Tuesday race + Thursday VO2max", "Hydrate well before and after", "Focus on muscle relaxation and adaptation", "Prepare for weekend tempo work"]
+
+
+
+
+================================================================================
+DATE: 2025-11-14
+WORKOUT: Mid-Week Recovery Mobility
+TYPE: MOBILITY
+DURATION: 35 minutes
+TARGET TSS: 0-0
+================================================================================
+
+NOTES:
+[]
+
+
+
+
+================================================================================
 DATE: 2025-11-15
 WORKOUT: Tempo Endurance Ride
+TYPE: BIKE
 DURATION: 90 minutes
 TARGET TSS: 95-110
 ================================================================================
@@ -918,8 +1125,37 @@ INTERVAL BREAKDOWN:
 
 
 ================================================================================
+DATE: 2025-11-16
+WORKOUT: Easy Endurance Run
+TYPE: RUN
+DURATION: 40 minutes
+TARGET TSS: 30-35
+================================================================================
+
+NOTES:
+["Easy recovery run to finish the week", "5 min warmup: very easy jog, gradual progression", "30 min main: steady easy pace, nose breathing focus", "5 min cooldown: easy jog/walk transition", "", "HR TARGET: 135-145 bpm average, NEVER exceed 150 bpm", "If HR exceeds 150 at any point, SLOW DOWN immediately", "Nose breathing cue worked perfectly last time - use it again", "", "PURPOSE:", "- Active recovery from week's training load", "- Maintain running fitness without bike interference", "- Cross-training benefit for overall conditioning", "- Mental break from indoor cycling", "", "CRITICAL REMINDERS:", "- This is NOT a workout - it's active recovery", "- If breathing through nose becomes difficult, you're too fast", "- Check Garmin every 5 min to verify HR staying in zone", "- If Soleus talks to you, walk it out immediately", "", "POST-RUN:", "- Light stretching (hip flexors, calves, hamstrings)", "- Hydration + electrolytes", "- Optional: 20 min sauna if available", "- Review week's training and prepare for Week 53"]
+
+
+
+
+================================================================================
+DATE: 2025-11-16
+WORKOUT: Post-Run Sauna and Week Review
+TYPE: OTHER
+DURATION: 20 minutes
+TARGET TSS: 10-15
+================================================================================
+
+NOTES:
+["Optional sauna session if time permits", "18-22 minutes at 175-180\u00b0F", "Recovery from full training week", "Hydrate well before and after", "", "WEEK REVIEW REFLECTION:", "- How did points race feel vs TTT last week?", "- Did VO2max 5x4min feel achievable?", "- Sleep quality through the week?", "- Any soreness or fatigue concerns?", "- Ready for Week 53 progression?", "", "Prepare notes for coach on:", "- Race performance and learnings", "- VO2max interval completion", "- Overall energy and recovery", "- Any scheduling considerations for next week"]
+
+
+
+
+================================================================================
 DATE: 2025-11-17
 WORKOUT: Recovery Spin - Already Completed
+TYPE: BIKE
 DURATION: 45 minutes
 TARGET TSS: 25-30
 ================================================================================
@@ -942,6 +1178,7 @@ INTERVAL BREAKDOWN:
 ================================================================================
 DATE: 2025-11-18
 WORKOUT: Zwift Scratch Race - Tactical Focus
+TYPE: BIKE
 DURATION: 75 minutes
 TARGET TSS: 95-115
 ================================================================================
@@ -960,6 +1197,7 @@ This is a HARD effort day - recovery tomorrow is critical
 ================================================================================
 DATE: 2025-11-19
 WORKOUT: Post-Race Recovery - 48hr Protocol
+TYPE: BIKE
 DURATION: 60 minutes
 TARGET TSS: 30-35
 ================================================================================
@@ -992,6 +1230,7 @@ INTERVAL BREAKDOWN:
 ================================================================================
 DATE: 2025-11-20
 WORKOUT: Threshold Maintenance - 3x18min
+TYPE: BIKE
 DURATION: 90 minutes
 TARGET TSS: 75-85
 ================================================================================
@@ -1038,8 +1277,19 @@ INTERVAL BREAKDOWN:
 
 
 ================================================================================
+DATE: 2025-11-21
+WORKOUT: Active Recovery - Yoga & Mobility
+TYPE: MOBILITY
+DURATION: 45 minutes
+TARGET TSS: 0-0
+================================================================================
+
+
+
+================================================================================
 DATE: 2025-11-22
 WORKOUT: Long Endurance Ride - Aerobic Base Building
+TYPE: BIKE
 DURATION: 180 minutes
 TARGET TSS: 110-130
 ================================================================================
@@ -1058,8 +1308,40 @@ If legs feel heavy from Thursday's threshold work, keep power at lower end (200-
 
 
 ================================================================================
+DATE: 2025-11-23
+WORKOUT: Easy Recovery Run
+TYPE: RUN
+DURATION: 45 minutes
+TARGET TSS: 25-35
+================================================================================
+
+NOTES:
+Easy conversational pace - this is active recovery
+Target: 8:30-9:30/mile pace (adjust based on feel)
+HR should stay below 150 bpm
+Focus on easy, relaxed running form
+If legs are tired from Saturday's long ride, keep this shorter (30-35 min)
+Alternative: Easy XC ski if snow conditions are good
+Purpose: Active recovery while maintaining aerobic stimulus
+This completes your weekly cross-training and prepares you for next week
+
+
+
+
+================================================================================
+DATE: 2025-11-24
+WORKOUT: Active Recovery - Yoga & Mobility
+TYPE: MOBILITY
+DURATION: 45 minutes
+TARGET TSS: 0-0
+================================================================================
+
+
+
+================================================================================
 DATE: 2025-11-25
 WORKOUT: Pre-Race Activation Ride
+TYPE: BIKE
 DURATION: 60 minutes
 TARGET TSS: 40-50
 ================================================================================
@@ -1104,6 +1386,7 @@ INTERVAL BREAKDOWN:
 ================================================================================
 DATE: 2025-11-26
 WORKOUT: Zwift Racing League - Time Trial
+TYPE: BIKE
 DURATION: 75 minutes
 TARGET TSS: 95-115
 ================================================================================
@@ -1122,7 +1405,27 @@ Expected NP: 290-305W if pacing is executed well
 
 ================================================================================
 DATE: 2025-11-27
+WORKOUT: Turkey Trot 5K - Family Fun Run
+TYPE: RUN
+DURATION: 30 minutes
+TARGET TSS: 20-30
+================================================================================
+
+NOTES:
+LIGHT EFFORT - This is a family activity, not a training stimulus
+Target: Conversational pace throughout, HR should stay below 155 bpm
+Focus on enjoying the event and time with family
+If you feel competitive urges, remind yourself: yesterday's TT was your hard effort
+This serves as active recovery from the race
+Hydrate well and enjoy Thanksgiving!
+
+
+
+
+================================================================================
+DATE: 2025-11-27
 WORKOUT: Post-Race Recovery Spin
+TYPE: BIKE
 DURATION: 45 minutes
 TARGET TSS: 25-30
 ================================================================================
@@ -1147,6 +1450,7 @@ INTERVAL BREAKDOWN:
 ================================================================================
 DATE: 2025-11-28
 WORKOUT: Extended Endurance Ride - Gravel Prep
+TYPE: BIKE
 DURATION: 210 minutes
 TARGET TSS: 140-160
 ================================================================================
@@ -1169,6 +1473,7 @@ If energy is low from yesterday's activities, scale back to 2.5-3 hours
 ================================================================================
 DATE: 2025-11-29
 WORKOUT: VO2max Development - 5x4min
+TYPE: BIKE
 DURATION: 75 minutes
 TARGET TSS: 75-85
 ================================================================================
@@ -1244,8 +1549,79 @@ INTERVAL BREAKDOWN:
 
 
 ================================================================================
+DATE: 2025-11-30
+WORKOUT: Easy Recovery Run
+TYPE: RUN
+DURATION: 45 minutes
+TARGET TSS: 30-40
+================================================================================
+
+NOTES:
+Easy conversational pace run - active recovery
+Target: HR below 150 bpm, should feel comfortable throughout
+Distance: 4-5 miles at easy pace
+Focus on form and relaxation, not speed
+You've noted improving run capabilities - enjoy the progress!
+This provides cross-training stimulus without interfering with cycling recovery
+Hydrate well and stretch afterward
+
+
+
+
+================================================================================
+DATE: 2025-11-30
+WORKOUT: Pre-Lab Preparation
+TYPE: OTHER
+DURATION: 0 minutes
+TARGET TSS: 0-0
+================================================================================
+
+NOTES:
+HEAT CHAMBER STUDY TOMORROW (Dec 1st) - Preparation checklist:
+Sleep: Aim for 8+ hours tonight, prioritize sleep quality
+Hydration: Drink 3+ liters of water today, urine should be pale yellow
+Nutrition: Eat normally, avoid alcohol, ensure adequate carbohydrates
+Recovery: This week's training load (450 TSS) positions you well-recovered
+Mental prep: The lab work will provide valuable VO2max and thermoregulation data
+Note resting HR tomorrow morning as baseline before testing
+Bring water bottle, towel, and comfortable clothing to lab
+This data will inform your training periodization and gravel event preparation
+
+
+
+
+================================================================================
+DATE: 2025-11-30
+WORKOUT: Pre-Lab Recovery - Stretching & Mobility
+TYPE: MOBILITY
+DURATION: 30 minutes
+TARGET TSS: 0-0
+================================================================================
+
+
+
+================================================================================
+DATE: 2025-12-01
+WORKOUT: Heat Chamber Session #1
+TYPE: OTHER
+DURATION: 90 minutes
+TARGET TSS: 80-100
+================================================================================
+
+NOTES:
+95°F at 75% humidity - research protocol
+15 min acclimation, then alternating 20-50% VO2 efforts
+No wearables - manually log RPE (1-10) post-session
+Note perceived sweat rate and heat tolerance improvements
+This is physiological adaptation work, not performance training
+
+
+
+
+================================================================================
 DATE: 2025-12-01
 WORKOUT: Post-Heat Recovery Spin
+TYPE: BIKE
 DURATION: 30 minutes
 TARGET TSS: 15-20
 ================================================================================
@@ -1269,6 +1645,7 @@ INTERVAL BREAKDOWN:
 ================================================================================
 DATE: 2025-12-02
 WORKOUT: Pre-Race Activation
+TYPE: BIKE
 DURATION: 30 minutes
 TARGET TSS: 20-25
 ================================================================================
@@ -1308,6 +1685,7 @@ INTERVAL BREAKDOWN:
 ================================================================================
 DATE: 2025-12-02
 WORKOUT: Zwift Racing League - Tuesday Night Race
+TYPE: BIKE
 DURATION: 75 minutes
 TARGET TSS: 100-120
 ================================================================================
@@ -1326,6 +1704,7 @@ Post-race: note any PRs or performance insights
 ================================================================================
 DATE: 2025-12-03
 WORKOUT: VO2max Development - 5x4min Intervals
+TYPE: BIKE
 DURATION: 90 minutes
 TARGET TSS: 85-95
 ================================================================================
@@ -1406,8 +1785,57 @@ INTERVAL BREAKDOWN:
 
 
 ================================================================================
+DATE: 2025-12-04
+WORKOUT: Easy Recovery Run
+TYPE: RUN
+DURATION: 45 minutes
+TARGET TSS: 30-40
+================================================================================
+
+NOTES:
+Conversational pace throughout - you should be able to talk easily
+Focus on form and relaxation, not pace
+This is active recovery after yesterday's VO2max session
+HR should stay in Zone 1-2 (below 145 bpm)
+If legs feel heavy, shorten to 30-35 minutes
+Complement to cycling fitness without adding cycling-specific fatigue
+
+
+
+
+================================================================================
+DATE: 2025-12-05
+WORKOUT: Heat Chamber Session #2
+TYPE: OTHER
+DURATION: 90 minutes
+TARGET TSS: 80-100
+================================================================================
+
+NOTES:
+95°F at 75% humidity - research protocol
+15 min acclimation, then alternating 20-50% VO2 efforts
+No wearables - manually log RPE (1-10) post-session
+Compare to Monday: any improvements in heat tolerance?
+Note time to reach steady-state effort and sweat response
+Second exposure this week - adaptations should be emerging
+
+
+
+
+================================================================================
+DATE: 2025-12-05
+WORKOUT: Post-Heat Mobility & Recovery
+TYPE: MOBILITY
+DURATION: 30 minutes
+TARGET TSS: 0-0
+================================================================================
+
+
+
+================================================================================
 DATE: 2025-12-06
 WORKOUT: Active Recovery Spin
+TYPE: BIKE
 DURATION: 45 minutes
 TARGET TSS: 25-30
 ================================================================================
@@ -1433,6 +1861,7 @@ INTERVAL BREAKDOWN:
 ================================================================================
 DATE: 2025-12-07
 WORKOUT: Long Endurance Ride - Mixed Terrain
+TYPE: BIKE
 DURATION: 180 minutes
 TARGET TSS: 140-160
 ================================================================================
