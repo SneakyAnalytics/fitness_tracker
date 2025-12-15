@@ -578,6 +578,119 @@ Be specific, reference actual numbers from the data, and explain your reasoning.
         
         return "\n".join(sections)
     
+    def _build_adaptive_coaching_context(self, context: PromptContext) -> str:
+        """
+        **NEW: Adaptive Prompting Enhancement**
+        
+        Build coaching context that adapts based on continuity insights.
+        Includes:
+        - Recent achievements to celebrate
+        - Priority goals to focus on
+        - Multi-week patterns detected
+        - Sentiment-based tone adjustments
+        - Recurring schedule awareness
+        
+        This makes coaching more personalized and contextually aware.
+        """
+        sections = []
+        
+        # Add recent achievements if available
+        if context.comprehensive_context and 'achievements' in context.comprehensive_context:
+            achievements = context.comprehensive_context['achievements'][-3:]  # Last 3
+            if achievements:
+                sections.append("## 🏆 Recent Achievements to Acknowledge")
+                sections.append("*Celebrate these milestones in your coaching narrative:*\n")
+                for ach in achievements:
+                    sections.append(f"- **{ach['description']}** ({ach['category']}, Week {ach.get('week_number', '?')})")
+                sections.append("")
+        
+        # Add priority goals for focus
+        if context.comprehensive_context and 'goals' in context.comprehensive_context:
+            priority_goals = [g for g in context.comprehensive_context['goals'] if g.get('priority', 3) <= 2]
+            if priority_goals:
+                sections.append("## 🎯 Priority Goals (Focus Training Here)")
+                sections.append("*These are the athlete's highest-priority goals - align workouts to support them:*\n")
+                for goal in priority_goals:
+                    priority_emoji = "🔥" if goal['priority'] == 1 else "⭐"
+                    target = f" (Target: {goal.get('target_date', 'ongoing')})" if goal.get('target_date') else ""
+                    sections.append(f"- {priority_emoji} **Priority {goal['priority']}:** {goal['description']}{target}")
+                    if goal.get('progress_notes'):
+                        for note in goal['progress_notes'][-1:]:  # Most recent note
+                            sections.append(f"  - _{note}_")
+                sections.append("")
+        
+        # Add multi-week pattern insights if available
+        if context.comprehensive_context and 'pattern_analysis' in context.comprehensive_context:
+            patterns = context.comprehensive_context['pattern_analysis']
+            if patterns.get('patterns_detected'):
+                sections.append("## 📊 Multi-Week Trend Analysis")
+                sections.append("*Adjust coaching based on these detected patterns:*\n")
+                
+                if patterns.get('power_trend'):
+                    trend = patterns['power_trend']
+                    if trend == 'improving':
+                        sections.append("- **Power Trend:** ✅ Improving - Continue current training stimulus")
+                    elif trend == 'declining':
+                        sections.append("- **Power Trend:** ⚠️ Declining - Consider recovery week or reduced intensity")
+                    else:
+                        sections.append("- **Power Trend:** ➡️ Stable - Can progress volume or intensity")
+                
+                if patterns.get('recovery_trend'):
+                    trend = patterns['recovery_trend']
+                    if trend == 'declining':
+                        sections.append("- **Recovery Trend:** ⚠️ Declining - Prioritize rest and deload")
+                    elif trend == 'strong':
+                        sections.append("- **Recovery Trend:** ✅ Strong - Athlete can handle increased load")
+                    else:
+                        sections.append("- **Recovery Trend:** ➡️ Adequate - Maintain current recovery strategy")
+                
+                if patterns.get('insights'):
+                    sections.append("\n**Key Pattern Insights:**")
+                    for insight in patterns['insights'][:3]:  # Top 3 insights
+                        sections.append(f"  - {insight}")
+                sections.append("")
+        
+        # Add sentiment-based tone guidance
+        if context.comprehensive_context and 'recent_observations' in context.comprehensive_context:
+            recent_obs = context.comprehensive_context['recent_observations']
+            if recent_obs and recent_obs[-1].get('sentiment'):
+                sentiment = recent_obs[-1]['sentiment']
+                sections.append("## 😊 Athlete Sentiment & Tone Guidance")
+                sections.append("*Adjust your coaching tone based on detected mood:*\n")
+                
+                if sentiment == 'struggling':
+                    sections.append("- **Current Mood:** 😟 Struggling")
+                    sections.append("- **Coaching Approach:** Be extra supportive and encouraging. Consider reducing training load. Acknowledge challenges explicitly. Offer alternatives and check-in more frequently.")
+                elif sentiment == 'confident':
+                    sections.append("- **Current Mood:** 💪 Confident & Strong")
+                    sections.append("- **Coaching Approach:** Celebrate success! Can push a bit harder. Maintain momentum but watch for overconfidence leading to overtraining.")
+                elif sentiment == 'positive':
+                    sections.append("- **Current Mood:** 😊 Positive")
+                    sections.append("- **Coaching Approach:** Encouraging and progressive. Good time to build on momentum.")
+                elif sentiment == 'negative':
+                    sections.append("- **Current Mood:** 😕 Negative or Challenged")
+                    sections.append("- **Coaching Approach:** Acknowledge difficulties. Focus on wins. Consider if training load is appropriate.")
+                else:
+                    sections.append("- **Current Mood:** 😐 Neutral")
+                    sections.append("- **Coaching Approach:** Standard supportive coaching. Look for opportunities to inject motivation.")
+                sections.append("")
+        
+        # Add recurring schedule reminders
+        if context.comprehensive_context and 'coaching_continuity' in context.comprehensive_context:
+            continuity = context.comprehensive_context['coaching_continuity']
+            if continuity:
+                last_continuity = continuity[-1]
+                if last_continuity.get('recurring_schedule'):
+                    sections.append("## 📅 Recurring Schedule (Don't Re-Ask)")
+                    sections.append("*Athlete has these standing commitments - work around them:*\n")
+                    for day, activity in last_continuity['recurring_schedule'].items():
+                        sections.append(f"- **{day}:** {activity}")
+                    sections.append("")
+        
+        if sections:
+            return "\n".join(sections)
+        return ""
+    
     def build_workout_generation_prompt(self, context: PromptContext, 
                                        analysis_output: Optional[str] = None) -> str:
         """
@@ -613,9 +726,30 @@ Be specific, reference actual numbers from the data, and explain your reasoning.
         sections.append(self._build_athlete_context(context))
         sections.append("\n" + "="*80 + "\n")
         
+        # NEW: Adaptive coaching context based on continuity insights
+        adaptive_context = self._build_adaptive_coaching_context(context)
+        if adaptive_context:
+            sections.append("# 🎯 ADAPTIVE COACHING CONTEXT\n")
+            sections.append("*Use these insights to personalize your coaching approach this week:*\n\n")
+            sections.append(adaptive_context)
+            sections.append("\n" + "="*80 + "\n")
+        
         # Training context
         sections.append(self._build_training_context(context))
         sections.append("\n" + "="*80 + "\n")
+        
+        # Previous AI analyses for coaching continuity
+        if context.comprehensive_context and 'previous_ai_analyses' in context.comprehensive_context:
+            prev_analyses = context.comprehensive_context['previous_ai_analyses']
+            if prev_analyses:
+                sections.append("# Previous Weekly Coaching Analyses\n")
+                sections.append("*For continuity: Your own insights from recent weeks. Reference these to maintain coaching narrative and build on prior observations.*\n\n")
+                for i, analysis in enumerate(prev_analyses, 1):
+                    sections.append(f"## Analysis {i} ({analysis['timestamp'][:10]})")
+                    sections.append(f"**{analysis['week_info']}**\n")
+                    sections.append(analysis['analysis_text'])
+                    sections.append(f"\n*(Full analysis: {analysis['full_length']} characters)*\n\n")
+                sections.append("\n" + "="*80 + "\n")
         
         # Include analysis if provided
         if analysis_output:

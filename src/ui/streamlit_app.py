@@ -620,7 +620,7 @@ def display_performance_analytics():
             personal_bests = db.get_personal_bests(athlete_id='default')
             
             if personal_bests:
-                # Define custom sort order by duration
+                # Define standard duration order (matches FitFileAnalyzer)
                 duration_order = {
                     '30s': 1,
                     '1min': 2,
@@ -632,9 +632,10 @@ def display_performance_analytics():
                     '60min': 8
                 }
                 
-                # Sort by duration order instead of alphabetically
+                # Filter to only valid durations, then sort by duration order
+                valid_efforts = {k: v for k, v in personal_bests.items() if k in duration_order}
                 sorted_efforts = sorted(
-                    personal_bests.items(),
+                    valid_efforts.items(),
                     key=lambda x: duration_order.get(x[0], 999)
                 )
                 
@@ -769,6 +770,80 @@ def display_performance_analytics():
                         st.code(traceback.format_exc())
         
         st.markdown("---")
+        
+        # AI Model Management Section
+        with st.expander("🤖 AI Model Management (Advanced)", expanded=False):
+            st.markdown("""
+            **Dynamic Model Discovery** ensures the system automatically uses available free Google Gemini models.
+            
+            As Google updates their model lineup, this keeps your analysis working without code changes.
+            """)
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("🔄 Refresh Available Models", help="Query Google's API for currently available free models"):
+                    with st.spinner("Discovering models..."):
+                        try:
+                            from src.utils.gemini_model_discovery import GeminiModelDiscovery
+                            
+                            discovery = GeminiModelDiscovery()
+                            free_models = discovery.get_free_models(force_refresh=True)
+                            
+                            st.success(f"✅ Found {len(free_models)} free models")
+                            st.markdown("**Top 10 models:**")
+                            for i, model in enumerate(free_models[:10], 1):
+                                st.text(f"{i}. {model}")
+                            
+                            # Test for working model
+                            with st.spinner("Testing model availability..."):
+                                working_model = discovery.get_working_model()
+                                if working_model:
+                                    st.success(f"✅ Current best model: `{working_model}`")
+                                else:
+                                    st.error("❌ No working models found (may be quota limits)")
+                        except Exception as e:
+                            st.error(f"Error discovering models: {e}")
+                
+                if st.button("📋 View Model Cache", help="Show currently cached models"):
+                    try:
+                        from src.utils.gemini_model_discovery import GeminiModelDiscovery
+                        import json
+                        
+                        discovery = GeminiModelDiscovery()
+                        cache = discovery._load_cache()
+                        
+                        if cache:
+                            st.success(f"✅ Cache from {cache['timestamp'][:19]}")
+                            st.text(f"{len(cache['models'])} models cached")
+                            with st.expander("Show all cached models"):
+                                for model in cache['models']:
+                                    st.text(f"• {model}")
+                        else:
+                            st.info("No cache found. Click 'Refresh Available Models' to create cache.")
+                    except Exception as e:
+                        st.error(f"Error loading cache: {e}")
+            
+            with col2:
+                st.markdown("**Model Discovery Features:**")
+                st.markdown("""
+                - 🔍 Auto-discovers 30+ Gemini models
+                - 📊 Prioritizes by speed/stability
+                - 💾 Caches results for 24 hours
+                - 🔄 Falls back to static list if API fails
+                - ✅ Tests models for availability
+                - 🆓 Uses only FREE tier models
+                """)
+                
+                st.info("""
+                **When to refresh:**
+                - Getting model errors
+                - Quota exhausted on all models
+                - Google released new models
+                - Haven't refreshed in >1 week
+                """)
+        
+        st.markdown("---")
         st.markdown("### ⏰ Schedule Automatic Sync & Analysis (10pm PST)")
         
         col1, col2 = st.columns([2, 1])
@@ -849,9 +924,9 @@ def display_performance_analytics():
                 
                 if st.button("🔍 Analyze Workout", type="primary"):
                     with st.spinner("Analyzing workout data..."):
-                        # Initialize analyzer
+                        # Initialize analyzer with free models
                         try:
-                            analyzer = FitFileAnalyzer()
+                            analyzer = FitFileAnalyzer(use_dynamic_models=True)
                             visualizer = WorkoutVisualizer()
                             
                             # Analyze the workout
@@ -863,6 +938,7 @@ def display_performance_analytics():
                             
                             if analysis_result:
                                 st.success("✅ Workout analyzed successfully!")
+                                st.info("💰 Cost: $0 (using free Gemini models)")
                                 
                                 # Display parsed metrics
                                 parsed_data = analysis_result['parsed_data']
@@ -1689,11 +1765,8 @@ def display_strength_workout_with_tracking(workout, unique_key=""):
             with info_cols[0]:
                 if section.get('duration'):
                     duration_val = section.get('duration')
-                    # Handle seconds vs minutes formatting
-                    if duration_val > 300:  # If more than 5 minutes, assume seconds
-                        st.write(f"**Duration:** {duration_val/60:.1f} min")
-                    else:
-                        st.write(f"**Duration:** {duration_val} sec")
+                    # Section duration is always in minutes for mobility/strength
+                    st.write(f"**Section Duration:** {duration_val} min")
             with info_cols[1]:
                 if section.get('rounds'):
                     st.write(f"**Rounds:** {section.get('rounds')}")
@@ -1847,10 +1920,21 @@ def display_strength_workout_with_tracking(workout, unique_key=""):
                                 # Handle duration
                                 if set_info.get('duration'):
                                     duration = set_info.get('duration')
-                                    if duration >= 60:
-                                        target_desc.append(f"Duration: {duration//60}m {duration%60}s")
+                                    per_side = set_info.get('perSide', False)
+                                    
+                                    # If perSide is true, show both per-side and total time
+                                    if per_side:
+                                        per_side_time = duration
+                                        total_time = duration * 2
+                                        if total_time >= 60:
+                                            target_desc.append(f"Duration: {total_time//60}m {total_time%60}s total ({per_side_time//60}m {per_side_time%60}s per side)")
+                                        else:
+                                            target_desc.append(f"Duration: {total_time}s total ({per_side_time}s per side)")
                                     else:
-                                        target_desc.append(f"Duration: {duration}s")
+                                        if duration >= 60:
+                                            target_desc.append(f"Duration: {duration//60}m {duration%60}s")
+                                        else:
+                                            target_desc.append(f"Duration: {duration}s")
 
                                 # Handle work/rest timing
                                 if set_info.get('workTime'):
@@ -2369,6 +2453,24 @@ def display_ai_coach():
                         user_context['training_focus'] = training_focus
                     if week_feedback:
                         user_context['week_feedback'] = week_feedback
+                        
+                        # Auto-update coaching notes from athlete feedback
+                        # This captures milestones, goal changes, FTP updates, etc.
+                        try:
+                            from utils.ai_coach_engine import AICoachEngine
+                            temp_coach = AICoachEngine()
+                            updates = temp_coach.coaching_notes.auto_update_from_feedback(
+                                athlete_feedback=week_feedback,
+                                week_number=None  # Will be set when we have week number
+                            )
+                            if any(updates.values()):
+                                st.info(f"📝 Auto-updated coaching notes from your feedback: "
+                                       f"{len(updates['achievements'])} achievements, "
+                                       f"{len(updates['goals_updated'])} goal updates, "
+                                       f"{len(updates['observations'])} observations")
+                        except Exception as e:
+                            # Don't fail if auto-update has issues
+                            pass
                     
                     # Add soreness assessment to user context
                     sore_areas = [area for area, checked in soreness_areas.items() if checked]
@@ -2765,6 +2867,7 @@ st.sidebar.markdown("### 🎯 Navigation")
 page = st.sidebar.radio("Go to", [
     '📊 Dashboard', 
     '🏆 Performance Analytics',
+    '🎯 Achievements & Goals',
     '📅 Workout Calendar', 
     '🤖 AI Coach',
     '📥 Import Data', 
@@ -2778,6 +2881,10 @@ if page == '📅 Workout Calendar':
 
 elif page == '🏆 Performance Analytics':
     display_performance_analytics()
+
+elif page == '🎯 Achievements & Goals':
+    from src.ui.tabs.achievements import render_achievements_tab
+    render_achievements_tab()
 
 elif page == '🤖 AI Coach':
     display_ai_coach()

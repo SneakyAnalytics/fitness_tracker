@@ -436,8 +436,22 @@ class AICoachDatabaseQueries:
         This is the main method the AI will use to get all relevant
         historical data in one call.
         
-        **NEW: Now includes prior AI analysis texts for coaching continuity!**
+        **ENHANCED: Now includes achievements, goals, pattern analysis, and prior AI analyses!**
         """
+        # Load coaching notes for enhanced context
+        from .coaching_notes import CoachingNotesManager
+        coaching_manager = CoachingNotesManager()
+        
+        # Get pattern analysis
+        pattern_analysis = coaching_manager.analyze_multi_week_patterns(weeks_back=weeks_back)
+        
+        # Get achievements and goals
+        achievements = [ach.to_dict() for ach in coaching_manager.achievements[-10:]]  # Last 10 achievements
+        active_goals = [goal.to_dict() for goal in coaching_manager.get_goals_by_priority(status='active')]
+        
+        # Get coaching continuity for comprehensive context
+        coaching_continuity = [cont.to_dict() for cont in coaching_manager.get_recent_continuity(n=weeks_back)]
+        
         return {
             'weeks_analyzed': weeks_back,
             'weekly_summary': self.get_recent_weeks_summary(weeks_back),
@@ -454,6 +468,10 @@ class AICoachDatabaseQueries:
                 'Tempo': self.workout_analyzer.analyze_workout_type_trends('Tempo', weeks_back * 3)
             },
             'previous_ai_analyses': self.get_recent_ai_analyses(num_analyses=3),
+            'achievements': achievements,  # NEW: Categorized achievements
+            'goals': active_goals,  # NEW: Prioritized goals
+            'pattern_analysis': pattern_analysis,  # NEW: Multi-week pattern recognition
+            'coaching_continuity': coaching_continuity,  # NEW: Full continuity context
             'timestamp': datetime.now().isoformat()
         }
 
