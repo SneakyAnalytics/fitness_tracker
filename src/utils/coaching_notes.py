@@ -56,6 +56,7 @@ class CoachingObservation:
     observation: str
     focus_areas: List[str]
     athlete_response: Optional[str] = None  # How athlete is responding to training
+    sentiment: Optional[str] = None  # NEW: positive, negative, neutral, struggling, confident
     
     def to_dict(self) -> Dict:
         return asdict(self)
@@ -267,14 +268,20 @@ class CoachingNotesManager:
                        observation: str, 
                        focus_areas: List[str],
                        week_number: int,
-                       athlete_response: Optional[str] = None):
-        """Add a new coaching observation"""
+                       athlete_response: Optional[str] = None,
+                       sentiment: Optional[str] = None):
+        """Add a new coaching observation with optional sentiment"""
+        # Auto-detect sentiment if not provided
+        if sentiment is None and athlete_response:
+            sentiment = self._detect_sentiment(athlete_response)
+        
         obs = CoachingObservation(
             date=datetime.now().strftime('%Y-%m-%d'),
             week_number=week_number,
             observation=observation,
             focus_areas=focus_areas,
-            athlete_response=athlete_response
+            athlete_response=athlete_response,
+            sentiment=sentiment
         )
         self.observations.append(obs)
         self.save()
@@ -354,7 +361,8 @@ class CoachingNotesManager:
                     'week': obs.week_number,
                     'observation': obs.observation,
                     'focus_areas': obs.focus_areas,
-                    'athlete_response': obs.athlete_response
+                    'athlete_response': obs.athlete_response,
+                    'sentiment': obs.sentiment  # NEW: Include sentiment for AI context
                 }
                 for obs in recent_obs
             ],
@@ -445,6 +453,126 @@ class CoachingNotesManager:
         
         return None
     
+    def _detect_recurring_schedule(self, text: str) -> Optional[Dict[str, str]]:
+        """
+        Detect recurring schedule patterns from athlete feedback.
+        
+        **NEW: Recurring Schedule Learning**
+        Examples:
+        - "Tuesday night racing league"
+        - "Every Wednesday I have group rides"
+        - "Thursdays are my long ride days"
+        
+        Returns:
+            Dict mapping day -> activity (e.g., {"Tuesday": "racing league"})
+        """
+        import re
+        
+        text_lower = text.lower()
+        schedule_patterns = []
+        
+        # Pattern 1: "every [day]" or "[day] night/morning/afternoon"
+        days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+        day_abbrevs = {'mon': 'Monday', 'tue': 'Tuesday', 'wed': 'Wednesday', 
+                      'thu': 'Thursday', 'fri': 'Friday', 'sat': 'Saturday', 'sun': 'Sunday'}
+        
+        for day in days:
+            # Pattern: "every tuesday [activity]" or "tuesday [activity]"
+            patterns = [
+                rf'every {day}[^.]*?([^.]+?)(?:\.|,|$)',
+                rf'{day} night[^.]*?([^.]+?)(?:\.|,|$)',
+                rf'{day} morning[^.]*?([^.]+?)(?:\.|,|$)',
+                rf'{day}s? (?:are|is) (?:my )?([^.]+?)(?:\.|,|$)',
+            ]
+            
+            for pattern in patterns:
+                matches = re.finditer(pattern, text_lower)
+                for match in matches:
+                    activity = match.group(1).strip()
+                    # Clean up activity text
+                    activity = re.sub(r'\s+', ' ', activity)
+                    activity = activity.replace(' i ', ' ').replace(' my ', ' ').strip()
+                    # Remove common trailing words
+                    activity = re.sub(r'\s+(where|when|that|which|before|after).*$', '', activity)
+                    if len(activity) > 3 and len(activity) < 50:  # Reasonable length
+                        schedule_patterns.append((day.capitalize(), activity))
+        
+        # Pattern 2: "[day] abbreviations"
+        for abbrev, full_day in day_abbrevs.items():
+            if abbrev in text_lower:
+                # Look for context around abbreviation
+                idx = text_lower.find(abbrev)
+                context = text_lower[max(0, idx-20):min(len(text_lower), idx+60)]
+                activity_patterns = ['race', 'racing', 'league', 'group ride', 'club', 'training', 'workout']
+                for activity_word in activity_patterns:
+                    if activity_word in context:
+                        schedule_patterns.append((full_day, activity_word))
+                        break
+        
+        # Convert to dict (later patterns override earlier ones for same day)
+        if schedule_patterns:
+            return {day: activity for day, activity in schedule_patterns}
+        
+        return None
+    
+    def _detect_sentiment(self, text: str) -> str:
+        """
+        Detect sentiment/mood from athlete feedback text.
+        
+        **NEW: Sentiment Analysis**
+        Returns one of: positive, negative, neutral, struggling, confident
+        
+        This helps the AI coach:
+        - Adjust encouragement level
+        - Detect potential overtraining/burnout
+        - Celebrate successes appropriately
+        - Provide extra support when struggling
+        """
+        text_lower = text.lower()
+        
+        # Struggling indicators (highest priority - needs support)
+        # Check these FIRST before positive words
+        struggling_keywords = [
+            'exhausted', 'burned out', 'burnout', 'struggling', 'hard time',
+            'too much', 'overwhelmed', 'dreading', 'considering quitting', 'unmotivated',
+            'terrible', 'awful', 'miserable', 'suffering', 'couldn\'t finish',
+            'gave up', 'failed', 'hurting', 'injured', 'sick', 'not recovering',
+            'can\'t even', 'unable to', 'impossible'
+        ]
+        if any(kw in text_lower for kw in struggling_keywords):
+            return 'struggling'
+        
+        # Confident/strong indicators
+        confident_keywords = [
+            'crushed', 'smashed', 'nailed', 'felt amazing', 'felt strong', 'felt great',
+            'easy', 'effortless', 'confident', 'ready', 'excited', 'can\'t wait',
+            'breakthrough', 'best ever', 'personal best', 'pb', 'pr', 'killed it',
+            'dominating', 'strongest', 'fittest', 'incredible', 'awesome'
+        ]
+        if any(kw in text_lower for kw in confident_keywords):
+            return 'confident'
+        
+        # Positive indicators
+        positive_keywords = [
+            'good', 'great', 'excellent', 'well', 'better', 'improved', 'progress',
+            'proud', 'happy', 'satisfied', 'accomplished', 'achieved', 'completed',
+            'enjoyed', 'fun', 'loved', 'nice', 'solid', 'pleased', 'successful'
+        ]
+        if any(kw in text_lower for kw in positive_keywords):
+            return 'positive'
+        
+        # Negative indicators
+        negative_keywords = [
+            'bad', 'poor', 'worse', 'decline', 'difficult', 'tough', 'hard', 'tired',
+            'fatigued', 'sore', 'disappointed', 'frustrated', 'discouraged', 'setback',
+            'problem', 'issue', 'concern', 'worried', 'anxious', 'stressed'
+        ]
+        if any(kw in text_lower for kw in negative_keywords):
+            return 'negative'
+        
+        # Default to neutral
+        return 'neutral'
+    
     def auto_update_from_feedback(self, athlete_feedback: str, week_number: Optional[int] = None) -> Dict[str, any]:
         """
         **ENHANCED** Auto-update coaching notes with categorized achievements and prioritized goals.
@@ -465,11 +593,17 @@ class CoachingNotesManager:
             'goals_added': [],
             'goals_updated': [],
             'observations': [],
-            'ftp_change': None
+            'ftp_change': None,
+            'sentiment': None,  # NEW: Track detected sentiment
+            'recurring_schedule': None  # NEW: Detected recurring schedule patterns
         }
         
         feedback_lower = athlete_feedback.lower()
         today = datetime.now().strftime('%Y-%m-%d')
+        
+        # NEW: Detect sentiment from feedback
+        sentiment = self._detect_sentiment(athlete_feedback)
+        updates['sentiment'] = sentiment
         
         # Detect completed milestones/achievements with CATEGORIES
         achievement_patterns = [
@@ -567,6 +701,18 @@ class CoachingNotesManager:
                     
                     self.update_ftp(new_ftp)
         
+        # NEW: Detect recurring schedule patterns
+        recurring_schedule = self._detect_recurring_schedule(athlete_feedback)
+        if recurring_schedule:
+            updates['recurring_schedule'] = recurring_schedule
+            # Update most recent coaching continuity entry if exists
+            if self.coaching_continuity:
+                last_continuity = self.coaching_continuity[-1]
+                if last_continuity.recurring_schedule is None:
+                    last_continuity.recurring_schedule = {}
+                last_continuity.recurring_schedule.update(recurring_schedule)
+                updates['observations'].append(f"Detected recurring schedule: {recurring_schedule}")
+        
         # Detect phase changes
         phase_keywords = {
             'base': 'Base Building',
@@ -591,13 +737,25 @@ class CoachingNotesManager:
                 excerpt = athlete_feedback[start_idx:start_idx+120].split('.')[0]
                 updates['observations'].append(excerpt)
         
-        # Add achievement observation if any
+        # Add achievement observation if any (with sentiment)
         if updates['achievements'] and week_number:
             self.add_observation(
                 observation=f"Milestone achieved: {updates['achievements'][0]['description']}",
                 focus_areas=['achievement', 'progression', updates['achievements'][0]['category']],
                 week_number=week_number,
-                athlete_response="Milestone achieved"
+                athlete_response="Milestone achieved",
+                sentiment='positive'  # Achievements are positive by default
+            )
+        
+        # Add sentiment observation if strong emotion detected
+        if sentiment in ['struggling', 'confident'] and week_number:
+            sentiment_obs = f"Athlete sentiment: {sentiment} - " + athlete_feedback[:100].strip()
+            self.add_observation(
+                observation=sentiment_obs,
+                focus_areas=['motivation', 'mental_state', sentiment],
+                week_number=week_number,
+                athlete_response=athlete_feedback,
+                sentiment=sentiment
             )
         
         # Save all updates
@@ -763,6 +921,281 @@ Next Week Focus: {self.next_week_focus}
             summary += f"  • Focus: {', '.join(obs.focus_areas)}\n"
         
         return summary
+    
+    def analyze_multi_week_patterns(self, weeks_back: int = 4) -> Dict:
+        """
+        **NEW: Multi-Week Pattern Recognition**
+        
+        Analyze trends across multiple weeks of coaching continuity.
+        Identifies patterns in:
+        - Power progression (improving, stable, declining)
+        - Training compliance (consistent, inconsistent)
+        - Recovery trends (improving, stable, declining)
+        - Recurring issues/strengths
+        
+        Args:
+            weeks_back: Number of weeks to analyze (default 4)
+        
+        Returns:
+            Dict with detected patterns and trends
+        """
+        recent_continuity = self.coaching_continuity[-weeks_back:] if weeks_back <= len(self.coaching_continuity) else self.coaching_continuity
+        
+        if not recent_continuity:
+            return {'patterns_detected': False, 'message': 'Insufficient data for pattern analysis'}
+        
+        patterns = {
+            'patterns_detected': True,
+            'weeks_analyzed': len(recent_continuity),
+            'power_trend': None,
+            'compliance_trend': None,
+            'recovery_trend': None,
+            'recurring_strengths': [],
+            'recurring_concerns': [],
+            'insights': []
+        }
+        
+        # Analyze power-related keywords across weeks
+        power_keywords_positive = ['power improvement', 'ftp increase', 'stronger', 'power up', 'threshold improved']
+        power_keywords_negative = ['power decline', 'ftp drop', 'weaker', 'struggling with power']
+        
+        power_mentions = []
+        for cont in recent_continuity:
+            all_text = ' '.join(cont.key_observations + cont.progression_notes).lower()
+            if any(kw in all_text for kw in power_keywords_positive):
+                power_mentions.append('positive')
+            elif any(kw in all_text for kw in power_keywords_negative):
+                power_mentions.append('negative')
+            else:
+                power_mentions.append('neutral')
+        
+        # Determine power trend
+        if power_mentions.count('positive') >= len(power_mentions) * 0.6:
+            patterns['power_trend'] = 'improving'
+            patterns['insights'].append("Power metrics showing consistent improvement over multiple weeks")
+        elif power_mentions.count('negative') >= len(power_mentions) * 0.4:
+            patterns['power_trend'] = 'declining'
+            patterns['insights'].append("Power metrics showing decline - may need recovery week or training adjustment")
+        else:
+            patterns['power_trend'] = 'stable'
+        
+        # Analyze compliance trends
+        compliance_keywords = ['compliance', 'consistency', 'adherence', 'completed', 'missed']
+        compliance_mentions = []
+        for cont in recent_continuity:
+            all_text = ' '.join(cont.key_observations + cont.progression_notes).lower()
+            if 'high compliance' in all_text or 'strong consistency' in all_text or 'excellent adherence' in all_text:
+                compliance_mentions.append('high')
+            elif 'low compliance' in all_text or 'missed' in all_text or 'inconsistent' in all_text:
+                compliance_mentions.append('low')
+            else:
+                compliance_mentions.append('moderate')
+        
+        if compliance_mentions.count('high') >= len(compliance_mentions) * 0.6:
+            patterns['compliance_trend'] = 'consistently_high'
+            patterns['recurring_strengths'].append("Excellent training consistency and adherence")
+        elif compliance_mentions.count('low') >= len(compliance_mentions) * 0.4:
+            patterns['compliance_trend'] = 'inconsistent'
+            patterns['recurring_concerns'].append("Inconsistent training adherence - life balance may need attention")
+        else:
+            patterns['compliance_trend'] = 'moderate'
+        
+        # Analyze recovery patterns
+        recovery_keywords_positive = ['recovering well', 'good recovery', 'fresh', 'rested']
+        recovery_keywords_negative = ['fatigue', 'tired', 'not recovering', 'burnout', 'exhausted']
+        
+        recovery_mentions = []
+        for cont in recent_continuity:
+            all_text = ' '.join(cont.key_observations + cont.areas_to_monitor).lower()
+            if any(kw in all_text for kw in recovery_keywords_positive):
+                recovery_mentions.append('positive')
+            elif any(kw in all_text for kw in recovery_keywords_negative):
+                recovery_mentions.append('negative')
+            else:
+                recovery_mentions.append('neutral')
+        
+        if recovery_mentions.count('negative') >= len(recovery_mentions) * 0.5:
+            patterns['recovery_trend'] = 'declining'
+            patterns['recurring_concerns'].append("Recovery showing signs of decline - may need deload week")
+            patterns['insights'].append("Multiple weeks showing recovery concerns - prioritize rest")
+        elif recovery_mentions.count('positive') >= len(recovery_mentions) * 0.6:
+            patterns['recovery_trend'] = 'strong'
+            patterns['recurring_strengths'].append("Consistent positive recovery signals")
+        else:
+            patterns['recovery_trend'] = 'adequate'
+        
+        # Find recurring priorities across weeks
+        all_priorities = []
+        for cont in recent_continuity:
+            all_priorities.extend(cont.next_week_priorities)
+        
+        # Count frequency of similar priorities
+        from collections import Counter
+        priority_keywords = ['recovery', 'vo2max', 'threshold', 'endurance', 'intensity', 'volume']
+        priority_counts = Counter()
+        for priority in all_priorities:
+            priority_lower = priority.lower()
+            for keyword in priority_keywords:
+                if keyword in priority_lower:
+                    priority_counts[keyword] += 1
+        
+        # If something appears in >50% of weeks, it's recurring
+        threshold = len(recent_continuity) * 0.5
+        for keyword, count in priority_counts.items():
+            if count >= threshold:
+                patterns['insights'].append(f"Recurring focus area: {keyword} (mentioned in {count}/{len(recent_continuity)} weeks)")
+        
+        return patterns
+    
+    def score_feedback_quality(self, feedback: str) -> Dict:
+        """
+        **NEW: Feedback Quality Scoring**
+        
+        Analyze athlete feedback and provide a quality score with suggestions.
+        Encourages richer, more detailed feedback for better coaching.
+        
+        Scoring criteria (10 points total):
+        - Length/detail (0-3 pts): Sufficient information
+        - Specificity (0-3 pts): Specific metrics, feelings, observations
+        - Completeness (0-2 pts): Covers training, recovery, goals
+        - Actionability (0-2 pts): Provides context for coaching decisions
+        
+        Returns:
+            Dict with score, feedback, and suggestions for improvement
+        """
+        import re
+        
+        score = 0
+        feedback_items = []
+        suggestions = []
+        
+        feedback_lower = feedback.lower()
+        word_count = len(feedback.split())
+        
+        # 1. Length/Detail scoring (0-3 pts)
+        if word_count < 20:
+            length_score = 0
+            suggestions.append("Provide more detail about your week - aim for 50+ words")
+        elif word_count < 50:
+            length_score = 1
+            suggestions.append("Good start! Add more specifics about workouts and how you felt")
+        elif word_count < 100:
+            length_score = 2
+            feedback_items.append("Good detail level")
+        else:
+            length_score = 3
+            feedback_items.append("Excellent detail and thoroughness")
+        score += length_score
+        
+        # 2. Specificity scoring (0-3 pts)
+        specificity_score = 0
+        
+        # Check for specific metrics
+        has_metrics = bool(re.search(r'\d+\s*(watts?|w|bpm|hours?|miles?|km|minutes?|tss)', feedback_lower))
+        if has_metrics:
+            specificity_score += 1
+            feedback_items.append("Includes specific metrics")
+        else:
+            suggestions.append("Include specific numbers (watts, duration, distance, HR)")
+        
+        # Check for feelings/RPE
+        feeling_keywords = ['felt', 'feeling', 'struggled', 'strong', 'tired', 'fresh', 'easy', 'hard', 'rpe']
+        has_feelings = any(kw in feedback_lower for kw in feeling_keywords)
+        if has_feelings:
+            specificity_score += 1
+            feedback_items.append("Describes how workouts felt")
+        else:
+            suggestions.append("Describe how workouts felt (easy/hard/RPE)")
+        
+        # Check for specific workout mentions
+        workout_keywords = ['vo2max', 'threshold', 'endurance', 'tempo', 'intervals', 'recovery', 'race', 'ride']
+        has_workout_detail = any(kw in feedback_lower for kw in workout_keywords)
+        if has_workout_detail:
+            specificity_score += 1
+            feedback_items.append("References specific workout types")
+        else:
+            suggestions.append("Mention specific workouts completed this week")
+        
+        score += specificity_score
+        
+        # 3. Completeness scoring (0-2 pts)
+        completeness_score = 0
+        
+        # Training + Recovery
+        training_keywords = ['workout', 'training', 'ride', 'session', 'intervals']
+        recovery_keywords = ['sleep', 'recovery', 'rest', 'fatigue', 'tired', 'fresh', 'sore']
+        has_training = any(kw in feedback_lower for kw in training_keywords)
+        has_recovery = any(kw in feedback_lower for kw in recovery_keywords)
+        
+        if has_training and has_recovery:
+            completeness_score = 2
+            feedback_items.append("Covers both training and recovery")
+        elif has_training or has_recovery:
+            completeness_score = 1
+            if not has_recovery:
+                suggestions.append("Include notes about sleep/recovery/fatigue")
+            if not has_training:
+                suggestions.append("Describe your training sessions this week")
+        else:
+            suggestions.append("Cover both training execution and recovery status")
+        
+        score += completeness_score
+        
+        # 4. Actionability scoring (0-2 pts)
+        actionability_score = 0
+        
+        # Forward-looking or constraint mentions
+        forward_keywords = ['next week', 'upcoming', 'planning', 'goal', 'targeting', 'want to', 'need to']
+        constraint_keywords = ['busy', 'travel', 'time', 'available', 'constraint', 'limited', 'can\'t', 'unable']
+        has_forward = any(kw in feedback_lower for kw in forward_keywords)
+        has_constraints = any(kw in feedback_lower for kw in constraint_keywords)
+        
+        if has_forward:
+            actionability_score += 1
+            feedback_items.append("Mentions goals or plans")
+        else:
+            suggestions.append("Share what you're targeting or hoping to accomplish")
+        
+        if has_constraints:
+            actionability_score += 1
+            feedback_items.append("Notes schedule constraints")
+        elif word_count >= 50:  # Only suggest if already providing detail
+            suggestions.append("Mention any schedule changes or constraints for next week")
+        
+        score += actionability_score
+        
+        # Determine quality tier
+        if score >= 9:
+            quality = "Excellent"
+            emoji = "🏆"
+            message = "Outstanding feedback! This provides everything needed for personalized coaching."
+        elif score >= 7:
+            quality = "Very Good"
+            emoji = "⭐"
+            message = "Great feedback with solid detail. Minor improvements could make it even better."
+        elif score >= 5:
+            quality = "Good"
+            emoji = "👍"
+            message = "Good feedback with useful information. A bit more detail would help a lot."
+        elif score >= 3:
+            quality = "Fair"
+            emoji = "📝"
+            message = "Basic feedback provided. More detail would enable better coaching."
+        else:
+            quality = "Needs Improvement"
+            emoji = "💭"
+            message = "Very brief feedback. More information would really help with personalized coaching."
+        
+        return {
+            'score': score,
+            'max_score': 10,
+            'quality': quality,
+            'emoji': emoji,
+            'message': message,
+            'strengths': feedback_items,
+            'suggestions': suggestions,
+            'word_count': word_count
+        }
 
 
 # Test/demo functionality
