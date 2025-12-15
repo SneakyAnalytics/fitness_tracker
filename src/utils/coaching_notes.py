@@ -94,6 +94,59 @@ class CoachingContinuity:
 
 
 @dataclass
+class Achievement:
+    """
+    Categorized achievement/milestone for tracking progress.
+    
+    **NEW: Achievement Categories**
+    - distance: Long rides, centuries, gran fondos
+    - power: FTP improvements, peak power PRs, threshold milestones
+    - endurance: Multi-hour efforts, back-to-back training blocks
+    - technical: Skills (climbing, descending, cornering), equipment mastery
+    - event: Race completions, podium finishes, participation milestones
+    - consistency: Training streaks, attendance records
+    """
+    date: str  # YYYY-MM-DD
+    description: str
+    category: str  # One of: distance, power, endurance, technical, event, consistency
+    value: Optional[str] = None  # e.g., "100 miles", "310W", "5 hours"
+    week_number: Optional[int] = None
+    
+    def to_dict(self) -> Dict:
+        return asdict(self)
+
+
+@dataclass
+class Goal:
+    """
+    Prioritized training goal with metadata.
+    
+    **NEW: Goal Prioritization**
+    - priority: 1 (highest) to 5 (lowest)
+    - status: active, completed, paused, abandoned
+    - added_date: When goal was added
+    - target_date: Optional deadline
+    - progress_notes: Updates on progress toward goal
+    """
+    description: str
+    category: str  # One of: distance, power, endurance, technical, event, consistency
+    priority: int = 3  # 1-5, default to medium priority
+    status: str = "active"  # active, completed, paused, abandoned
+    added_date: Optional[str] = None
+    target_date: Optional[str] = None  # YYYY-MM-DD
+    progress_notes: Optional[List[str]] = None
+    
+    def __post_init__(self):
+        if self.added_date is None:
+            self.added_date = datetime.now().strftime('%Y-%m-%d')
+        if self.progress_notes is None:
+            self.progress_notes = []
+    
+    def to_dict(self) -> Dict:
+        return asdict(self)
+
+
+@dataclass
 class CoachingPersonality:
     """Defines the AI coach's personality and approach"""
     style: str = "data-driven, encouraging, scientific"
@@ -143,7 +196,9 @@ class CoachingNotesManager:
         self.athlete_profile = AthleteProfile()
         self.observations: List[CoachingObservation] = []
         self.personality = CoachingPersonality()
-        self.coaching_continuity: List[CoachingContinuity] = []  # NEW: Week-to-week memory
+        self.coaching_continuity: List[CoachingContinuity] = []
+        self.achievements: List[Achievement] = []  # NEW: Categorized achievements
+        self.goals: List[Goal] = []  # NEW: Prioritized goals
         self.next_week_focus = "Build aerobic base with progressive endurance development"
         self.current_training_phase = "Base Building"
         
@@ -169,10 +224,22 @@ class CoachingNotesManager:
         personality_data = data.get('personality', {})
         self.personality = CoachingPersonality(**personality_data)
         
-        # Load coaching continuity (NEW)
+        # Load coaching continuity
         continuity_data = data.get('coaching_continuity', [])
         self.coaching_continuity = [
             CoachingContinuity(**cont) for cont in continuity_data
+        ]
+        
+        # Load achievements (NEW)
+        achievements_data = data.get('achievements', [])
+        self.achievements = [
+            Achievement(**ach) for ach in achievements_data
+        ]
+        
+        # Load goals (NEW)
+        goals_data = data.get('goals', [])
+        self.goals = [
+            Goal(**goal) for goal in goals_data
         ]
         
         # Load other fields
@@ -185,7 +252,9 @@ class CoachingNotesManager:
             'athlete_profile': asdict(self.athlete_profile),
             'observations': [obs.to_dict() for obs in self.observations],
             'personality': self.personality.to_dict(),
-            'coaching_continuity': [cont.to_dict() for cont in self.coaching_continuity],  # NEW
+            'coaching_continuity': [cont.to_dict() for cont in self.coaching_continuity],
+            'achievements': [ach.to_dict() for ach in self.achievements],  # NEW
+            'goals': [goal.to_dict() for goal in self.goals],  # NEW
             'next_week_focus': self.next_week_focus,
             'current_training_phase': self.current_training_phase,
             'last_updated': datetime.now().isoformat()
@@ -309,6 +378,362 @@ class CoachingNotesManager:
             'next_week_focus': self.next_week_focus,
             'current_phase': self.current_training_phase
         }
+    
+    def _categorize_achievement(self, text: str) -> str:
+        """
+        Automatically categorize an achievement based on keywords.
+        
+        Categories:
+        - distance: Long rides, centuries, gran fondos
+        - power: FTP improvements, peak power PRs
+        - endurance: Multi-hour efforts
+        - technical: Skills (climbing, descending)
+        - event: Race completions, podiums
+        - consistency: Training streaks
+        """
+        text_lower = text.lower()
+        
+        # Distance keywords
+        if any(kw in text_lower for kw in ['mile', 'km', 'kilometer', 'century', 'metric century', 'gran fondo', 'distance']):
+            return 'distance'
+        
+        # Power keywords
+        if any(kw in text_lower for kw in ['ftp', 'watt', 'power', 'threshold', 'vo2max', 'sprint']):
+            return 'power'
+        
+        # Endurance keywords
+        if any(kw in text_lower for kw in ['hour', 'endurance', 'ultra', 'long ride', 'marathon', 'multi-day']):
+            return 'endurance'
+        
+        # Event keywords
+        if any(kw in text_lower for kw in ['race', 'event', 'competition', 'podium', 'finish', 'placed', 'won']):
+            return 'event'
+        
+        # Technical keywords
+        if any(kw in text_lower for kw in ['climb', 'descent', 'corner', 'handling', 'skill', 'technique']):
+            return 'technical'
+        
+        # Consistency keywords
+        if any(kw in text_lower for kw in ['streak', 'consistent', 'every day', 'week', 'month straight']):
+            return 'consistency'
+        
+        # Default
+        return 'event'
+    
+    def _categorize_goal(self, text: str) -> str:
+        """Automatically categorize a goal based on keywords (same logic as achievements)."""
+        return self._categorize_achievement(text)
+    
+    def _extract_value_from_text(self, text: str) -> Optional[str]:
+        """
+        Extract numeric value from achievement/goal text.
+        Examples: "100 miles", "310W", "5 hours"
+        """
+        import re
+        
+        # Pattern: number + optional decimal + unit
+        patterns = [
+            r'(\d+\.?\d*)\s*(mile|km|kilometer|watts?|w|hours?|h|minutes?|min)',
+            r'(\d+)\s*%',
+            r'(\d+)\s*(st|nd|rd|th)\s*place'
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                return match.group(0)
+        
+        return None
+    
+    def auto_update_from_feedback(self, athlete_feedback: str, week_number: Optional[int] = None) -> Dict[str, any]:
+        """
+        **ENHANCED** Auto-update coaching notes with categorized achievements and prioritized goals.
+        
+        This method intelligently extracts key information from athlete input:
+        - Completed milestones/achievements (with categories)
+        - New goals or goal updates (with auto-prioritization)
+        - Training phase changes
+        - Important observations
+        
+        Returns:
+            Dict with counts and details of updates made
+        """
+        import re
+        
+        updates = {
+            'achievements': [],
+            'goals_added': [],
+            'goals_updated': [],
+            'observations': [],
+            'ftp_change': None
+        }
+        
+        feedback_lower = athlete_feedback.lower()
+        today = datetime.now().strftime('%Y-%m-%d')
+        
+        # Detect completed milestones/achievements with CATEGORIES
+        achievement_patterns = [
+            (r'completed (?:my )?first ([^.!?]+)', 'First'),
+            (r'finished (?:my )?first ([^.!?]+)', 'First'),
+            (r'completed a ([^.!?]+)', 'Completed'),
+            (r'finished a ([^.!?]+)', 'Completed'),
+            (r'achieved ([^.!?]+)', 'Achieved'),
+            (r'(?:hit|set) a new (?:pr|personal (?:best|record)) (?:in|for) ([^.!?]+)', 'New PR'),
+            (r'broke (?:my|the) ([^.!?]+) record', 'Broke record')
+        ]
+        
+        for pattern, prefix in achievement_patterns:
+            matches = re.finditer(pattern, feedback_lower)
+            for match in matches:
+                description = f"{prefix}: {match.group(1).strip()}"
+                category = self._categorize_achievement(description)
+                value = self._extract_value_from_text(description)
+                
+                achievement = Achievement(
+                    date=today,
+                    description=description,
+                    category=category,
+                    value=value,
+                    week_number=week_number
+                )
+                self.achievements.append(achievement)
+                updates['achievements'].append(achievement.to_dict())
+        
+        # Detect goals with AUTO-PRIORITIZATION
+        goal_patterns = [
+            (r'(?:my )?goal is (?:to )?([^.!?]+)', 1),  # Priority 1 (highest - "goal is")
+            (r'aiming for ([^.!?]+)', 2),  # Priority 2 (active - "aiming for")
+            (r'target (?:is )?([^.!?]+)', 2),  # Priority 2
+            (r'working toward ([^.!?]+)', 2),  # Priority 2
+            (r'(?:would like to|want to) ([^.!?]+)', 3),  # Priority 3 (medium - "want to")
+            (r'planning to ([^.!?]+)', 3),  # Priority 3
+            (r'hoping to ([^.!?]+)', 4),  # Priority 4 (lower - "hoping")
+            (r'might (?:try to )?([^.!?]+)', 5)  # Priority 5 (lowest - "might")
+        ]
+        
+        for pattern, priority in goal_patterns:
+            matches = re.finditer(pattern, feedback_lower)
+            for match in matches:
+                description = match.group(1).strip()
+                # Only add if it contains useful info (numbers, distances, power, etc.)
+                if any(char.isdigit() for char in description) or len(description.split()) > 2:
+                    category = self._categorize_goal(description)
+                    
+                    # Check if similar goal already exists
+                    existing_goal = None
+                    for goal in self.goals:
+                        if goal.description.lower() in description or description in goal.description.lower():
+                            existing_goal = goal
+                            break
+                    
+                    if existing_goal:
+                        # Update existing goal priority if new mention has higher priority
+                        if priority < existing_goal.priority:
+                            existing_goal.priority = priority
+                            existing_goal.progress_notes.append(f"{today}: Re-emphasized (priority raised to {priority})")
+                            updates['goals_updated'].append(existing_goal.to_dict())
+                    else:
+                        # Add new goal
+                        goal = Goal(
+                            description=description,
+                            category=category,
+                            priority=priority,
+                            status='active',
+                            added_date=today
+                        )
+                        self.goals.append(goal)
+                        updates['goals_added'].append(goal.to_dict())
+        
+        # Detect FTP changes
+        if 'ftp' in feedback_lower:
+            ftp_matches = re.findall(r'ftp.*?(\d{3})', feedback_lower)
+            if ftp_matches:
+                new_ftp = int(ftp_matches[0])
+                if new_ftp != self.athlete_profile.current_ftp:
+                    updates['ftp_change'] = new_ftp
+                    
+                    # Create achievement for FTP improvement
+                    if new_ftp > self.athlete_profile.current_ftp:
+                        improvement = new_ftp - self.athlete_profile.current_ftp
+                        achievement = Achievement(
+                            date=today,
+                            description=f"FTP improved: {self.athlete_profile.current_ftp}W → {new_ftp}W (+{improvement}W)",
+                            category='power',
+                            value=f"{new_ftp}W",
+                            week_number=week_number
+                        )
+                        self.achievements.append(achievement)
+                        updates['achievements'].append(achievement.to_dict())
+                    
+                    self.update_ftp(new_ftp)
+        
+        # Detect phase changes
+        phase_keywords = {
+            'base': 'Base Building',
+            'build': 'Build',
+            'peak': 'Peak',
+            'taper': 'Taper',
+            'recovery': 'Recovery',
+            'off-season': 'Off-Season',
+            'maintenance': 'Maintenance'
+        }
+        for keyword, phase in phase_keywords.items():
+            if keyword in feedback_lower and 'phase' in feedback_lower:
+                if phase != self.current_training_phase:
+                    self.update_training_phase(phase)
+                    updates['observations'].append(f"Training phase updated to: {phase}")
+        
+        # Extract general observations
+        observation_keywords = ['struggled with', 'feeling', 'noticed', 'been', 'having trouble', 'really enjoying']
+        for keyword in observation_keywords:
+            if keyword in feedback_lower:
+                start_idx = feedback_lower.find(keyword)
+                excerpt = athlete_feedback[start_idx:start_idx+120].split('.')[0]
+                updates['observations'].append(excerpt)
+        
+        # Add achievement observation if any
+        if updates['achievements'] and week_number:
+            self.add_observation(
+                observation=f"Milestone achieved: {updates['achievements'][0]['description']}",
+                focus_areas=['achievement', 'progression', updates['achievements'][0]['category']],
+                week_number=week_number,
+                athlete_response="Milestone achieved"
+            )
+        
+        # Save all updates
+        if any(updates.values()):
+            self.save()
+        
+        return updates
+    
+    def get_achievements_by_category(self, category: Optional[str] = None, limit: Optional[int] = None) -> List[Achievement]:
+        """
+        Get achievements, optionally filtered by category and limited.
+        
+        Args:
+            category: One of: distance, power, endurance, technical, event, consistency (or None for all)
+            limit: Max number to return (most recent first)
+        
+        Returns:
+            List of Achievement objects
+        """
+        filtered = [ach for ach in self.achievements if category is None or ach.category == category]
+        # Sort by date, most recent first
+        filtered.sort(key=lambda x: x.date, reverse=True)
+        return filtered[:limit] if limit else filtered
+    
+    def get_goals_by_priority(self, status: str = 'active', limit: Optional[int] = None) -> List[Goal]:
+        """
+        Get goals sorted by priority (1=highest to 5=lowest).
+        
+        Args:
+            status: Filter by status ('active', 'completed', 'paused', 'abandoned')
+            limit: Max number to return
+        
+        Returns:
+            List of Goal objects sorted by priority
+        """
+        filtered = [goal for goal in self.goals if goal.status == status]
+        # Sort by priority (1 first), then by added date (newer first)
+        filtered.sort(key=lambda x: (x.priority, x.added_date), reverse=False)
+        return filtered[:limit] if limit else filtered
+    
+    def get_goals_by_category(self, category: str, status: str = 'active') -> List[Goal]:
+        """Get goals filtered by category and status."""
+        return [goal for goal in self.goals if goal.category == category and goal.status == status]
+    
+    def update_goal_status(self, goal_description: str, new_status: str, progress_note: Optional[str] = None):
+        """
+        Update the status of a goal.
+        
+        Args:
+            goal_description: Description or partial match of goal
+            new_status: One of: active, completed, paused, abandoned
+            progress_note: Optional note about the update
+        """
+        today = datetime.now().strftime('%Y-%m-%d')
+        
+        for goal in self.goals:
+            if goal_description.lower() in goal.description.lower():
+                goal.status = new_status
+                if progress_note:
+                    goal.progress_notes.append(f"{today}: {progress_note}")
+                else:
+                    goal.progress_notes.append(f"{today}: Status changed to {new_status}")
+                self.save()
+                return True
+        return False
+    
+    def update_goal_priority(self, goal_description: str, new_priority: int, reason: Optional[str] = None):
+        """
+        Update the priority of a goal.
+        
+        Args:
+            goal_description: Description or partial match of goal
+            new_priority: New priority (1-5)
+            reason: Optional reason for priority change
+        """
+        today = datetime.now().strftime('%Y-%m-%d')
+        
+        for goal in self.goals:
+            if goal_description.lower() in goal.description.lower():
+                old_priority = goal.priority
+                goal.priority = new_priority
+                note = f"{today}: Priority changed from {old_priority} to {new_priority}"
+                if reason:
+                    note += f" - {reason}"
+                goal.progress_notes.append(note)
+                self.save()
+                return True
+        return False
+    
+    def get_achievement_stats(self) -> Dict:
+        """
+        Get statistics about achievements by category.
+        
+        Returns:
+            Dict with counts and recent achievements per category
+        """
+        stats = {
+            'total': len(self.achievements),
+            'by_category': {},
+            'recent': self.get_achievements_by_category(limit=5)
+        }
+        
+        categories = ['distance', 'power', 'endurance', 'technical', 'event', 'consistency']
+        for category in categories:
+            achievements_in_category = self.get_achievements_by_category(category)
+            stats['by_category'][category] = {
+                'count': len(achievements_in_category),
+                'most_recent': achievements_in_category[0].to_dict() if achievements_in_category else None
+            }
+        
+        return stats
+    
+    def get_goal_stats(self) -> Dict:
+        """
+        Get statistics about goals by priority and status.
+        
+        Returns:
+            Dict with counts by priority/status and top priorities
+        """
+        stats = {
+            'total': len(self.goals),
+            'by_status': {},
+            'by_priority': {},
+            'top_priorities': [g.to_dict() for g in self.get_goals_by_priority(limit=3)]
+        }
+        
+        # Count by status
+        for status in ['active', 'completed', 'paused', 'abandoned']:
+            stats['by_status'][status] = len([g for g in self.goals if g.status == status])
+        
+        # Count by priority
+        for priority in range(1, 6):
+            goals_at_priority = [g for g in self.goals if g.priority == priority and g.status == 'active']
+            stats['by_priority'][priority] = len(goals_at_priority)
+        
+        return stats
     
     def get_summary(self) -> str:
         """Get a human-readable summary of coaching notes"""
