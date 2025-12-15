@@ -341,12 +341,102 @@ class AICoachDatabaseQueries:
         
         return self._execute_query(query, params)
     
+    def get_recent_ai_analyses(self, num_analyses: int = 3) -> List[Dict]:
+        """
+        Get the most recent AI weekly analysis texts for coaching continuity.
+        
+        This allows the AI to reference its own prior insights when generating
+        next week's plan, creating coaching continuity and narrative thread.
+        
+        **ENHANCED:** Now extracts week numbers using multiple patterns.
+        
+        Args:
+            num_analyses: Number of recent analyses to retrieve (default 3)
+            
+        Returns:
+            List of dicts with 'timestamp', 'week_number', 'week_info', 'analysis_text'
+        """
+        import re
+        
+        output_dir = Path(__file__).parent.parent.parent / "data" / "ai_coach_output"
+        if not output_dir.exists():
+            return []
+        
+        # Find all analysis files
+        analysis_files = sorted(output_dir.glob("analysis_*.txt"), reverse=True)
+        
+        analyses = []
+        for analysis_file in analysis_files[:num_analyses]:
+            # Extract timestamp from filename (e.g., analysis_20251113_202851.txt)
+            timestamp_str = analysis_file.stem.replace('analysis_', '')
+            try:
+                timestamp = datetime.strptime(timestamp_str, '%Y%m%d_%H%M%S')
+            except ValueError:
+                timestamp = None
+            
+            # Read analysis text
+            analysis_text = analysis_file.read_text()
+            
+            # Extract week number using multiple patterns
+            week_number = None
+            week_info_line = None
+            
+            # Check first 10 lines for week references
+            for line in analysis_text.split('\n')[:10]:
+                # Pattern 1: "Week 52 Analysis" or "Week 52:" or "## Week 52"
+                match = re.search(r'Week\s*(\d+)', line, re.IGNORECASE)
+                if match:
+                    week_number = int(match.group(1))
+                    week_info_line = line.strip()
+                    break
+                
+                # Pattern 2: "Training Week 52" or "52nd Week"
+                match = re.search(r'(\d+)(?:st|nd|rd|th)?\s*Week', line, re.IGNORECASE)
+                if match:
+                    week_number = int(match.group(1))
+                    week_info_line = line.strip()
+                    break
+                
+                # Pattern 3: Date range (e.g., "December 9-15, 2025")
+                if 'December' in line or 'November' in line or any(month in line for month in 
+                   ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October']):
+                    week_info_line = line.strip()
+            
+            # If no week number found, try to extract from accompanying JSON files
+            if week_number is None:
+                json_file = analysis_file.parent / f"coaching_result_{timestamp_str}.json"
+                if json_file.exists():
+                    try:
+                        with open(json_file, 'r') as f:
+                            result_data = json.load(f)
+                            # Check for week_number in various locations
+                            week_number = (
+                                result_data.get('week_number') or
+                                result_data.get('weekly_summary', {}).get('week_number') or
+                                result_data.get('workout_plan', {}).get('weekNumber')
+                            )
+                    except:
+                        pass
+            
+            analyses.append({
+                'timestamp': timestamp.isoformat() if timestamp else timestamp_str,
+                'week_number': week_number,
+                'week_info': week_info_line or f'Week {week_number}' if week_number else 'Week info not found',
+                'analysis_text': analysis_text[:2000],  # First 2000 chars for context
+                'full_length': len(analysis_text),
+                'date_analyzed': timestamp.strftime('%B %d, %Y') if timestamp else 'Unknown date'
+            })
+        
+        return analyses
+    
     def get_comprehensive_context(self, weeks_back: int = 4) -> Dict:
         """
         Get comprehensive training context for AI coach.
         
         This is the main method the AI will use to get all relevant
         historical data in one call.
+        
+        **NEW: Now includes prior AI analysis texts for coaching continuity!**
         """
         return {
             'weeks_analyzed': weeks_back,
@@ -363,6 +453,7 @@ class AICoachDatabaseQueries:
                 'Endurance': self.workout_analyzer.analyze_workout_type_trends('Endurance', weeks_back * 3),
                 'Tempo': self.workout_analyzer.analyze_workout_type_trends('Tempo', weeks_back * 3)
             },
+            'previous_ai_analyses': self.get_recent_ai_analyses(num_analyses=3),
             'timestamp': datetime.now().isoformat()
         }
 
