@@ -24,9 +24,13 @@ load_dotenv(dotenv_path=env_path)
 
 
 class AIModel(Enum):
-    """Available AI models for coaching (Nov 2025)"""
-    GEMINI_FREE = "gemini-1.5-flash"  # Free tier, good for testing
-    GEMINI_PRO = "gemini-1.5-pro"     # Higher quality, still cheap
+    """Available AI models for coaching (Dec 2025)"""
+    # Google Gemini (FREE tier available, recommended for cost-conscious use)
+    GEMINI_FREE = "gemini-1.5-flash-002"  # Stable production, free tier
+    GEMINI_FLASH = "gemini-1.5-flash"     # Stable fallback
+    GEMINI_FLASH_8B = "gemini-1.5-flash-8b"  # Lightweight, fast
+    GEMINI_PRO = "gemini-1.5-pro"         # Higher quality
+    GEMINI_2_FLASH = "gemini-2.0-flash-exp"  # Latest experimental
     
     # Claude 3 series (older, being deprecated)
     CLAUDE_3_HAIKU = "claude-3-haiku-20240307"

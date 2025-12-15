@@ -61,6 +61,15 @@ def render_historical_analysis_tab():
                         
                         # Step 2: Analyze all workouts in the range
                         with st.spinner("Analyzing workouts with AI..."):
+                            # Show which model will be used
+                            try:
+                                from src.utils.gemini_model_discovery import get_best_free_models
+                                free_models = get_best_free_models()
+                                if free_models:
+                                    st.info(f"🤖 Using free model: **{free_models[0]}** (cost: $0)")
+                            except:
+                                pass  # If model discovery fails, just continue
+                            
                             automation = DailyAutoSyncAndAnalyze('data/fitness_data.db')
                             
                             # Analyze each day in the range
@@ -91,6 +100,7 @@ def render_historical_analysis_tab():
                             automation.cleanup_temp_files()
                         
                         st.success(f"✅ Complete! Analyzed {total_analyzed} workouts from {start_date} to {end_date}")
+                        st.info(f"💰 Cost: $0 (using free Gemini models)")
                         st.rerun()
                         
                     except Exception as e:

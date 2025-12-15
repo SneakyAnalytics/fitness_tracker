@@ -455,3 +455,497 @@ Call log:
 2025-11-27 22:00:45,353 - __main__ - INFO - New Personal Bests: 0
 2025-11-27 22:00:45,353 - __main__ - INFO - ============================================================
 2025-11-27 22:00:45,353 - __main__ - INFO - 
+2025-11-28 22:02:23,677 - __main__ - INFO - Initialized daily automation with database: data/fitness_data.db
+2025-11-28 22:02:23,677 - __main__ - INFO - 
+2025-11-28 22:02:23,677 - __main__ - INFO - ============================================================
+2025-11-28 22:02:23,677 - __main__ - INFO - 🚀 DAILY AUTOMATION - 2025-11-28
+2025-11-28 22:02:23,677 - __main__ - INFO - ============================================================
+2025-11-28 22:02:23,677 - __main__ - INFO - 
+2025-11-28 22:02:23,677 - __main__ - INFO - STEP 1: TrainingPeaks Sync
+2025-11-28 22:02:23,677 - __main__ - INFO - ------------------------------------------------------------
+2025-11-28 22:02:23,678 - __main__ - INFO - ============================================================
+2025-11-28 22:02:23,678 - __main__ - INFO - 🔄 TrainingPeaks Sync - 2025-11-28
+2025-11-28 22:02:23,678 - __main__ - INFO - ============================================================
+2025-11-28 22:02:50,730 - __main__ - INFO - ✅ TrainingPeaks sync completed
+2025-11-28 22:02:50,738 - __main__ - INFO -    FIT files uploaded: 1
+2025-11-28 22:02:50,738 - __main__ - INFO -    Workouts CSV: ✅
+2025-11-28 22:02:50,738 - __main__ - INFO -    Metrics CSV: ✅
+2025-11-28 22:02:50,738 - __main__ - INFO - 
+2025-11-28 22:02:50,738 - __main__ - INFO - STEP 2: Get FIT Files from Sync
+2025-11-28 22:02:50,739 - __main__ - INFO - ------------------------------------------------------------
+2025-11-28 22:02:50,739 - __main__ - INFO - Found 1 FIT file(s) to analyze
+2025-11-28 22:02:50,739 - __main__ - INFO - 
+2025-11-28 22:02:50,739 - __main__ - INFO - STEP 3: AI Analysis
+2025-11-28 22:02:50,739 - __main__ - INFO - ------------------------------------------------------------
+2025-11-28 22:02:50,739 - __main__ - INFO - [1/1] tp-5350487.2025-11-28-23-22-54-525Z.GarminPing.AAAAAGkqLs0jM5tl.FIT
+2025-11-28 22:02:50,740 - __main__ - INFO - Loaded FTP from athlete_settings: 300W
+2025-11-28 22:02:50,741 - __main__ - INFO - 🤖 Analyzing: tp-5350487.2025-11-28-23-22-54-525Z.GarminPing.AAAAAGkqLs0jM5tl.FIT
+2025-11-28 22:02:58,781 - __main__ - INFO -    ✅ Analysis complete
+2025-11-28 22:02:58,843 - __main__ - INFO -    💾 Stored analysis ID: 87
+2025-11-28 22:02:58,847 - __main__ - INFO -    🏅 Stored PB: 45min = 221.9W
+2025-11-28 22:02:58,848 - __main__ - INFO -    💪 Total personal bests tracked: 1
+2025-11-28 22:02:58,848 - __main__ - INFO - 
+2025-11-28 22:02:58,848 - __main__ - INFO - STEP 4: Cleanup
+2025-11-28 22:02:58,848 - __main__ - INFO - ------------------------------------------------------------
+2025-11-28 22:02:58,848 - __main__ - INFO - 🧹 Cleaning up temporary files...
+2025-11-28 22:02:58,849 - __main__ - INFO -    🗑️  Removed: tp-5350487.2025-11-28-23-22-54-525Z.GarminPing.AAAAAGkqLs0jM5tl.FIT
+2025-11-28 22:02:58,850 - __main__ - INFO -    🗑️  Removed: WorkoutFileExport-Robinson-Jake-2025-11-28-2025-11-28.zip
+2025-11-28 22:02:58,850 - __main__ - INFO -    🗑️  Removed: WorkoutExport-Robinson-Jake-2025-11-28-2025-11-28.zip
+2025-11-28 22:02:58,851 - __main__ - INFO -    🗑️  Removed: MetricsExport-Robinson-Jake-2025-11-28-2025-11-28.zip
+2025-11-28 22:02:58,851 - __main__ - INFO -    🗑️  Removed temp dir: MetricsExport-Robinson-Jake-2025-11-28-2025-11-28
+2025-11-28 22:02:58,851 - __main__ - INFO -    🗑️  Removed temp dir: WorkoutExport-Robinson-Jake-2025-11-28-2025-11-28
+2025-11-28 22:02:58,851 - __main__ - INFO -    🗑️  Removed temp dir: WorkoutFileExport-Robinson-Jake-2025-11-28-2025-11-28
+2025-11-28 22:02:58,851 - __main__ - INFO - ✅ Cleanup complete
+2025-11-28 22:02:58,851 - __main__ - INFO - 
+2025-11-28 22:02:58,852 - __main__ - INFO - ============================================================
+2025-11-28 22:02:58,852 - __main__ - INFO - ✅ DAILY AUTOMATION COMPLETE
+2025-11-28 22:02:58,852 - __main__ - INFO - ============================================================
+2025-11-28 22:02:58,852 - __main__ - INFO - Date: 2025-11-28
+2025-11-28 22:02:58,852 - __main__ - INFO - FIT Files Downloaded: 1
+2025-11-28 22:02:58,852 - __main__ - INFO - Workouts Analyzed: 1
+2025-11-28 22:02:58,852 - __main__ - INFO - New Personal Bests: 1
+2025-11-28 22:02:58,852 - __main__ - INFO - ============================================================
+2025-11-28 22:02:58,852 - __main__ - INFO - 
+2025-11-29 22:00:05,338 - __main__ - INFO - Initialized daily automation with database: data/fitness_data.db
+2025-11-29 22:00:05,338 - __main__ - INFO - 
+2025-11-29 22:00:05,338 - __main__ - INFO - ============================================================
+2025-11-29 22:00:05,338 - __main__ - INFO - 🚀 DAILY AUTOMATION - 2025-11-29
+2025-11-29 22:00:05,338 - __main__ - INFO - ============================================================
+2025-11-29 22:00:05,338 - __main__ - INFO - 
+2025-11-29 22:00:05,338 - __main__ - INFO - STEP 1: TrainingPeaks Sync
+2025-11-29 22:00:05,338 - __main__ - INFO - ------------------------------------------------------------
+2025-11-29 22:00:05,338 - __main__ - INFO - ============================================================
+2025-11-29 22:00:05,338 - __main__ - INFO - 🔄 TrainingPeaks Sync - 2025-11-29
+2025-11-29 22:00:05,338 - __main__ - INFO - ============================================================
+Traceback (most recent call last):
+  File "/Users/jacobrobinson/fitness_tracker/src/utils/trainingpeaks_sync.py", line 464, in run_sync
+    self.login_and_navigate(page)
+  File "/Users/jacobrobinson/fitness_tracker/src/utils/trainingpeaks_sync.py", line 173, in login_and_navigate
+    page.click("label.userSettingsOption:has-text('Settings')", timeout=10000)
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/sync_api/_generated.py", line 9927, in click
+    self._sync(
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/_impl/_sync_base.py", line 115, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "/Users/jacobrobinson/anaconda3/lib/python3.11/asyncio/futures.py", line 203, in result
+    raise self._exception.with_traceback(self._exception_tb)
+  File "/Users/jacobrobinson/anaconda3/lib/python3.11/asyncio/tasks.py", line 267, in __step
+    result = coro.send(None)
+             ^^^^^^^^^^^^^^^
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/_impl/_page.py", line 857, in click
+    return await self._main_frame.click(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/_impl/_frame.py", line 549, in click
+    await self._channel.send("click", self._timeout, locals_to_params(locals()))
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.TimeoutError: Page.click: Timeout 10000ms exceeded.
+Call log:
+  - waiting for locator("label.userSettingsOption:has-text('Settings')")
+
+2025-11-29 22:18:50,138 - __main__ - ERROR - ❌ TrainingPeaks sync failed
+2025-11-29 22:18:50,139 - __main__ - WARNING - ⚠️  No FIT files downloaded, skipping analysis
+2025-11-30 22:10:42,804 - __main__ - INFO - Initialized daily automation with database: data/fitness_data.db
+2025-11-30 22:10:42,805 - __main__ - INFO - 
+2025-11-30 22:10:42,805 - __main__ - INFO - ============================================================
+2025-11-30 22:10:42,805 - __main__ - INFO - 🚀 DAILY AUTOMATION - 2025-11-30
+2025-11-30 22:10:42,805 - __main__ - INFO - ============================================================
+2025-11-30 22:10:42,805 - __main__ - INFO - 
+2025-11-30 22:10:42,805 - __main__ - INFO - STEP 1: TrainingPeaks Sync
+2025-11-30 22:10:42,805 - __main__ - INFO - ------------------------------------------------------------
+2025-11-30 22:10:42,805 - __main__ - INFO - ============================================================
+2025-11-30 22:10:42,805 - __main__ - INFO - 🔄 TrainingPeaks Sync - 2025-11-30
+2025-11-30 22:10:42,805 - __main__ - INFO - ============================================================
+2025-11-30 22:11:06,027 - __main__ - INFO - ✅ TrainingPeaks sync completed
+2025-11-30 22:11:06,035 - __main__ - INFO -    FIT files uploaded: 2
+2025-11-30 22:11:06,035 - __main__ - INFO -    Workouts CSV: ✅
+2025-11-30 22:11:06,035 - __main__ - INFO -    Metrics CSV: ✅
+2025-11-30 22:11:06,035 - __main__ - INFO - 
+2025-11-30 22:11:06,035 - __main__ - INFO - STEP 2: Get FIT Files from Sync
+2025-11-30 22:11:06,035 - __main__ - INFO - ------------------------------------------------------------
+2025-11-30 22:11:06,035 - __main__ - INFO - Found 2 FIT file(s) to analyze
+2025-11-30 22:11:06,035 - __main__ - INFO - 
+2025-11-30 22:11:06,035 - __main__ - INFO - STEP 3: AI Analysis
+2025-11-30 22:11:06,035 - __main__ - INFO - ------------------------------------------------------------
+2025-11-30 22:11:06,036 - __main__ - INFO - [1/2] tp-5350487.2025-11-30-17-58-12-744Z.GarminPing.AAAAAGkshbTdenjn.FIT
+2025-11-30 22:11:06,037 - __main__ - INFO - Loaded FTP from athlete_settings: 300W
+2025-11-30 22:11:06,037 - __main__ - INFO - 🤖 Analyzing: tp-5350487.2025-11-30-17-58-12-744Z.GarminPing.AAAAAGkshbTdenjn.FIT
+2025-11-30 22:11:06,518 - __main__ - INFO -    ✅ Analysis complete
+2025-11-30 22:11:06,550 - __main__ - INFO -    💾 Stored analysis ID: 88
+2025-11-30 22:11:06,550 - __main__ - INFO -    ⏸️  Rate limiting: 6s...
+2025-11-30 22:11:12,644 - __main__ - INFO - [2/2] tp-5350487.2025-11-30-18-48-42-354Z.GarminPing.AAAAAGkskYo0bemj.FIT
+2025-11-30 22:11:12,645 - __main__ - INFO - Loaded FTP from athlete_settings: 300W
+2025-11-30 22:11:12,645 - __main__ - INFO - 🤖 Analyzing: tp-5350487.2025-11-30-18-48-42-354Z.GarminPing.AAAAAGkskYo0bemj.FIT
+2025-11-30 22:11:12,847 - __main__ - INFO -    ✅ Analysis complete
+2025-11-30 22:11:12,884 - __main__ - INFO -    💾 Stored analysis ID: 90
+2025-11-30 22:11:12,884 - __main__ - INFO - 
+2025-11-30 22:11:12,884 - __main__ - INFO - STEP 4: Cleanup
+2025-11-30 22:11:12,884 - __main__ - INFO - ------------------------------------------------------------
+2025-11-30 22:11:12,884 - __main__ - INFO - 🧹 Cleaning up temporary files...
+2025-11-30 22:11:12,884 - __main__ - INFO -    🗑️  Removed: tp-5350487.2025-11-30-17-58-12-744Z.GarminPing.AAAAAGkshbTdenjn.FIT
+2025-11-30 22:11:12,885 - __main__ - INFO -    🗑️  Removed: tp-5350487.2025-11-30-18-48-42-354Z.GarminPing.AAAAAGkskYo0bemj.FIT
+2025-11-30 22:11:12,885 - __main__ - INFO -    🗑️  Removed: WorkoutFileExport-Robinson-Jake-2025-11-30-2025-11-30.zip
+2025-11-30 22:11:12,885 - __main__ - INFO -    🗑️  Removed: WorkoutExport-Robinson-Jake-2025-11-30-2025-11-30.zip
+2025-11-30 22:11:12,886 - __main__ - INFO -    🗑️  Removed: MetricsExport-Robinson-Jake-2025-11-30-2025-11-30.zip
+2025-11-30 22:11:12,886 - __main__ - INFO -    🗑️  Removed temp dir: WorkoutExport-Robinson-Jake-2025-11-30-2025-11-30
+2025-11-30 22:11:12,886 - __main__ - INFO -    🗑️  Removed temp dir: MetricsExport-Robinson-Jake-2025-11-30-2025-11-30
+2025-11-30 22:11:12,886 - __main__ - INFO -    🗑️  Removed temp dir: WorkoutFileExport-Robinson-Jake-2025-11-30-2025-11-30
+2025-11-30 22:11:12,886 - __main__ - INFO - ✅ Cleanup complete
+2025-11-30 22:11:12,886 - __main__ - INFO - 
+2025-11-30 22:11:12,886 - __main__ - INFO - ============================================================
+2025-11-30 22:11:12,886 - __main__ - INFO - ✅ DAILY AUTOMATION COMPLETE
+2025-11-30 22:11:12,886 - __main__ - INFO - ============================================================
+2025-11-30 22:11:12,886 - __main__ - INFO - Date: 2025-11-30
+2025-11-30 22:11:12,886 - __main__ - INFO - FIT Files Downloaded: 2
+2025-11-30 22:11:12,886 - __main__ - INFO - Workouts Analyzed: 2
+2025-11-30 22:11:12,886 - __main__ - INFO - New Personal Bests: 0
+2025-11-30 22:11:12,886 - __main__ - INFO - ============================================================
+2025-11-30 22:11:12,886 - __main__ - INFO - 
+2025-12-01 22:02:43,075 - __main__ - INFO - Initialized daily automation with database: data/fitness_data.db
+2025-12-01 22:02:43,075 - __main__ - INFO - 
+2025-12-01 22:02:43,075 - __main__ - INFO - ============================================================
+2025-12-01 22:02:43,075 - __main__ - INFO - 🚀 DAILY AUTOMATION - 2025-12-01
+2025-12-01 22:02:43,075 - __main__ - INFO - ============================================================
+2025-12-01 22:02:43,075 - __main__ - INFO - 
+2025-12-01 22:02:43,075 - __main__ - INFO - STEP 1: TrainingPeaks Sync
+2025-12-01 22:02:43,075 - __main__ - INFO - ------------------------------------------------------------
+2025-12-01 22:02:43,075 - __main__ - INFO - ============================================================
+2025-12-01 22:02:43,075 - __main__ - INFO - 🔄 TrainingPeaks Sync - 2025-12-01
+2025-12-01 22:02:43,075 - __main__ - INFO - ============================================================
+2025-12-01 22:03:13,329 - __main__ - INFO - ✅ TrainingPeaks sync completed
+2025-12-01 22:03:13,329 - __main__ - INFO -    FIT files uploaded: 7
+2025-12-01 22:03:13,329 - __main__ - INFO -    Workouts CSV: ✅
+2025-12-01 22:03:13,329 - __main__ - INFO -    Metrics CSV: ✅
+2025-12-01 22:03:13,329 - __main__ - INFO - 
+2025-12-01 22:03:13,329 - __main__ - INFO - STEP 2: Get FIT Files from Sync
+2025-12-01 22:03:13,329 - __main__ - INFO - ------------------------------------------------------------
+2025-12-01 22:03:13,329 - __main__ - INFO - Found 7 FIT file(s) to analyze
+2025-12-01 22:03:13,329 - __main__ - INFO - 
+2025-12-01 22:03:13,329 - __main__ - INFO - STEP 3: AI Analysis
+2025-12-01 22:03:13,329 - __main__ - INFO - ------------------------------------------------------------
+2025-12-01 22:03:13,329 - __main__ - INFO - [1/7] zwift-activity-2007547283570196480.fit
+2025-12-01 22:03:13,330 - __main__ - INFO - Loaded FTP from athlete_settings: 300W
+2025-12-01 22:03:13,330 - __main__ - INFO - 🤖 Analyzing: zwift-activity-2007547283570196480.fit
+2025-12-01 22:03:23,063 - __main__ - INFO -    ✅ Analysis complete
+2025-12-01 22:03:23,104 - __main__ - INFO -    💾 Stored analysis ID: 91
+2025-12-01 22:03:23,108 - __main__ - INFO -    🏅 Stored PB: 45min = 233.9W
+2025-12-01 22:03:23,109 - __main__ - INFO -    🏅 Stored PB: 60min = 231.5W
+2025-12-01 22:03:23,110 - __main__ - INFO -    💪 Total personal bests tracked: 2
+2025-12-01 22:03:23,110 - __main__ - INFO -    ⏸️  Rate limiting: 6s...
+2025-12-01 22:20:22,627 - __main__ - INFO - [2/7] zwift-activity-2004934441532669968.fit
+2025-12-01 22:20:22,630 - __main__ - INFO - Loaded FTP from athlete_settings: 300W
+2025-12-01 22:20:22,630 - __main__ - INFO - 🤖 Analyzing: zwift-activity-2004934441532669968.fit
+2025-12-01 22:20:30,530 - __main__ - INFO -    ✅ Analysis complete
+2025-12-01 22:20:30,559 - __main__ - INFO -    💾 Stored analysis ID: 92
+2025-12-01 22:20:30,561 - __main__ - INFO -    🏅 Stored PB: 30s = 406.2W
+2025-12-01 22:20:30,562 - __main__ - INFO -    🏅 Stored PB: 1min = 376.4W
+2025-12-01 22:20:30,563 - __main__ - INFO -    🏅 Stored PB: 3min = 356.7W
+2025-12-01 22:20:30,565 - __main__ - INFO -    🏅 Stored PB: 5min = 343.8W
+2025-12-01 22:20:30,567 - __main__ - INFO -    🏅 Stored PB: 10min = 324.3W
+2025-12-01 22:20:30,568 - __main__ - INFO -    🏅 Stored PB: 20min = 298.9W
+2025-12-01 22:20:30,568 - __main__ - INFO -    🏅 Stored PB: 45min = 275.6W
+2025-12-01 22:20:30,569 - __main__ - INFO -    🏅 Stored PB: 60min = 270.6W
+2025-12-01 22:20:30,569 - __main__ - INFO -    💪 Total personal bests tracked: 8
+2025-12-01 22:20:30,569 - __main__ - INFO -    ⏸️  Rate limiting: 6s...
+2025-12-01 22:20:36,617 - __main__ - INFO - [3/7] zwift-activity-2005281120991608848.fit
+2025-12-01 22:20:36,619 - __main__ - INFO - Loaded FTP from athlete_settings: 300W
+2025-12-01 22:20:36,619 - __main__ - INFO - 🤖 Analyzing: zwift-activity-2005281120991608848.fit
+2025-12-01 22:20:45,172 - __main__ - INFO -    ✅ Analysis complete
+2025-12-01 22:20:45,202 - __main__ - INFO -    💾 Stored analysis ID: 93
+2025-12-01 22:20:45,209 - __main__ - INFO -    🏅 Stored PB: 30min = 197.0W
+2025-12-01 22:20:45,209 - __main__ - INFO -    💪 Total personal bests tracked: 1
+2025-12-01 22:20:45,209 - __main__ - INFO -    ⏸️  Rate limiting: 6s...
+2025-12-01 22:20:51,311 - __main__ - INFO - [4/7] zwift-activity-2005998898484609056.fit
+2025-12-01 22:20:51,314 - __main__ - INFO - Loaded FTP from athlete_settings: 300W
+2025-12-01 22:20:51,314 - __main__ - INFO - 🤖 Analyzing: zwift-activity-2005998898484609056.fit
+2025-12-01 22:21:01,144 - __main__ - INFO -    ✅ Analysis complete
+2025-12-01 22:21:01,172 - __main__ - INFO -    💾 Stored analysis ID: 94
+2025-12-01 22:21:01,176 - __main__ - INFO -    🏅 Stored PB: 3min = 349.7W
+2025-12-01 22:21:01,178 - __main__ - INFO -    🏅 Stored PB: 5min = 331.4W
+2025-12-01 22:21:01,180 - __main__ - INFO -    🏅 Stored PB: 45min = 264.0W
+2025-12-01 22:21:01,182 - __main__ - INFO -    🏅 Stored PB: 60min = 239.6W
+2025-12-01 22:21:01,183 - __main__ - INFO -    🏅 Stored PB: 4min = 349.5W
+2025-12-01 22:21:01,183 - __main__ - INFO -    💪 Total personal bests tracked: 5
+2025-12-01 22:21:01,183 - __main__ - INFO -    ⏸️  Rate limiting: 6s...
+2025-12-01 22:21:07,302 - __main__ - INFO - [5/7] zwift-activity-2003838076840837168.fit
+2025-12-01 22:21:07,303 - __main__ - INFO - Loaded FTP from athlete_settings: 300W
+2025-12-01 22:21:07,304 - __main__ - INFO - 🤖 Analyzing: zwift-activity-2003838076840837168.fit
+2025-12-01 22:37:29,028 - __main__ - INFO -    ✅ Analysis complete
+2025-12-01 22:37:29,057 - __main__ - INFO -    💾 Stored analysis ID: 95
+2025-12-01 22:37:29,061 - __main__ - INFO -    ⏸️  Rate limiting: 6s...
+2025-12-01 22:37:35,195 - __main__ - INFO - [6/7] tp-5350487.2025-11-14-17-11-29-295Z.GarminPing.AAAAAGkXYsHSw21G.FIT
+2025-12-01 22:37:35,198 - __main__ - INFO - Loaded FTP from athlete_settings: 300W
+2025-12-01 22:37:35,198 - __main__ - INFO - 🤖 Analyzing: tp-5350487.2025-11-14-17-11-29-295Z.GarminPing.AAAAAGkXYsHSw21G.FIT
+2025-12-01 22:37:35,356 - __main__ - INFO -    ✅ Analysis complete
+2025-12-01 22:37:35,361 - __main__ - INFO -    💾 Stored analysis ID: 96
+2025-12-01 22:37:35,361 - __main__ - INFO -    ⏸️  Rate limiting: 6s...
+2025-12-01 22:37:41,473 - __main__ - INFO - [7/7] tp-5350487.2025-11-16-17-47-06-180Z.GarminPing.AAAAAGkaDhl2nmKM.FIT
+2025-12-01 22:37:41,474 - __main__ - INFO - Loaded FTP from athlete_settings: 300W
+2025-12-01 22:37:41,474 - __main__ - INFO - 🤖 Analyzing: tp-5350487.2025-11-16-17-47-06-180Z.GarminPing.AAAAAGkaDhl2nmKM.FIT
+2025-12-01 22:37:41,888 - __main__ - INFO -    ✅ Analysis complete
+2025-12-01 22:37:41,897 - __main__ - INFO -    💾 Stored analysis ID: 97
+2025-12-01 22:37:41,897 - __main__ - INFO - 
+2025-12-01 22:37:41,897 - __main__ - INFO - STEP 4: Cleanup
+2025-12-01 22:37:41,897 - __main__ - INFO - ------------------------------------------------------------
+2025-12-01 22:37:41,897 - __main__ - INFO - 🧹 Cleaning up temporary files...
+2025-12-01 22:37:41,898 - __main__ - INFO -    🗑️  Removed: zwift-activity-2005281120991608848.fit
+2025-12-01 22:37:41,898 - __main__ - INFO -    🗑️  Removed: zwift-activity-2004934441532669968.fit
+2025-12-01 22:37:41,898 - __main__ - INFO -    🗑️  Removed: zwift-activity-2007547283570196480.fit
+2025-12-01 22:37:41,898 - __main__ - INFO -    🗑️  Removed: zwift-activity-2003838076840837168.fit
+2025-12-01 22:37:41,898 - __main__ - INFO -    🗑️  Removed: zwift-activity-2005998898484609056.fit
+2025-12-01 22:37:41,898 - __main__ - INFO -    🗑️  Removed: tp-5350487.2025-11-14-17-11-29-295Z.GarminPing.AAAAAGkXYsHSw21G.FIT
+2025-12-01 22:37:41,899 - __main__ - INFO -    🗑️  Removed: tp-5350487.2025-11-16-17-47-06-180Z.GarminPing.AAAAAGkaDhl2nmKM.FIT
+2025-12-01 22:37:41,900 - __main__ - INFO -    🗑️  Removed: MetricsExport-Robinson-Jake-2025-12-01-2025-12-01.zip
+2025-12-01 22:37:41,908 - __main__ - INFO -    🗑️  Removed temp dir: WorkoutExport-Robinson-Jake-2025-11-10-2025-11-16
+2025-12-01 22:37:41,909 - __main__ - INFO -    🗑️  Removed temp dir: MetricsExport-Robinson-Jake-2025-12-01-2025-12-01
+2025-12-01 22:37:41,940 - __main__ - INFO -    🗑️  Removed temp dir: WorkoutFileExport-Robinson-Jake-2025-11-10-2025-11-16
+2025-12-01 22:37:41,940 - __main__ - INFO - ✅ Cleanup complete
+2025-12-01 22:37:41,940 - __main__ - INFO - 
+2025-12-01 22:37:41,940 - __main__ - INFO - ============================================================
+2025-12-01 22:37:41,940 - __main__ - INFO - ✅ DAILY AUTOMATION COMPLETE
+2025-12-01 22:37:41,940 - __main__ - INFO - ============================================================
+2025-12-01 22:37:41,940 - __main__ - INFO - Date: 2025-12-01
+2025-12-01 22:37:41,940 - __main__ - INFO - FIT Files Downloaded: 7
+2025-12-01 22:37:41,940 - __main__ - INFO - Workouts Analyzed: 7
+2025-12-01 22:37:41,940 - __main__ - INFO - New Personal Bests: 16
+2025-12-01 22:37:41,940 - __main__ - INFO - ============================================================
+2025-12-01 22:37:41,940 - __main__ - INFO - 
+2025-12-02 22:02:32,011 - __main__ - INFO - Initialized daily automation with database: data/fitness_data.db
+2025-12-02 22:02:32,012 - __main__ - INFO - 
+2025-12-02 22:02:32,012 - __main__ - INFO - ============================================================
+2025-12-02 22:02:32,012 - __main__ - INFO - 🚀 DAILY AUTOMATION - 2025-12-02
+2025-12-02 22:02:32,012 - __main__ - INFO - ============================================================
+2025-12-02 22:02:32,012 - __main__ - INFO - 
+2025-12-02 22:02:32,012 - __main__ - INFO - STEP 1: TrainingPeaks Sync
+2025-12-02 22:02:32,012 - __main__ - INFO - ------------------------------------------------------------
+2025-12-02 22:02:32,012 - __main__ - INFO - ============================================================
+2025-12-02 22:02:32,012 - __main__ - INFO - 🔄 TrainingPeaks Sync - 2025-12-02
+2025-12-02 22:02:32,012 - __main__ - INFO - ============================================================
+2025-12-02 22:02:55,570 - __main__ - INFO - ✅ TrainingPeaks sync completed
+2025-12-02 22:02:55,573 - __main__ - INFO -    FIT files uploaded: 2
+2025-12-02 22:02:55,573 - __main__ - INFO -    Workouts CSV: ✅
+2025-12-02 22:02:55,573 - __main__ - INFO -    Metrics CSV: ✅
+2025-12-02 22:02:55,573 - __main__ - INFO - 
+2025-12-02 22:02:55,573 - __main__ - INFO - STEP 2: Get FIT Files from Sync
+2025-12-02 22:02:55,573 - __main__ - INFO - ------------------------------------------------------------
+2025-12-02 22:02:55,573 - __main__ - INFO - Found 2 FIT file(s) to analyze
+2025-12-02 22:02:55,573 - __main__ - INFO - 
+2025-12-02 22:02:55,573 - __main__ - INFO - STEP 3: AI Analysis
+2025-12-02 22:02:55,573 - __main__ - INFO - ------------------------------------------------------------
+2025-12-02 22:02:55,573 - __main__ - INFO - [1/2] zwift-activity-2020145204685701152.fit
+2025-12-02 22:02:55,575 - __main__ - INFO - Loaded FTP from athlete_settings: 300W
+2025-12-02 22:02:55,575 - __main__ - INFO - 🤖 Analyzing: zwift-activity-2020145204685701152.fit
+2025-12-02 22:03:05,961 - __main__ - INFO -    ✅ Analysis complete
+2025-12-02 22:03:06,240 - __main__ - INFO -    💾 Stored analysis ID: 98
+2025-12-02 22:03:06,243 - __main__ - INFO -    ⏸️  Rate limiting: 6s...
+2025-12-02 22:03:12,374 - __main__ - INFO - [2/2] zwift-activity-2020155375679963136.fit
+2025-12-02 22:03:12,375 - __main__ - INFO - Loaded FTP from athlete_settings: 300W
+2025-12-02 22:03:12,375 - __main__ - INFO - 🤖 Analyzing: zwift-activity-2020155375679963136.fit
+2025-12-02 22:16:21,755 - __main__ - INFO -    ✅ Analysis complete
+2025-12-02 22:16:21,811 - __main__ - INFO -    💾 Stored analysis ID: 99
+2025-12-02 22:16:21,814 - __main__ - INFO -    🏅 Stored PB: 30s = 427.4W
+2025-12-02 22:16:21,817 - __main__ - INFO -    🏅 Stored PB: 1min = 389.9W
+2025-12-02 22:16:21,818 - __main__ - INFO -    🏅 Stored PB: 3min = 353.3W
+2025-12-02 22:16:21,820 - __main__ - INFO -    🏅 Stored PB: 5min = 340.5W
+2025-12-02 22:16:21,822 - __main__ - INFO -    🏅 Stored PB: 10min = 323.1W
+2025-12-02 22:16:21,824 - __main__ - INFO -    🏅 Stored PB: 20min = 305.3W
+2025-12-02 22:16:21,825 - __main__ - INFO -    🏅 Stored PB: 45min = 296.2W
+2025-12-02 22:16:21,825 - __main__ - INFO -    💪 Total personal bests tracked: 7
+2025-12-02 22:16:21,825 - __main__ - INFO - 
+2025-12-02 22:16:21,825 - __main__ - INFO - STEP 4: Cleanup
+2025-12-02 22:16:21,825 - __main__ - INFO - ------------------------------------------------------------
+2025-12-02 22:16:21,825 - __main__ - INFO - 🧹 Cleaning up temporary files...
+2025-12-02 22:16:21,827 - __main__ - INFO -    🗑️  Removed: zwift-activity-2020155375679963136.fit
+2025-12-02 22:16:21,828 - __main__ - INFO -    🗑️  Removed: zwift-activity-2020145204685701152.fit
+2025-12-02 22:16:21,830 - __main__ - INFO -    🗑️  Removed: WorkoutFileExport-Robinson-Jake-2025-12-02-2025-12-02.zip
+2025-12-02 22:16:21,831 - __main__ - INFO -    🗑️  Removed: WorkoutExport-Robinson-Jake-2025-12-02-2025-12-02.zip
+2025-12-02 22:16:21,832 - __main__ - INFO -    🗑️  Removed: MetricsExport-Robinson-Jake-2025-12-02-2025-12-02.zip
+2025-12-02 22:16:21,834 - __main__ - INFO -    🗑️  Removed temp dir: WorkoutExport-Robinson-Jake-2025-12-02-2025-12-02
+2025-12-02 22:16:21,834 - __main__ - INFO -    🗑️  Removed temp dir: MetricsExport-Robinson-Jake-2025-12-02-2025-12-02
+2025-12-02 22:16:21,834 - __main__ - INFO -    🗑️  Removed temp dir: WorkoutFileExport-Robinson-Jake-2025-12-02-2025-12-02
+2025-12-02 22:16:21,834 - __main__ - INFO - ✅ Cleanup complete
+2025-12-02 22:16:21,834 - __main__ - INFO - 
+2025-12-02 22:16:21,834 - __main__ - INFO - ============================================================
+2025-12-02 22:16:21,834 - __main__ - INFO - ✅ DAILY AUTOMATION COMPLETE
+2025-12-02 22:16:21,834 - __main__ - INFO - ============================================================
+2025-12-02 22:16:21,834 - __main__ - INFO - Date: 2025-12-02
+2025-12-02 22:16:21,834 - __main__ - INFO - FIT Files Downloaded: 2
+2025-12-02 22:16:21,834 - __main__ - INFO - Workouts Analyzed: 2
+2025-12-02 22:16:21,834 - __main__ - INFO - New Personal Bests: 7
+2025-12-02 22:16:21,834 - __main__ - INFO - ============================================================
+2025-12-02 22:16:21,834 - __main__ - INFO - 
+2025-12-03 22:00:04,273 - __main__ - INFO - Initialized daily automation with database: data/fitness_data.db
+2025-12-03 22:00:04,274 - __main__ - INFO - 
+2025-12-03 22:00:04,274 - __main__ - INFO - ============================================================
+2025-12-03 22:00:04,274 - __main__ - INFO - 🚀 DAILY AUTOMATION - 2025-12-03
+2025-12-03 22:00:04,274 - __main__ - INFO - ============================================================
+2025-12-03 22:00:04,274 - __main__ - INFO - 
+2025-12-03 22:00:04,274 - __main__ - INFO - STEP 1: TrainingPeaks Sync
+2025-12-03 22:00:04,274 - __main__ - INFO - ------------------------------------------------------------
+2025-12-03 22:00:04,274 - __main__ - INFO - ============================================================
+2025-12-03 22:00:04,274 - __main__ - INFO - 🔄 TrainingPeaks Sync - 2025-12-03
+2025-12-03 22:00:04,274 - __main__ - INFO - ============================================================
+Traceback (most recent call last):
+  File "/Users/jacobrobinson/fitness_tracker/src/utils/trainingpeaks_sync.py", line 459, in run_sync
+    browser = p.chromium.launch(headless=False, downloads_path=str(self.downloads_dir))
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/sync_api/_generated.py", line 14532, in launch
+    self._sync(
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/_impl/_sync_base.py", line 115, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "/Users/jacobrobinson/anaconda3/lib/python3.11/asyncio/futures.py", line 203, in result
+    raise self._exception.with_traceback(self._exception_tb)
+  File "/Users/jacobrobinson/anaconda3/lib/python3.11/asyncio/tasks.py", line 267, in __step
+    result = coro.send(None)
+             ^^^^^^^^^^^^^^^
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/_impl/_browser_type.py", line 98, in launch
+    await self._channel.send(
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.TimeoutError: BrowserType.launch: Timeout 180000ms exceeded.
+Call log:
+  - <launching> /Users/jacobrobinson/Library/Caches/ms-playwright/chromium-1194/chrome-mac/Chromium.app/Contents/MacOS/Chromium --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate,RenderDocument --enable-features=CDPScreenshotNewSurface --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --enable-unsafe-swiftshader --no-sandbox --user-data-dir=/var/folders/xz/mj78_xxn2p38rv13sgxtb9gw0000gn/T/playwright_chromiumdev_profile-RTDtk9 --remote-debugging-pipe --no-startup-window
+  - <launched> pid=12933
+
+2025-12-03 22:12:09,285 - __main__ - ERROR - ❌ TrainingPeaks sync failed
+2025-12-03 22:12:09,285 - __main__ - WARNING - ⚠️  No FIT files downloaded, skipping analysis
+2025-12-04 22:00:01,116 - __main__ - INFO - Initialized daily automation with database: data/fitness_data.db
+2025-12-04 22:00:01,116 - __main__ - INFO - 
+2025-12-04 22:00:01,116 - __main__ - INFO - ============================================================
+2025-12-04 22:00:01,116 - __main__ - INFO - 🚀 DAILY AUTOMATION - 2025-12-04
+2025-12-04 22:00:01,116 - __main__ - INFO - ============================================================
+2025-12-04 22:00:01,116 - __main__ - INFO - 
+2025-12-04 22:00:01,116 - __main__ - INFO - STEP 1: TrainingPeaks Sync
+2025-12-04 22:00:01,116 - __main__ - INFO - ------------------------------------------------------------
+2025-12-04 22:00:01,116 - __main__ - INFO - ============================================================
+2025-12-04 22:00:01,116 - __main__ - INFO - 🔄 TrainingPeaks Sync - 2025-12-04
+2025-12-04 22:00:01,116 - __main__ - INFO - ============================================================
+2025-12-04 22:00:25,425 - __main__ - INFO - ✅ TrainingPeaks sync completed
+2025-12-04 22:00:25,426 - __main__ - INFO -    FIT files uploaded: 1
+2025-12-04 22:00:25,426 - __main__ - INFO -    Workouts CSV: ✅
+2025-12-04 22:00:25,426 - __main__ - INFO -    Metrics CSV: ✅
+2025-12-04 22:00:25,426 - __main__ - INFO - 
+2025-12-04 22:00:25,426 - __main__ - INFO - STEP 2: Get FIT Files from Sync
+2025-12-04 22:00:25,426 - __main__ - INFO - ------------------------------------------------------------
+2025-12-04 22:00:25,426 - __main__ - INFO - Found 1 FIT file(s) to analyze
+2025-12-04 22:00:25,426 - __main__ - INFO - 
+2025-12-04 22:00:25,426 - __main__ - INFO - STEP 3: AI Analysis
+2025-12-04 22:00:25,426 - __main__ - INFO - ------------------------------------------------------------
+2025-12-04 22:00:25,426 - __main__ - INFO - [1/1] tp-5350487.2025-12-04-14-41-29-168Z.GarminPing.AAAAAGkxnZhD7ehj.FIT
+2025-12-04 22:00:25,428 - __main__ - INFO - Loaded FTP from athlete_settings: 300W
+2025-12-04 22:00:25,428 - __main__ - INFO - 🤖 Analyzing: tp-5350487.2025-12-04-14-41-29-168Z.GarminPing.AAAAAGkxnZhD7ehj.FIT
+2025-12-04 22:00:25,910 - __main__ - INFO -    ✅ Analysis complete
+2025-12-04 22:00:25,943 - __main__ - INFO -    💾 Stored analysis ID: 100
+2025-12-04 22:00:25,943 - __main__ - INFO - 
+2025-12-04 22:00:25,943 - __main__ - INFO - STEP 4: Cleanup
+2025-12-04 22:00:25,943 - __main__ - INFO - ------------------------------------------------------------
+2025-12-04 22:00:25,943 - __main__ - INFO - 🧹 Cleaning up temporary files...
+2025-12-04 22:00:25,943 - __main__ - INFO -    🗑️  Removed: tp-5350487.2025-12-04-14-41-29-168Z.GarminPing.AAAAAGkxnZhD7ehj.FIT
+2025-12-04 22:00:25,944 - __main__ - INFO -    🗑️  Removed: WorkoutFileExport-Robinson-Jake-2025-12-04-2025-12-04.zip
+2025-12-04 22:00:25,944 - __main__ - INFO -    🗑️  Removed: WorkoutExport-Robinson-Jake-2025-12-04-2025-12-04.zip
+2025-12-04 22:00:25,944 - __main__ - INFO -    🗑️  Removed: MetricsExport-Robinson-Jake-2025-12-04-2025-12-04.zip
+2025-12-04 22:00:25,945 - __main__ - INFO -    🗑️  Removed temp dir: WorkoutFileExport-Robinson-Jake-2025-12-04-2025-12-04
+2025-12-04 22:00:25,945 - __main__ - INFO -    🗑️  Removed temp dir: WorkoutExport-Robinson-Jake-2025-12-04-2025-12-04
+2025-12-04 22:00:25,945 - __main__ - INFO -    🗑️  Removed temp dir: MetricsExport-Robinson-Jake-2025-12-04-2025-12-04
+2025-12-04 22:00:25,945 - __main__ - INFO - ✅ Cleanup complete
+2025-12-04 22:00:25,945 - __main__ - INFO - 
+2025-12-04 22:00:25,945 - __main__ - INFO - ============================================================
+2025-12-04 22:00:25,945 - __main__ - INFO - ✅ DAILY AUTOMATION COMPLETE
+2025-12-04 22:00:25,945 - __main__ - INFO - ============================================================
+2025-12-04 22:00:25,945 - __main__ - INFO - Date: 2025-12-04
+2025-12-04 22:00:25,945 - __main__ - INFO - FIT Files Downloaded: 1
+2025-12-04 22:00:25,945 - __main__ - INFO - Workouts Analyzed: 1
+2025-12-04 22:00:25,945 - __main__ - INFO - New Personal Bests: 0
+2025-12-04 22:00:25,945 - __main__ - INFO - ============================================================
+2025-12-04 22:00:25,945 - __main__ - INFO - 
+2025-12-05 22:03:48,182 - __main__ - INFO - Initialized daily automation with database: data/fitness_data.db
+2025-12-05 22:03:48,182 - __main__ - INFO - 
+2025-12-05 22:03:48,182 - __main__ - INFO - ============================================================
+2025-12-05 22:03:48,182 - __main__ - INFO - 🚀 DAILY AUTOMATION - 2025-12-05
+2025-12-05 22:03:48,182 - __main__ - INFO - ============================================================
+2025-12-05 22:03:48,182 - __main__ - INFO - 
+2025-12-05 22:03:48,182 - __main__ - INFO - STEP 1: TrainingPeaks Sync
+2025-12-05 22:03:48,182 - __main__ - INFO - ------------------------------------------------------------
+2025-12-05 22:03:48,182 - __main__ - INFO - ============================================================
+2025-12-05 22:03:48,182 - __main__ - INFO - 🔄 TrainingPeaks Sync - 2025-12-05
+2025-12-05 22:03:48,182 - __main__ - INFO - ============================================================
+Traceback (most recent call last):
+  File "/Users/jacobrobinson/fitness_tracker/src/utils/trainingpeaks_sync.py", line 464, in run_sync
+    self.login_and_navigate(page)
+  File "/Users/jacobrobinson/fitness_tracker/src/utils/trainingpeaks_sync.py", line 43, in login_and_navigate
+    page.goto("https://www.trainingpeaks.com")
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/sync_api/_generated.py", line 9019, in goto
+    self._sync(
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/_impl/_sync_base.py", line 115, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "/Users/jacobrobinson/anaconda3/lib/python3.11/asyncio/futures.py", line 203, in result
+    raise self._exception.with_traceback(self._exception_tb)
+  File "/Users/jacobrobinson/anaconda3/lib/python3.11/asyncio/tasks.py", line 267, in __step
+    result = coro.send(None)
+             ^^^^^^^^^^^^^^^
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/_impl/_page.py", line 555, in goto
+    return await self._main_frame.goto(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/_impl/_frame.py", line 153, in goto
+    await self._channel.send(
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.TimeoutError: Page.goto: Timeout 30000ms exceeded.
+Call log:
+  - navigating to "https://www.trainingpeaks.com/", waiting until "load"
+
+2025-12-05 22:05:53,917 - __main__ - ERROR - ❌ TrainingPeaks sync failed
+2025-12-05 22:05:53,918 - __main__ - WARNING - ⚠️  No FIT files downloaded, skipping analysis
+2025-12-06 22:04:10,892 - __main__ - INFO - Initialized daily automation with database: data/fitness_data.db
+2025-12-06 22:04:10,893 - __main__ - INFO - 
+2025-12-06 22:04:10,893 - __main__ - INFO - ============================================================
+2025-12-06 22:04:10,893 - __main__ - INFO - 🚀 DAILY AUTOMATION - 2025-12-06
+2025-12-06 22:04:10,893 - __main__ - INFO - ============================================================
+2025-12-06 22:04:10,893 - __main__ - INFO - 
+2025-12-06 22:04:10,893 - __main__ - INFO - STEP 1: TrainingPeaks Sync
+2025-12-06 22:04:10,893 - __main__ - INFO - ------------------------------------------------------------
+2025-12-06 22:04:10,893 - __main__ - INFO - ============================================================
+2025-12-06 22:04:10,893 - __main__ - INFO - 🔄 TrainingPeaks Sync - 2025-12-06
+2025-12-06 22:04:10,893 - __main__ - INFO - ============================================================
+Traceback (most recent call last):
+  File "/Users/jacobrobinson/fitness_tracker/src/utils/trainingpeaks_sync.py", line 464, in run_sync
+    self.login_and_navigate(page)
+  File "/Users/jacobrobinson/fitness_tracker/src/utils/trainingpeaks_sync.py", line 43, in login_and_navigate
+    page.goto("https://www.trainingpeaks.com")
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/sync_api/_generated.py", line 9019, in goto
+    self._sync(
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/_impl/_sync_base.py", line 115, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "/Users/jacobrobinson/anaconda3/lib/python3.11/asyncio/futures.py", line 203, in result
+    raise self._exception.with_traceback(self._exception_tb)
+  File "/Users/jacobrobinson/anaconda3/lib/python3.11/asyncio/tasks.py", line 267, in __step
+    result = coro.send(None)
+             ^^^^^^^^^^^^^^^
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/_impl/_page.py", line 555, in goto
+    return await self._main_frame.goto(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/_impl/_frame.py", line 153, in goto
+    await self._channel.send(
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/jacobrobinson/fitness_tracker/venv/lib/python3.11/site-packages/playwright/_impl/_connection.py", line 559, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.TimeoutError: Page.goto: Timeout 30000ms exceeded.
+Call log:
+  - navigating to "https://www.trainingpeaks.com/", waiting until "load"
+
+2025-12-06 22:15:28,966 - __main__ - ERROR - ❌ TrainingPeaks sync failed
+2025-12-06 22:15:28,966 - __main__ - WARNING - ⚠️  No FIT files downloaded, skipping analysis

@@ -186,8 +186,9 @@ class DailyAutoSyncAndAnalyze:
             with open(fit_file_path, 'rb') as f:
                 file_content = f.read()
             
-            # Create analyzer and run analysis
-            analyzer = FitFileAnalyzer()
+            # Create analyzer with dynamic free model discovery
+            # This ensures batch operations use free Gemini models instead of premium ones
+            analyzer = FitFileAnalyzer(use_dynamic_models=True)
             analysis = analyzer.analyze_workout(
                 fit_file_content=file_content,
                 athlete_ftp=float(ftp_watts)

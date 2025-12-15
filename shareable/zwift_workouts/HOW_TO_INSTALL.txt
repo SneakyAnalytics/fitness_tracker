@@ -1,0 +1,194 @@
+================================================================================
+HOW TO INSTALL ZWIFT WORKOUTS - 32 WORKOUTS FROM 8 WEEKS
+================================================================================
+
+These are structured Zwift workouts (.zwo files) organized by week that you can 
+import into your Zwift installation to have the intervals automatically control 
+your trainer.
+
+You have 32 workout files organized in an 8-week progressive training program:
+- Week_1: 5 workouts
+- Week_2: 3 workouts  
+- Week_3: 4 workouts
+- Week_4: 6 workouts
+- Week_5: 4 workouts
+- Week_6: 3 workouts
+- Week_7: 3 workouts
+- Week_8: 4 workouts
+
+================================================================================
+STEP 1: FIND YOUR ZWIFT WORKOUTS FOLDER
+================================================================================
+
+The location depends on your operating system and Zwift user ID:
+
+WINDOWS:
+--------
+C:\Users\[YOUR_USERNAME]\Documents\Zwift\Workouts\[YOUR_ZWIFT_ID]\
+
+Example:
+C:\Users\JohnDoe\Documents\Zwift\Workouts\1234567\
+
+macOS:
+------
+/Users/[YOUR_USERNAME]/Documents/Zwift/Workouts/[YOUR_ZWIFT_ID]/
+
+Example:
+/Users/johndoe/Documents/Zwift/Workouts/1234567/
+
+
+HOW TO FIND YOUR ZWIFT USER ID:
+--------------------------------
+1. Open Zwift and log in
+2. Click on the gear/settings icon
+3. Your user ID number is displayed in the settings screen
+4. Write down this 7-digit number
+
+SHORTCUT TO FIND THE FOLDER:
+-----------------------------
+macOS: Open Finder → Go menu → Go to Folder → Type: ~/Documents/Zwift/Workouts
+Windows: Press Win+R → Type: %USERPROFILE%\Documents\Zwift\Workouts → Press Enter
+
+Then look for a folder with numbers (that's your user ID).
+
+================================================================================
+STEP 2: COPY THE WEEK FOLDERS
+================================================================================
+
+macOS:
+------
+1. Open the zwift_workouts folder (where you're reading this file)
+2. Select all 8 Week folders (Week_1 through Week_8)
+3. Copy them (Command+C)
+4. Navigate to your Zwift workouts folder (from Step 1)
+5. Paste the folders there (Command+V)
+
+Windows:
+--------
+1. Open the zwift_workouts folder (where you're reading this file)
+2. Select all 8 Week folders (Week_1 through Week_8)
+3. Copy them (Ctrl+C)
+4. Navigate to your Zwift workouts folder (from Step 1)
+5. Paste the folders there (Ctrl+V)
+
+IMPORTANT: Copy the entire Week folders, not just the .zwo files inside them!
+This keeps the workouts organized by week in Zwift.
+
+================================================================================
+STEP 3: VERIFY INSTALLATION
+================================================================================
+
+Your Zwift workouts folder should now contain:
+- Week_1/ (with 5 .zwo files inside)
+- Week_2/ (with 3 .zwo files inside)
+- Week_3/ (with 4 .zwo files inside)
+- Week_4/ (with 6 .zwo files inside)
+- Week_5/ (with 4 .zwo files inside)
+- Week_6/ (with 3 .zwo files inside)
+- Week_7/ (with 3 .zwo files inside)
+- Week_8/ (with 4 .zwo files inside)
+- Any other folders/files you had before
+
+Total: 32 workout files organized in 8 folders
+
+================================================================================
+STEP 4: USE THE WORKOUTS IN ZWIFT
+================================================================================
+
+1. Launch Zwift
+2. Start any ride/world
+3. Press 'E' key or click the workout icon (looks like a dumbbell)
+4. Click "Custom Workouts"
+5. You'll see folders named Week_1, Week_2, Week_3, etc.
+6. Click on a week folder to see the workouts for that week
+7. Select a workout to preview it
+8. Click "Do Workout" to start
+
+WORKOUT NAMING:
+--------------
+Workouts are named: YYYY_MM_DD_Workout_Name
+
+Example: "2025_10_21_Zwift_Race_Intervals"
+- Date: October 21, 2025
+- Workout: Zwift Race Intervals
+
+This makes it easy to find workouts chronologically or by type.
+
+================================================================================
+TIPS AND NOTES
+================================================================================
+
+POWER TARGETS:
+--------------
+All workouts are structured with power targets as % of FTP. Make sure your FTP
+is set correctly in Zwift (Settings → "My Profile" → FTP/Weight).
+
+If the workout feels too easy or too hard, adjust your FTP setting in Zwift.
+
+WORKOUT TYPES INCLUDED:
+-----------------------
+- Recovery rides (easy spinning, active recovery)
+- Threshold intervals (2x20, 3x12, sustained efforts at 88-95% FTP)
+- VO2max intervals (4-5 min efforts at 110-116% FTP)
+- Tempo endurance (sustained 20-40 min blocks at 78-82% FTP)
+- Race simulations (varied efforts mimicking race demands)
+- FTP test protocol (20-minute test with proper warmup)
+- Sprint/opener workouts (short high-intensity efforts)
+
+CONTROLLING THE WORKOUT:
+------------------------
+During a workout you can:
+- Press 'E' to exit the workout
+- Use +/- keys to increase/decrease intensity by 5%
+- Press 'T' to toggle between workout view and free ride view
+- The trainer will automatically adjust resistance to hit targets
+
+WORKOUT MODIFICATIONS:
+----------------------
+If you need to:
+- Skip an interval: Press up arrow until you reach the next interval
+- Repeat an interval: Not directly possible, but you can restart the workout
+- Adjust intensity: Use +/- keys during the workout
+
+TROUBLESHOOTING:
+----------------
+Workouts not showing up?
+→ Make sure you copied the Week folders to the correct location
+→ The folder path must include your Zwift user ID number
+→ Restart Zwift completely (quit and relaunch)
+→ Check that .zwo files are inside the Week folders, not loose
+
+Can't find Workouts folder?
+→ It's created automatically when you first run Zwift
+→ If it doesn't exist, create it manually at the path shown in Step 1
+→ Make sure you're looking in Documents, not Program Files
+
+Workouts show wrong power?
+→ Update your FTP in Zwift settings
+→ All workouts are % based, so they scale to your FTP
+
+================================================================================
+SHARING THESE WORKOUTS
+================================================================================
+
+These workouts are designed to be shareable! You can:
+- Email the Week folders to training partners
+- Share via cloud storage (Dropbox, Google Drive, etc.)
+- Copy to USB drive for offline sharing
+
+The workouts are generic and work for any cyclist. Just make sure the person
+you share with has their FTP set correctly in Zwift.
+
+Power targets are expressed as % of FTP, so a 300W athlete and a 200W athlete
+can do the same workout file and get appropriate training stimulus.
+
+================================================================================
+QUESTIONS?
+================================================================================
+
+If you have questions about:
+- Workout structure → Check workout_plan.txt in the shareable folder
+- Training principles → Read cycling_coaching_guide.md/pdf in shareable folder
+- Specific workouts → Workout names indicate the focus (Recovery, VO2max, etc.)
+
+Enjoy your training!

@@ -2,6 +2,7 @@
 AI-Powered FIT File Analysis Module
 
 Uses Gemini AI to generate workout insights and track personal bests.
+Dynamically discovers available free models for resilience.
 """
 
 import os
@@ -21,20 +22,23 @@ load_dotenv(Path(__file__).parent.parent.parent / '.env')
 class FitFileAnalyzer:
     """Analyzes cycling workout data from FIT files using AI"""
     
-    # List of models to try in order of preference
-    MODELS = [
+    # Static fallback models (used if dynamic discovery fails)
+    FALLBACK_MODELS = [
+        'gemini-1.5-flash-002',
+        'gemini-1.5-flash',
+        'gemini-1.5-flash-8b',
         'gemini-2.0-flash-exp',
-        'gemini-2.0-flash',
-        'gemini-2.0-flash-lite',
-        'gemini-2.0-pro-exp'
+        'gemini-1.5-pro',
+        'gemini-pro',
     ]
     
-    def __init__(self, gemini_api_key: Optional[str] = None):
+    def __init__(self, gemini_api_key: Optional[str] = None, use_dynamic_models: bool = True):
         """
         Initialize the analyzer with Gemini API
         
         Args:
             gemini_api_key: Optional Gemini API key. If not provided, uses GEMINI_API_KEY env var
+            use_dynamic_models: If True, dynamically discover free models. If False, use static list.
         """
         self.parser = FitParser()
         
@@ -44,7 +48,36 @@ class FitFileAnalyzer:
             raise ValueError("Gemini API key required. Set GEMINI_API_KEY environment variable.")
         
         genai.configure(api_key=api_key)
-        # We don't initialize a single model here anymore, we'll instantiate them as needed
+        
+        # Get model list (dynamic or static)
+        self.use_dynamic_models = use_dynamic_models
+        self._models_cache: Optional[List[str]] = None
+        
+    @property
+    def MODELS(self) -> List[str]:
+        """
+        Get list of models to try.
+        
+        Uses dynamic discovery if enabled, otherwise returns static fallback.
+        Caches the result to avoid repeated API calls.
+        """
+        if self._models_cache is not None:
+            return self._models_cache
+        
+        if self.use_dynamic_models:
+            try:
+                from .gemini_model_discovery import get_best_free_models
+                print("🔍 Using dynamic model discovery...")
+                models = get_best_free_models(max_models=7, force_refresh=False)
+                self._models_cache = models
+                return models
+            except Exception as e:
+                print(f"⚠️  Dynamic model discovery failed: {e}")
+                print("📋 Falling back to static model list")
+        
+        # Use static fallback
+        self._models_cache = self.FALLBACK_MODELS
+        return self.FALLBACK_MODELS
         
     def analyze_workout(self, fit_file_content: bytes, athlete_ftp: Optional[float] = None,
                        athlete_notes: Optional[str] = None) -> Optional[Dict[str, Any]]:
@@ -821,22 +854,32 @@ Please provide:
 Keep your response concise but insightful (400-600 words). Be specific and reference the trend data. Use a motivating, coach-like tone."""
 
         # Try each model in the list until one works
+        last_error = None
         for model_name in self.MODELS:
             try:
-                print(f"Attempting analysis with model: {model_name}")
+                print(f"🤖 Attempting analysis with model: {model_name}")
                 model = genai.GenerativeModel(model_name)
                 response = model.generate_content(prompt)
+                print(f"✅ Successfully generated analysis with {model_name}")
                 return response.text
-            except exceptions.ResourceExhausted:
-                print(f"Quota exceeded for {model_name}, trying next model...")
+            except exceptions.ResourceExhausted as e:
+                print(f"⚠️  Quota exceeded for {model_name}, trying next model...")
+                last_error = f"Quota exceeded: {str(e)}"
+                continue
+            except exceptions.InvalidArgument as e:
+                print(f"⚠️  Model {model_name} not available or invalid: {str(e)}")
+                last_error = f"Invalid model: {str(e)}"
                 continue
             except Exception as e:
-                print(f"Error generating AI analysis with {model_name}: {e}")
-                # If it's not a quota error, we might want to try the next model anyway 
-                # or just fail depending on the error. For now, let's try next.
+                print(f"⚠️  Error with {model_name}: {type(e).__name__}: {str(e)}")
+                last_error = f"{type(e).__name__}: {str(e)}"
+                # Try next model for any error
                 continue
-                
-        return "Error: Could not generate analysis with any available AI model."
+        
+        # If we get here, all models failed
+        error_msg = f"❌ Could not generate analysis - all {len(self.MODELS)} models failed.\nLast error: {last_error}\n\nTried models: {', '.join(self.MODELS)}"
+        print(error_msg)
+        return error_msg
     
     def _analyze_workout_trends(self, parsed_data: Dict[str, Any]) -> str:
         """

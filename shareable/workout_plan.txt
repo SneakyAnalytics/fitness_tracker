@@ -7,20 +7,15 @@ Period: 2025-10-05 to 2025-12-04
 NOTE: All power targets are expressed as % of FTP (Functional Threshold Power)
 for cycling workouts. Adjust intervals based on your individual FTP value.
 
+POWER NOTATION:
+  • 'X% FTP (steady)' = constant power throughout interval
+  • 'X% → Y% FTP (ramp)' = power gradually increases/decreases
+  • Zwift files use ramps to create progressive training stimulus
+
 This plan includes all training activities: cycling, running, strength,
 yoga, and other cross-training to show the complete training structure.
 
 ================================================================================
-
-
-================================================================================
-DATE: 2025-10-05
-WORKOUT: Weekly Recovery Sauna
-TYPE: OTHER
-DURATION: 22 minutes
-TARGET TSS: 11-16
-================================================================================
-
 
 
 ================================================================================
@@ -36,17 +31,24 @@ INTERVAL BREAKDOWN:
 
 1. Warmup
    Duration: 20.0 min (1200s)
-   Cadence: 85-95 rpm
+   Power: 47% → 60% FTP (ramp) @ 85-95 rpm
 
 2. Steady Endurance
    Duration: 110.0 min (6600s)
-   Power: 175-185% FTP @ 85-90 rpm
+   Power: 58%-62% FTP @ 85-90 rpm
 
 3. Cool-down
    Duration: 20.0 min (1200s)
-   Cadence: 90-100 rpm
+   Power: 60% → 47% FTP (ramp) @ 90-100 rpm
 
 
+================================================================================
+DATE: 2025-10-05
+WORKOUT: Weekly Recovery Sauna
+TYPE: OTHER
+DURATION: 22 minutes
+TARGET TSS: 11-16
+================================================================================
 
 ================================================================================
 DATE: 2025-10-13
@@ -56,8 +58,6 @@ DURATION: 0 minutes
 TARGET TSS: 0-0
 ================================================================================
 
-
-
 ================================================================================
 DATE: 2025-10-14
 WORKOUT: Travel Day Home
@@ -65,8 +65,6 @@ TYPE: REST
 DURATION: 0 minutes
 TARGET TSS: 0-0
 ================================================================================
-
-
 
 ================================================================================
 DATE: 2025-10-15
@@ -81,8 +79,7 @@ INTERVAL BREAKDOWN:
 
 1. Easy Return Ride
    Duration: 60.0 min (3600s)
-   Power: 165-180% FTP @ 85-95 rpm
-
+   Power: 55%-60% FTP @ 85-95 rpm
 
 
 ================================================================================
@@ -98,32 +95,31 @@ INTERVAL BREAKDOWN:
 
 1. Warmup
    Duration: 15.0 min (900s)
-   Cadence: 85-95 rpm
+   Power: 47% → 63% FTP (ramp) @ 85-95 rpm
 
 2. Tempo Block 1
    Duration: 10.0 min (600s)
-   Power: 230-240W (adjust to your FTP) @ 85-90 rpm
+   Power: 77%-80% FTP @ 85-90 rpm
 
 3. Recovery 1
    Duration: 5.0 min (300s)
-   Cadence: 90-95 rpm
+   Power: 53% FTP (steady) @ 90-95 rpm
 
 4. Tempo Block 2
    Duration: 10.0 min (600s)
-   Power: 230-240W (adjust to your FTP) @ 85-90 rpm
+   Power: 77%-80% FTP @ 85-90 rpm
 
 5. Recovery 2
    Duration: 5.0 min (300s)
-   Cadence: 90-95 rpm
+   Power: 53% FTP (steady) @ 90-95 rpm
 
 6. Tempo Block 3
    Duration: 10.0 min (600s)
-   Power: 230-240W (adjust to your FTP) @ 85-90 rpm
+   Power: 77%-80% FTP @ 85-90 rpm
 
 7. Cool-down
    Duration: 15.0 min (900s)
-   Cadence: 90-100 rpm
-
+   Power: 63% → 47% FTP (ramp) @ 90-100 rpm
 
 
 ================================================================================
@@ -139,48 +135,47 @@ INTERVAL BREAKDOWN:
 
 1. Warmup
    Duration: 15.0 min (900s)
-   Power: 50-75% FTP (ramp) @ 85-95 rpm
+   Power: 50% → 75% FTP (ramp) @ 85-95 rpm
 
 2. VO2 1
    Duration: 2.0 min (120s)
-   Cadence: 90-95 rpm
+   Power: 107% FTP (steady) @ 90-95 rpm
 
 3. Recovery 1
    Duration: 3.0 min (180s)
-   Cadence: 85-90 rpm
+   Power: 53% FTP (steady) @ 85-90 rpm
 
 4. VO2 2
    Duration: 2.0 min (120s)
-   Cadence: 90-95 rpm
+   Power: 107% FTP (steady) @ 90-95 rpm
 
 5. Recovery 2
    Duration: 3.0 min (180s)
-   Cadence: 85-90 rpm
+   Power: 53% FTP (steady) @ 85-90 rpm
 
 6. VO2 3
    Duration: 2.0 min (120s)
-   Cadence: 90-95 rpm
+   Power: 107% FTP (steady) @ 90-95 rpm
 
 7. Recovery 3
    Duration: 3.0 min (180s)
-   Cadence: 85-90 rpm
+   Power: 53% FTP (steady) @ 85-90 rpm
 
 8. VO2 4
    Duration: 2.0 min (120s)
-   Cadence: 90-95 rpm
+   Power: 107% FTP (steady) @ 90-95 rpm
 
 9. Recovery 4
    Duration: 3.0 min (180s)
-   Cadence: 85-90 rpm
+   Power: 53% FTP (steady) @ 85-90 rpm
 
 10. VO2 5
    Duration: 2.0 min (120s)
-   Cadence: 90-95 rpm
+   Power: 107% FTP (steady) @ 90-95 rpm
 
 11. Cool-down
    Duration: 15.0 min (900s)
-   Power: 70-50% FTP (ramp) @ 85-95 rpm
-
+   Power: 70% → 50% FTP (ramp) @ 85-95 rpm
 
 
 ================================================================================
@@ -190,8 +185,6 @@ TYPE: REST
 DURATION: 0 minutes
 TARGET TSS: 0-0
 ================================================================================
-
-
 
 ================================================================================
 DATE: 2025-10-19
@@ -206,32 +199,31 @@ INTERVAL BREAKDOWN:
 
 1. Extended Warmup
    Duration: 20.0 min (1200s)
-   Cadence: 85-95 rpm
+   Power: 47% → 73% FTP (ramp) @ 85-95 rpm
 
 2. Primer 1
    Duration: 1.0 min (60s)
-   Cadence: 95-100 rpm
+   Power: 100% FTP (steady) @ 95-100 rpm
 
 3. Recovery
    Duration: 2.0 min (120s)
-   Cadence: 85-90 rpm
+   Power: 50% FTP (steady) @ 85-90 rpm
 
 4. Primer 2
    Duration: 1.0 min (60s)
-   Cadence: 95-100 rpm
+   Power: 103% FTP (steady) @ 95-100 rpm
 
 5. Recovery
    Duration: 4.0 min (240s)
-   Cadence: 85-90 rpm
+   Power: 50% FTP (steady) @ 85-90 rpm
 
 6. 20-Minute FTP Test
    Duration: 20.0 min (1200s)
-   Power: 285-295W (adjust to your FTP) @ 85-95 rpm
+   Power: 95%-98% FTP @ 85-95 rpm
 
 7. Cool-down
    Duration: 15.0 min (900s)
-   Cadence: 80-90 rpm
-
+   Power: 60% → 40% FTP (ramp) @ 80-90 rpm
 
 
 ================================================================================
@@ -247,8 +239,7 @@ INTERVAL BREAKDOWN:
 
 1. Easy Spin
    Duration: 60.0 min (3600s)
-   Power: 155-165% FTP @ 90-95 rpm
-
+   Power: 52%-55% FTP @ 90-95 rpm
 
 
 ================================================================================
@@ -264,56 +255,55 @@ INTERVAL BREAKDOWN:
 
 1. Warmup
    Duration: 15.0 min (900s)
-   Cadence: 85-95 rpm
+   Power: 47% → 67% FTP (ramp) @ 85-95 rpm
 
 2. Sprint 1
    Duration: 0.2 min (15s)
-   Cadence: 110-120 rpm
+   Power: 167% FTP (steady) @ 110-120 rpm
 
 3. Recovery
    Duration: 4.8 min (285s)
-   Cadence: 85-90 rpm
+   Power: 50% FTP (steady) @ 85-90 rpm
 
 4. 1-Min Surge 1
    Duration: 1.0 min (60s)
-   Cadence: 95-100 rpm
+   Power: 127% FTP (steady) @ 95-100 rpm
 
 5. Recovery
    Duration: 4.0 min (240s)
-   Cadence: 85-90 rpm
+   Power: 50% FTP (steady) @ 85-90 rpm
 
 6. Sprint 2
    Duration: 0.2 min (15s)
-   Cadence: 110-120 rpm
+   Power: 167% FTP (steady) @ 110-120 rpm
 
 7. Recovery
    Duration: 4.8 min (285s)
-   Cadence: 85-90 rpm
+   Power: 50% FTP (steady) @ 85-90 rpm
 
 8. 1-Min Surge 2
    Duration: 1.0 min (60s)
-   Cadence: 95-100 rpm
+   Power: 127% FTP (steady) @ 95-100 rpm
 
 9. Recovery
    Duration: 4.0 min (240s)
-   Cadence: 85-90 rpm
+   Power: 50% FTP (steady) @ 85-90 rpm
 
 10. 3-Min Race Pace
    Duration: 3.0 min (180s)
-   Cadence: 90-95 rpm
+   Power: 113% FTP (steady) @ 90-95 rpm
 
 11. Recovery
    Duration: 5.0 min (300s)
-   Cadence: 85-90 rpm
+   Power: 50% FTP (steady) @ 85-90 rpm
 
 12. Sprint 3
    Duration: 0.2 min (15s)
-   Cadence: 110-120 rpm
+   Power: 167% FTP (steady) @ 110-120 rpm
 
 13. Cool-down
    Duration: 15.0 min (900s)
-   Cadence: 85-90 rpm
-
+   Power: 60% → 43% FTP (ramp) @ 85-90 rpm
 
 
 ================================================================================
@@ -323,8 +313,6 @@ TYPE: RUN
 DURATION: 30 minutes
 TARGET TSS: 25-30
 ================================================================================
-
-
 
 ================================================================================
 DATE: 2025-10-22
@@ -339,8 +327,7 @@ INTERVAL BREAKDOWN:
 
 1. Steady Endurance
    Duration: 45.0 min (2700s)
-   Power: 185-195% FTP @ 85-90 rpm
-
+   Power: 62%-65% FTP @ 85-90 rpm
 
 
 ================================================================================
@@ -356,32 +343,31 @@ INTERVAL BREAKDOWN:
 
 1. Warmup
    Duration: 15.0 min (900s)
-   Cadence: 85-95 rpm
+   Power: 47% → 70% FTP (ramp) @ 85-95 rpm
 
 2. Threshold 1
    Duration: 12.0 min (720s)
-   Power: 275-280W (adjust to your FTP) @ 85-90 rpm
+   Power: 92%-93% FTP @ 85-90 rpm
 
 3. Recovery 1
    Duration: 4.0 min (240s)
-   Cadence: 90-95 rpm
+   Power: 53% FTP (steady) @ 90-95 rpm
 
 4. Threshold 2
    Duration: 12.0 min (720s)
-   Power: 275-280W (adjust to your FTP) @ 85-90 rpm
+   Power: 92%-93% FTP @ 85-90 rpm
 
 5. Recovery 2
    Duration: 4.0 min (240s)
-   Cadence: 90-95 rpm
+   Power: 53% FTP (steady) @ 90-95 rpm
 
 6. Threshold 3
    Duration: 12.0 min (720s)
-   Power: 275-280W (adjust to your FTP) @ 85-90 rpm
+   Power: 92%-93% FTP @ 85-90 rpm
 
 7. Cool-down
    Duration: 15.0 min (900s)
-   Cadence: 90-100 rpm
-
+   Power: 67% → 47% FTP (ramp) @ 90-100 rpm
 
 
 ================================================================================
@@ -397,32 +383,31 @@ INTERVAL BREAKDOWN:
 
 1. Warmup
    Duration: 15.0 min (900s)
-   Cadence: 85-95 rpm
+   Power: 47% → 63% FTP (ramp) @ 85-95 rpm
 
 2. Opener 1
    Duration: 0.5 min (30s)
-   Cadence: 95-100 rpm
+   Power: 113% FTP (steady) @ 95-100 rpm
 
 3. Recovery
    Duration: 2.5 min (150s)
-   Cadence: 85-90 rpm
+   Power: 50% FTP (steady) @ 85-90 rpm
 
 4. Opener 2
    Duration: 0.5 min (30s)
-   Cadence: 95-100 rpm
+   Power: 120% FTP (steady) @ 95-100 rpm
 
 5. Recovery
    Duration: 2.5 min (150s)
-   Cadence: 85-90 rpm
+   Power: 50% FTP (steady) @ 85-90 rpm
 
 6. Sprint Opener
    Duration: 0.2 min (10s)
-   Cadence: 105-115 rpm
+   Power: 150% FTP (steady) @ 105-115 rpm
 
 7. Cool-down
    Duration: 20.0 min (1200s)
-   Power: 150-170% FTP @ 85-90 rpm
-
+   Power: 50%-57% FTP @ 85-90 rpm
 
 
 ================================================================================
@@ -433,8 +418,6 @@ DURATION: 60 minutes
 TARGET TSS: 80-100
 ================================================================================
 
-
-
 ================================================================================
 DATE: 2025-10-26
 WORKOUT: Recovery Run
@@ -442,8 +425,6 @@ TYPE: RUN
 DURATION: 35 minutes
 TARGET TSS: 30-35
 ================================================================================
-
-
 
 ================================================================================
 DATE: 2025-10-26
@@ -458,8 +439,7 @@ INTERVAL BREAKDOWN:
 
 1. Easy Spin
    Duration: 45.0 min (2700s)
-   Power: 160-175% FTP @ 90-95 rpm
-
+   Power: 53%-58% FTP @ 90-95 rpm
 
 
 ================================================================================
@@ -475,16 +455,15 @@ INTERVAL BREAKDOWN:
 
 1. Easy Warmup
    Duration: 10.0 min (600s)
-   Power: 140-160% FTP @ 85-95 rpm
+   Power: 47%-53% FTP @ 85-95 rpm
 
 2. Steady Easy Spin
    Duration: 25.0 min (1500s)
-   Power: 165-180% FTP @ 90-95 rpm
+   Power: 55%-60% FTP @ 90-95 rpm
 
 3. Easy Cooldown
    Duration: 10.0 min (600s)
-   Power: 140-160% FTP @ 85-95 rpm
-
+   Power: 47%-53% FTP @ 85-95 rpm
 
 
 ================================================================================
@@ -494,8 +473,6 @@ TYPE: OTHER
 DURATION: 90 minutes
 TARGET TSS: 120-140
 ================================================================================
-
-
 
 ================================================================================
 DATE: 2025-10-29
@@ -510,16 +487,15 @@ INTERVAL BREAKDOWN:
 
 1. Gentle Warmup
    Duration: 10.0 min (600s)
-   Power: 150-170% FTP @ 90-95 rpm
+   Power: 50%-57% FTP @ 90-95 rpm
 
 2. Steady Aerobic Block
    Duration: 30.0 min (1800s)
-   Power: 180-200W (adjust to your FTP) @ 90-95 rpm
+   Power: 60%-67% FTP @ 90-95 rpm
 
 3. Easy Cooldown
    Duration: 10.0 min (600s)
-   Power: 160-180% FTP @ 90-95 rpm
-
+   Power: 53%-60% FTP @ 90-95 rpm
 
 
 ================================================================================
@@ -535,32 +511,31 @@ INTERVAL BREAKDOWN:
 
 1. Progressive Warmup Step 1
    Duration: 5.0 min (300s)
-   Power: 160-160% FTP @ 85-95 rpm
+   Power: 53%-53% FTP @ 85-95 rpm
 
 2. Progressive Warmup Step 2
    Duration: 5.0 min (300s)
-   Power: 200-200W (adjust to your FTP) @ 85-95 rpm
+   Power: 67%-67% FTP @ 85-95 rpm
 
 3. Progressive Warmup Step 3 with Openers
    Duration: 5.0 min (300s)
-   Power: 240-240W (adjust to your FTP) @ 85-95 rpm
+   Power: 80%-80% FTP @ 85-95 rpm
 
 4. Threshold Interval 1
    Duration: 15.0 min (900s)
-   Power: 270-270W (adjust to your FTP) @ 88-92 rpm
+   Power: 90%-90% FTP @ 88-92 rpm
 
 5. Recovery Between Intervals
    Duration: 8.0 min (480s)
-   Power: 150-170% FTP @ 90-95 rpm
+   Power: 50%-57% FTP @ 90-95 rpm
 
 6. Threshold Interval 2
    Duration: 15.0 min (900s)
-   Power: 270-270W (adjust to your FTP) @ 88-92 rpm
+   Power: 90%-90% FTP @ 88-92 rpm
 
 7. Cooldown
    Duration: 10.0 min (600s)
-   Power: 160-180% FTP @ 90-95 rpm
-
+   Power: 53%-60% FTP @ 90-95 rpm
 
 
 ================================================================================
@@ -570,8 +545,6 @@ TYPE: MOBILITY
 DURATION: 35 minutes
 TARGET TSS: 0-0
 ================================================================================
-
-
 
 ================================================================================
 DATE: 2025-11-01
@@ -586,84 +559,83 @@ INTERVAL BREAKDOWN:
 
 1. Warmup Step 1
    Duration: 5.0 min (300s)
-   Power: 170-170% FTP @ 90-95 rpm
+   Power: 57%-57% FTP @ 90-95 rpm
 
 2. Warmup Step 2
    Duration: 5.0 min (300s)
-   Power: 220-220W (adjust to your FTP) @ 90-95 rpm
+   Power: 73%-73% FTP @ 90-95 rpm
 
 3. Warmup Step 3 with Sprint Openers
    Duration: 5.0 min (300s)
-   Power: 250-250W (adjust to your FTP) @ 90-95 rpm
+   Power: 83%-83% FTP @ 90-95 rpm
 
 4. Race Start Surge 1
    Duration: 1.0 min (60s)
-   Power: 320-320W (adjust to your FTP) @ 90-100 rpm
+   Power: 107%-107% FTP @ 90-100 rpm
 
 5. Sprint Attack 1
    Duration: 0.5 min (30s)
-   Power: 450-500W (adjust to your FTP) @ 95-110 rpm
+   Power: 150%-167% FTP @ 95-110 rpm
 
 6. Threshold Hold 1
    Duration: 2.0 min (120s)
-   Power: 280-280W (adjust to your FTP) @ 88-92 rpm
+   Power: 93%-93% FTP @ 88-92 rpm
 
 7. Sprint Attack 2
    Duration: 0.5 min (30s)
-   Power: 450-500W (adjust to your FTP) @ 95-110 rpm
+   Power: 150%-167% FTP @ 95-110 rpm
 
 8. Threshold Hold 2
    Duration: 2.0 min (120s)
-   Power: 280-280W (adjust to your FTP) @ 88-92 rpm
+   Power: 93%-93% FTP @ 88-92 rpm
 
 9. VO2max Surge
    Duration: 1.0 min (60s)
-   Power: 340-340W (adjust to your FTP) @ 90-95 rpm
+   Power: 113%-113% FTP @ 90-95 rpm
 
 10. Brief Recovery
    Duration: 1.0 min (60s)
-   Power: 240-240W (adjust to your FTP) @ 90-95 rpm
+   Power: 80%-80% FTP @ 90-95 rpm
 
 11. Mid-Race Threshold Block
    Duration: 10.0 min (600s)
-   Power: 270-270W (adjust to your FTP) @ 88-92 rpm
+   Power: 90%-90% FTP @ 88-92 rpm
 
 12. Recovery Between Blocks
    Duration: 2.0 min (120s)
-   Power: 200-200W (adjust to your FTP) @ 90-95 rpm
+   Power: 67%-67% FTP @ 90-95 rpm
 
 13. Late Race Attack 1
    Duration: 3.0 min (180s)
-   Power: 300-300W (adjust to your FTP) @ 88-92 rpm
+   Power: 100%-100% FTP @ 88-92 rpm
 
 14. Recovery Before Attack 2
    Duration: 2.0 min (120s)
-   Power: 240-240W (adjust to your FTP) @ 90-95 rpm
+   Power: 80%-80% FTP @ 90-95 rpm
 
 15. Late Race Attack 2
    Duration: 3.0 min (180s)
-   Power: 300-300W (adjust to your FTP) @ 88-92 rpm
+   Power: 100%-100% FTP @ 88-92 rpm
 
 16. Sprint Setup
    Duration: 5.0 min (300s)
-   Power: 260-260W (adjust to your FTP) @ 88-92 rpm
+   Power: 87%-87% FTP @ 88-92 rpm
 
 17. Sprint Positioning
    Duration: 1.0 min (60s)
-   Power: 220-220W (adjust to your FTP) @ 90-95 rpm
+   Power: 73%-73% FTP @ 90-95 rpm
 
 18. MAXIMAL SPRINT FINISH
    Duration: 0.5 min (30s)
-   Power: 600-700W (adjust to your FTP) @ 100-120 rpm
+   Power: 200%-233% FTP @ 100-120 rpm
 
 19. Sprint Recovery
    Duration: 0.5 min (30s)
-   Power: 150-150% FTP @ 80-90 rpm
+   Power: 50%-50% FTP @ 80-90 rpm
 
 20. Cooldown
    Duration: 10.0 min (600s)
-   Power: 160-180% FTP @ 90-95 rpm
-
+   Power: 53%-60% FTP @ 90-95 rpm
 
 
 ================================================================================
@@ -674,8 +646,6 @@ DURATION: 35 minutes
 TARGET TSS: 25-30
 ================================================================================
 
-
-
 ================================================================================
 DATE: 2025-11-02
 WORKOUT: Post-Run Sauna Recovery
@@ -683,8 +653,6 @@ TYPE: OTHER
 DURATION: 20 minutes
 TARGET TSS: 10-15
 ================================================================================
-
-
 
 ================================================================================
 DATE: 2025-11-03
@@ -699,16 +667,15 @@ INTERVAL BREAKDOWN:
 
 1. Easy Warmup
    Duration: 10.0 min (600s)
-   Power: 150-170% FTP @ 85-95 rpm
+   Power: 50%-57% FTP @ 85-95 rpm
 
 2. Steady Easy Cruise
    Duration: 25.0 min (1500s)
-   Power: 175-190% FTP @ 90-95 rpm
+   Power: 58%-63% FTP @ 90-95 rpm
 
 3. Easy Cooldown
    Duration: 10.0 min (600s)
-   Power: 150-170% FTP @ 85-95 rpm
-
+   Power: 50%-57% FTP @ 85-95 rpm
 
 
 ================================================================================
@@ -718,8 +685,6 @@ TYPE: BIKE
 DURATION: 75 minutes
 TARGET TSS: 100-130
 ================================================================================
-
-
 
 ================================================================================
 DATE: 2025-11-04
@@ -734,40 +699,39 @@ INTERVAL BREAKDOWN:
 
 1. Progressive Warmup Step 1
    Duration: 5.0 min (300s)
-   Power: 170-170% FTP @ 85-95 rpm
+   Power: 57%-57% FTP @ 85-95 rpm
 
 2. Progressive Warmup Step 2
    Duration: 5.0 min (300s)
-   Power: 220-220W (adjust to your FTP) @ 85-95 rpm
+   Power: 73%-73% FTP @ 85-95 rpm
 
 3. Progressive Warmup Step 3
    Duration: 5.0 min (300s)
-   Power: 260-260W (adjust to your FTP) @ 85-95 rpm
+   Power: 87%-87% FTP @ 85-95 rpm
 
 4. Threshold Interval 1
    Duration: 12.0 min (720s)
-   Power: 285-285W (adjust to your FTP) @ 88-92 rpm
+   Power: 95%-95% FTP @ 88-92 rpm
 
 5. Recovery
    Duration: 6.0 min (360s)
-   Power: 160-180% FTP @ 90-95 rpm
+   Power: 53%-60% FTP @ 90-95 rpm
 
 6. Threshold Interval 2
    Duration: 12.0 min (720s)
-   Power: 285-285W (adjust to your FTP) @ 88-92 rpm
+   Power: 95%-95% FTP @ 88-92 rpm
 
 7. Recovery
    Duration: 6.0 min (360s)
-   Power: 160-180% FTP @ 90-95 rpm
+   Power: 53%-60% FTP @ 90-95 rpm
 
 8. Threshold Interval 3
    Duration: 12.0 min (720s)
-   Power: 285-285W (adjust to your FTP) @ 88-92 rpm
+   Power: 95%-95% FTP @ 88-92 rpm
 
 9. Cooldown
    Duration: 10.0 min (600s)
-   Power: 160-180% FTP @ 90-95 rpm
-
+   Power: 53%-60% FTP @ 90-95 rpm
 
 
 ================================================================================
@@ -783,16 +747,15 @@ INTERVAL BREAKDOWN:
 
 1. Gentle Warmup
    Duration: 10.0 min (600s)
-   Power: 160-180% FTP @ 90-95 rpm
+   Power: 53%-60% FTP @ 90-95 rpm
 
 2. Steady Aerobic Block
    Duration: 30.0 min (1800s)
-   Power: 190-205W (adjust to your FTP) @ 90-95 rpm
+   Power: 63%-68% FTP @ 90-95 rpm
 
 3. Easy Cooldown
    Duration: 10.0 min (600s)
-   Power: 160-180% FTP @ 90-95 rpm
-
+   Power: 53%-60% FTP @ 90-95 rpm
 
 
 ================================================================================
@@ -808,66 +771,55 @@ INTERVAL BREAKDOWN:
 
 1. Progressive Warmup Step 1
    Duration: 5.0 min (300s)
-   Power: 170-170% FTP @ 85-95 rpm
+   Power: 57%-57% FTP @ 85-95 rpm
 
 2. Progressive Warmup Step 2
    Duration: 5.0 min (300s)
-   Power: 220-220W (adjust to your FTP) @ 85-95 rpm
+   Power: 73%-73% FTP @ 85-95 rpm
 
 3. Progressive Warmup Step 3 with Openers
    Duration: 5.0 min (300s)
-   Power: 260-260W (adjust to your FTP) @ 85-95 rpm
+   Power: 87%-87% FTP @ 85-95 rpm
 
 4. VO2max Interval 1
    Duration: 5.0 min (300s)
-   Power: 350-350W (adjust to your FTP) @ 90-95 rpm
+   Power: 117%-117% FTP @ 90-95 rpm
 
 5. Recovery Float
    Duration: 3.0 min (180s)
-   Power: 180-200W (adjust to your FTP) @ 90-95 rpm
+   Power: 60%-67% FTP @ 90-95 rpm
 
 6. VO2max Interval 2
    Duration: 5.0 min (300s)
-   Power: 350-350W (adjust to your FTP) @ 90-95 rpm
+   Power: 117%-117% FTP @ 90-95 rpm
 
 7. Recovery Float
    Duration: 3.0 min (180s)
-   Power: 180-200W (adjust to your FTP) @ 90-95 rpm
+   Power: 60%-67% FTP @ 90-95 rpm
 
 8. VO2max Interval 3
    Duration: 5.0 min (300s)
-   Power: 350-350W (adjust to your FTP) @ 90-95 rpm
+   Power: 117%-117% FTP @ 90-95 rpm
 
 9. Recovery Float
    Duration: 3.0 min (180s)
-   Power: 180-200W (adjust to your FTP) @ 90-95 rpm
+   Power: 60%-67% FTP @ 90-95 rpm
 
 10. VO2max Interval 4
    Duration: 5.0 min (300s)
-   Power: 350-350W (adjust to your FTP) @ 90-95 rpm
+   Power: 117%-117% FTP @ 90-95 rpm
 
 11. Extended Recovery
    Duration: 5.0 min (300s)
-   Power: 170-190% FTP @ 90-95 rpm
+   Power: 57%-63% FTP @ 90-95 rpm
 
 12. VO2max Interval 5
    Duration: 5.0 min (300s)
-   Power: 350-350W (adjust to your FTP) @ 90-95 rpm
+   Power: 117%-117% FTP @ 90-95 rpm
 
 13. Cooldown
    Duration: 10.0 min (600s)
-   Power: 160-180% FTP @ 90-95 rpm
-
-
-
-================================================================================
-DATE: 2025-11-07
-WORKOUT: Evening Sauna Session
-TYPE: OTHER
-DURATION: 20 minutes
-TARGET TSS: 10-15
-================================================================================
-
+   Power: 53%-60% FTP @ 90-95 rpm
 
 
 ================================================================================
@@ -878,7 +830,13 @@ DURATION: 30 minutes
 TARGET TSS: 0-0
 ================================================================================
 
-
+================================================================================
+DATE: 2025-11-07
+WORKOUT: Evening Sauna Session
+TYPE: OTHER
+DURATION: 20 minutes
+TARGET TSS: 10-15
+================================================================================
 
 ================================================================================
 DATE: 2025-11-08
@@ -888,8 +846,6 @@ DURATION: 40 minutes
 TARGET TSS: 30-35
 ================================================================================
 
-
-
 ================================================================================
 DATE: 2025-11-09
 WORKOUT: Bend Oregon Run 2 - Recovery Run
@@ -898,8 +854,6 @@ DURATION: 35 minutes
 TARGET TSS: 25-30
 ================================================================================
 
-
-
 ================================================================================
 DATE: 2025-11-09
 WORKOUT: Travel Day Recovery Protocol
@@ -907,8 +861,6 @@ TYPE: OTHER
 DURATION: 30 minutes
 TARGET TSS: 0-0
 ================================================================================
-
-
 
 ================================================================================
 DATE: 2025-11-10
@@ -919,7 +871,11 @@ TARGET TSS: 25-30
 ================================================================================
 
 NOTES:
-["Easy recovery to prep for tomorrow's points race", "HR should stay below 135 bpm throughout", "Save all energy for racing - this is pure maintenance", "Focus on smooth pedaling and relaxation", "Review race strategy mentally during cooldown"]
+Easy recovery to prep for tomorrow's points race
+HR should stay below 135 bpm throughout
+Save all energy for racing - this is pure maintenance
+Focus on smooth pedaling and relaxation
+Review race strategy mentally during cooldown
 
 
 INTERVAL BREAKDOWN:
@@ -927,16 +883,15 @@ INTERVAL BREAKDOWN:
 
 1. Easy Warmup
    Duration: 10.0 min (600s)
-   Power: 150-170% FTP @ 85-95 rpm
+   Power: 50%-57% FTP @ 85-95 rpm
 
 2. Steady Easy Spin
    Duration: 25.0 min (1500s)
-   Power: 175-190% FTP @ 90-95 rpm
+   Power: 58%-63% FTP @ 90-95 rpm
 
 3. Easy Cooldown
    Duration: 10.0 min (600s)
-   Power: 150-170% FTP @ 85-95 rpm
-
+   Power: 50%-57% FTP @ 85-95 rpm
 
 
 ================================================================================
@@ -948,9 +903,62 @@ TARGET TSS: 110-130
 ================================================================================
 
 NOTES:
-["POINTS RACE - 12 scoring opportunities (6 climbs, 6 sprints)", "Course: Rising Empire, 42km, 755m elevation, ~60-75 min", "Power-ups: Feather (climbs), Draft (recovery/positioning), Anvil (situational)", "", "PRE-RACE PREP (60-90 min before):", "- Light meal 2-3 hours before (familiar foods, easy to digest)", "- Hydration: 16-20oz water + electrolytes starting 2 hours before", "- Carb drink: Start sipping 60 min before race", "", "WARMUP (20-25 min):", "- 10 min easy spin 150-180W", "- 5 min progressive 180-240W", "- 3x 15-sec sprints @ 450W+ (3 min recovery between)", "- 2x 1-min @ 320W (neuromuscular primer)", "- 5 min easy spin back to start", "", "RACE STRATEGY - LAP 1 (Learning):", "- First 3-5 min: Survive chaos, find good wheels", "- Scoring climbs: Test your legs, don't empty tank", "- Pick 2-3 scoring opportunities to contest", "- Learn who is strong, who is fading", "- Use Feather power-up on climbs (your strength at 4.3 w/kg)", "", "RACE STRATEGY - LAP 2 (Executing):", "- Target 3-4 climbs for points (your wheelhouse)", "- Be selective on sprints - only if positioned well", "- Expect surges to 350-400W for 30-60 sec on climbs", "- Threshold efforts 280-300W between scoring", "- Save one big match for final scoring opportunity", "", "POWER PACING:", "- Opening 5 min: Expect 300-350W chaos", "- Cruise between scoring: 260-280W", "- Climb attacks: 320-380W for 30-90 sec", "- Sprint contests: 450W+ for 15-30 sec", "- Expected NP: 280-300W for full effort", "", "NUTRITION DURING:", "- Carb drink throughout (aim 40-50g carbs)", "- Sip between scoring efforts", "- Electrolytes critical (remember cramping issues)", "", "POST-RACE:", "- 10-15 min easy cooldown spin immediately", "- Recovery nutrition within 30 min (carbs + protein)", "- Hydration + electrolytes", "- Hot shower to drop core temp by 9:30pm", "- Screen time cutoff 10pm (no race analysis/scrolling)", "- Lights out by 10:30pm for 8+ hours sleep", "", "TACTICAL NOTES:", "- Don't try to win all 12 scoring opportunities", "- Points accumulate - consistency beats big risks", "- Your climbing power (4.3 w/kg) is your weapon", "- Let pure sprinters take flat sprints", "- Focus on climb points where you're strongest"]
+POINTS RACE - 12 scoring opportunities (6 climbs, 6 sprints)
+Course: Rising Empire, 42km, 755m elevation, ~60-75 min
+Power-ups: Feather (climbs), Draft (recovery/positioning), Anvil (situational)
 
+PRE-RACE PREP (60-90 min before):
+- Light meal 2-3 hours before (familiar foods, easy to digest)
+- Hydration: 16-20oz water + electrolytes starting 2 hours before
+- Carb drink: Start sipping 60 min before race
 
+WARMUP (20-25 min):
+- 10 min easy spin 150-180W
+- 5 min progressive 180-240W
+- 3x 15-sec sprints @ 450W+ (3 min recovery between)
+- 2x 1-min @ 320W (neuromuscular primer)
+- 5 min easy spin back to start
+
+RACE STRATEGY - LAP 1 (Learning):
+- First 3-5 min: Survive chaos, find good wheels
+- Scoring climbs: Test your legs, don't empty tank
+- Pick 2-3 scoring opportunities to contest
+- Learn who is strong, who is fading
+- Use Feather power-up on climbs (your strength at 4.3 w/kg)
+
+RACE STRATEGY - LAP 2 (Executing):
+- Target 3-4 climbs for points (your wheelhouse)
+- Be selective on sprints - only if positioned well
+- Expect surges to 350-400W for 30-60 sec on climbs
+- Threshold efforts 280-300W between scoring
+- Save one big match for final scoring opportunity
+
+POWER PACING:
+- Opening 5 min: Expect 300-350W chaos
+- Cruise between scoring: 260-280W
+- Climb attacks: 320-380W for 30-90 sec
+- Sprint contests: 450W+ for 15-30 sec
+- Expected NP: 280-300W for full effort
+
+NUTRITION DURING:
+- Carb drink throughout (aim 40-50g carbs)
+- Sip between scoring efforts
+- Electrolytes critical (remember cramping issues)
+
+POST-RACE:
+- 10-15 min easy cooldown spin immediately
+- Recovery nutrition within 30 min (carbs + protein)
+- Hydration + electrolytes
+- Hot shower to drop core temp by 9:30pm
+- Screen time cutoff 10pm (no race analysis/scrolling)
+- Lights out by 10:30pm for 8+ hours sleep
+
+TACTICAL NOTES:
+- Don't try to win all 12 scoring opportunities
+- Points accumulate - consistency beats big risks
+- Your climbing power (4.3 w/kg) is your weapon
+- Let pure sprinters take flat sprints
+- Focus on climb points where you're strongest
 
 
 ================================================================================
@@ -962,7 +970,12 @@ TARGET TSS: 30-35
 ================================================================================
 
 NOTES:
-["Active recovery from yesterday's points race", "HR cap 145 bpm - if exceeded, reduce power", "Flush legs from race efforts without creating new fatigue", "This sets up tomorrow's VO2max session", "Easy conversational effort throughout", "Mentally review race performance - what worked, what to improve"]
+Active recovery from yesterday's points race
+HR cap 145 bpm - if exceeded, reduce power
+Flush legs from race efforts without creating new fatigue
+This sets up tomorrow's VO2max session
+Easy conversational effort throughout
+Mentally review race performance - what worked, what to improve
 
 
 INTERVAL BREAKDOWN:
@@ -970,16 +983,15 @@ INTERVAL BREAKDOWN:
 
 1. Gentle Warmup
    Duration: 10.0 min (600s)
-   Power: 160-180% FTP @ 90-95 rpm
+   Power: 53%-60% FTP @ 90-95 rpm
 
 2. Steady Aerobic Block
    Duration: 30.0 min (1800s)
-   Power: 190-205W (adjust to your FTP) @ 90-95 rpm
+   Power: 63%-68% FTP @ 90-95 rpm
 
 3. Easy Cooldown
    Duration: 10.0 min (600s)
-   Power: 160-180% FTP @ 90-95 rpm
-
+   Power: 53%-60% FTP @ 90-95 rpm
 
 
 ================================================================================
@@ -991,7 +1003,17 @@ TARGET TSS: 85-95
 ================================================================================
 
 NOTES:
-["5x4min @ 350W - rebuilding from last week's sleep-compromised session", "Slightly shorter than 5x5min but same intensity", "This builds confidence and quality stimulus without overreach", "Include 3x 15-sec sprints @ 450W+ during warmup step 3", "Target HR 178-186 bpm during intervals", "Recovery intervals 180-200W allow HR to drop to 150-160", "Should feel RPE 8-9: very hard but completable", "CRITICAL: Carb drink throughout - don't repeat cramping issues", "If sleep was poor last night, consider dropping to 4x4min", "Next week we'll build back to 5x5min @ 350W", "Post-workout: recovery nutrition within 30 min, sauna if available"]
+5x4min @ 350W - rebuilding from last week's sleep-compromised session
+Slightly shorter than 5x5min but same intensity
+This builds confidence and quality stimulus without overreach
+Include 3x 15-sec sprints @ 450W+ during warmup step 3
+Target HR 178-186 bpm during intervals
+Recovery intervals 180-200W allow HR to drop to 150-160
+Should feel RPE 8-9: very hard but completable
+CRITICAL: Carb drink throughout - don't repeat cramping issues
+If sleep was poor last night, consider dropping to 4x4min
+Next week we'll build back to 5x5min @ 350W
+Post-workout: recovery nutrition within 30 min, sauna if available
 
 
 INTERVAL BREAKDOWN:
@@ -999,70 +1021,55 @@ INTERVAL BREAKDOWN:
 
 1. Progressive Warmup Step 1
    Duration: 5.0 min (300s)
-   Power: 170-170% FTP @ 85-95 rpm
+   Power: 57%-57% FTP @ 85-95 rpm
 
 2. Progressive Warmup Step 2
    Duration: 5.0 min (300s)
-   Power: 220-220W (adjust to your FTP) @ 85-95 rpm
+   Power: 73%-73% FTP @ 85-95 rpm
 
 3. Progressive Warmup Step 3 with Openers
    Duration: 5.0 min (300s)
-   Power: 260-260W (adjust to your FTP) @ 85-95 rpm
+   Power: 87%-87% FTP @ 85-95 rpm
 
 4. VO2max Interval 1
    Duration: 4.0 min (240s)
-   Power: 350-350W (adjust to your FTP) @ 90-95 rpm
+   Power: 117%-117% FTP @ 90-95 rpm
 
 5. Recovery Float
    Duration: 3.0 min (180s)
-   Power: 180-200W (adjust to your FTP) @ 90-95 rpm
+   Power: 60%-67% FTP @ 90-95 rpm
 
 6. VO2max Interval 2
    Duration: 4.0 min (240s)
-   Power: 350-350W (adjust to your FTP) @ 90-95 rpm
+   Power: 117%-117% FTP @ 90-95 rpm
 
 7. Recovery Float
    Duration: 3.0 min (180s)
-   Power: 180-200W (adjust to your FTP) @ 90-95 rpm
+   Power: 60%-67% FTP @ 90-95 rpm
 
 8. VO2max Interval 3
    Duration: 4.0 min (240s)
-   Power: 350-350W (adjust to your FTP) @ 90-95 rpm
+   Power: 117%-117% FTP @ 90-95 rpm
 
 9. Recovery Float
    Duration: 3.0 min (180s)
-   Power: 180-200W (adjust to your FTP) @ 90-95 rpm
+   Power: 60%-67% FTP @ 90-95 rpm
 
 10. VO2max Interval 4
    Duration: 4.0 min (240s)
-   Power: 350-350W (adjust to your FTP) @ 90-95 rpm
+   Power: 117%-117% FTP @ 90-95 rpm
 
 11. Extended Recovery
    Duration: 4.0 min (240s)
-   Power: 170-190% FTP @ 90-95 rpm
+   Power: 57%-63% FTP @ 90-95 rpm
 
 12. VO2max Interval 5
    Duration: 4.0 min (240s)
-   Power: 350-350W (adjust to your FTP) @ 90-95 rpm
+   Power: 117%-117% FTP @ 90-95 rpm
 
 13. Cooldown
    Duration: 10.0 min (600s)
-   Power: 160-180% FTP @ 90-95 rpm
-
-
-
-================================================================================
-DATE: 2025-11-14
-WORKOUT: Evening Sauna Recovery
-TYPE: OTHER
-DURATION: 20 minutes
-TARGET TSS: 10-15
-================================================================================
-
-NOTES:
-["Post-mobility sauna session", "18-22 minutes at 175-180\u00b0F", "Recovery from Tuesday race + Thursday VO2max", "Hydrate well before and after", "Focus on muscle relaxation and adaptation", "Prepare for weekend tempo work"]
-
-
+   Power: 53%-60% FTP @ 90-95 rpm
 
 
 ================================================================================
@@ -1073,10 +1080,21 @@ DURATION: 35 minutes
 TARGET TSS: 0-0
 ================================================================================
 
+================================================================================
+DATE: 2025-11-14
+WORKOUT: Evening Sauna Recovery
+TYPE: OTHER
+DURATION: 20 minutes
+TARGET TSS: 10-15
+================================================================================
+
 NOTES:
-[]
-
-
+Post-mobility sauna session
+18-22 minutes at 175-180°F
+Recovery from Tuesday race + Thursday VO2max
+Hydrate well before and after
+Focus on muscle relaxation and adaptation
+Prepare for weekend tempo work
 
 
 ================================================================================
@@ -1088,7 +1106,16 @@ TARGET TSS: 95-110
 ================================================================================
 
 NOTES:
-["3x20min @ 235-245W (78-82% FTP) - tempo endurance building", "This is NOT threshold - should feel 'comfortably hard'", "Target HR 155-165 bpm during tempo blocks", "RPE should be 5-6: you could talk but don't want to", "5-min recovery valleys between blocks at easy spin", "Power cap 245W strict - don't let this drift to threshold", "Purpose: Build aerobic endurance without excessive fatigue", "This prepares you for sustained race efforts", "Conversational breathing during tempo - if gasping, too hard", "Carb drink throughout for sustained effort"]
+3x20min @ 235-245W (78-82% FTP) - tempo endurance building
+This is NOT threshold - should feel 'comfortably hard'
+Target HR 155-165 bpm during tempo blocks
+RPE should be 5-6: you could talk but don't want to
+5-min recovery valleys between blocks at easy spin
+Power cap 245W strict - don't let this drift to threshold
+Purpose: Build aerobic endurance without excessive fatigue
+This prepares you for sustained race efforts
+Conversational breathing during tempo - if gasping, too hard
+Carb drink throughout for sustained effort
 
 
 INTERVAL BREAKDOWN:
@@ -1096,32 +1123,31 @@ INTERVAL BREAKDOWN:
 
 1. Progressive Warmup
    Duration: 15.0 min (900s)
-   Power: 55-75% FTP (ramp) @ 85-95 rpm
+   Power: 55% → 75% FTP (ramp) @ 85-95 rpm
 
 2. Tempo Block 1
    Duration: 20.0 min (1200s)
-   Power: 235-245W (adjust to your FTP) @ 88-92 rpm
+   Power: 78%-82% FTP @ 88-92 rpm
 
 3. Recovery Valley
    Duration: 5.0 min (300s)
-   Power: 180-200W (adjust to your FTP) @ 90-95 rpm
+   Power: 60%-67% FTP @ 90-95 rpm
 
 4. Tempo Block 2
    Duration: 20.0 min (1200s)
-   Power: 235-245W (adjust to your FTP) @ 88-92 rpm
+   Power: 78%-82% FTP @ 88-92 rpm
 
 5. Recovery Valley
    Duration: 5.0 min (300s)
-   Power: 180-200W (adjust to your FTP) @ 90-95 rpm
+   Power: 60%-67% FTP @ 90-95 rpm
 
 6. Tempo Block 3
    Duration: 20.0 min (1200s)
-   Power: 235-245W (adjust to your FTP) @ 88-92 rpm
+   Power: 78%-82% FTP @ 88-92 rpm
 
 7. Cooldown
    Duration: 15.0 min (900s)
-   Power: 65-50% FTP (ramp) @ 85-95 rpm
-
+   Power: 65% → 50% FTP (ramp) @ 85-95 rpm
 
 
 ================================================================================
@@ -1133,9 +1159,32 @@ TARGET TSS: 30-35
 ================================================================================
 
 NOTES:
-["Easy recovery run to finish the week", "5 min warmup: very easy jog, gradual progression", "30 min main: steady easy pace, nose breathing focus", "5 min cooldown: easy jog/walk transition", "", "HR TARGET: 135-145 bpm average, NEVER exceed 150 bpm", "If HR exceeds 150 at any point, SLOW DOWN immediately", "Nose breathing cue worked perfectly last time - use it again", "", "PURPOSE:", "- Active recovery from week's training load", "- Maintain running fitness without bike interference", "- Cross-training benefit for overall conditioning", "- Mental break from indoor cycling", "", "CRITICAL REMINDERS:", "- This is NOT a workout - it's active recovery", "- If breathing through nose becomes difficult, you're too fast", "- Check Garmin every 5 min to verify HR staying in zone", "- If Soleus talks to you, walk it out immediately", "", "POST-RUN:", "- Light stretching (hip flexors, calves, hamstrings)", "- Hydration + electrolytes", "- Optional: 20 min sauna if available", "- Review week's training and prepare for Week 53"]
+Easy recovery run to finish the week
+5 min warmup: very easy jog, gradual progression
+30 min main: steady easy pace, nose breathing focus
+5 min cooldown: easy jog/walk transition
 
+HR TARGET: 135-145 bpm average, NEVER exceed 150 bpm
+If HR exceeds 150 at any point, SLOW DOWN immediately
+Nose breathing cue worked perfectly last time - use it again
 
+PURPOSE:
+- Active recovery from week's training load
+- Maintain running fitness without bike interference
+- Cross-training benefit for overall conditioning
+- Mental break from indoor cycling
+
+CRITICAL REMINDERS:
+- This is NOT a workout - it's active recovery
+- If breathing through nose becomes difficult, you're too fast
+- Check Garmin every 5 min to verify HR staying in zone
+- If Soleus talks to you, walk it out immediately
+
+POST-RUN:
+- Light stretching (hip flexors, calves, hamstrings)
+- Hydration + electrolytes
+- Optional: 20 min sauna if available
+- Review week's training and prepare for Week 53
 
 
 ================================================================================
@@ -1147,9 +1196,23 @@ TARGET TSS: 10-15
 ================================================================================
 
 NOTES:
-["Optional sauna session if time permits", "18-22 minutes at 175-180\u00b0F", "Recovery from full training week", "Hydrate well before and after", "", "WEEK REVIEW REFLECTION:", "- How did points race feel vs TTT last week?", "- Did VO2max 5x4min feel achievable?", "- Sleep quality through the week?", "- Any soreness or fatigue concerns?", "- Ready for Week 53 progression?", "", "Prepare notes for coach on:", "- Race performance and learnings", "- VO2max interval completion", "- Overall energy and recovery", "- Any scheduling considerations for next week"]
+Optional sauna session if time permits
+18-22 minutes at 175-180°F
+Recovery from full training week
+Hydrate well before and after
 
+WEEK REVIEW REFLECTION:
+- How did points race feel vs TTT last week?
+- Did VO2max 5x4min feel achievable?
+- Sleep quality through the week?
+- Any soreness or fatigue concerns?
+- Ready for Week 53 progression?
 
+Prepare notes for coach on:
+- Race performance and learnings
+- VO2max interval completion
+- Overall energy and recovery
+- Any scheduling considerations for next week
 
 
 ================================================================================
@@ -1160,19 +1223,12 @@ DURATION: 45 minutes
 TARGET TSS: 25-30
 ================================================================================
 
-NOTES:
-Jake completed this session Monday morning
-Easy spin to flush legs from weekend
-HR should stay below 130 bpm
-
-
 INTERVAL BREAKDOWN:
 --------------------------------------------------------------------------------
 
 1. Easy Recovery Spin
    Duration: 45.0 min (2700s)
-   Power: 150-170% FTP @ 85-95 rpm
-
+   Power: 50%-57% FTP @ 85-95 rpm
 
 
 ================================================================================
@@ -1183,17 +1239,6 @@ DURATION: 75 minutes
 TARGET TSS: 95-115
 ================================================================================
 
-NOTES:
-SCRATCH RACE - Focus on positioning and pack dynamics
-Key learning from last week: conserve energy early, stay with pack
-Your power is competitive (3.9-4.7 W/kg) - work on tactical positioning
-Don't chase early; stay in draft as much as possible
-Expected NP: 270-290W for smart racing
-This is a HARD effort day - recovery tomorrow is critical
-
-
-
-
 ================================================================================
 DATE: 2025-11-19
 WORKOUT: Post-Race Recovery - 48hr Protocol
@@ -1202,29 +1247,20 @@ DURATION: 60 minutes
 TARGET TSS: 30-35
 ================================================================================
 
-NOTES:
-CRITICAL: This is a recovery day - NO high intensity
-48-hour recovery protocol after race effort
-HR should stay below 135 bpm throughout
-Focus on smooth pedaling and active recovery
-CNS recovery is the priority before Thursday's threshold work
-
-
 INTERVAL BREAKDOWN:
 --------------------------------------------------------------------------------
 
 1. Easy Warmup
    Duration: 10.0 min (600s)
-   Power: 145-160% FTP @ 85-95 rpm
+   Power: 48%-53% FTP @ 85-95 rpm
 
 2. Steady Recovery Spin
    Duration: 40.0 min (2400s)
-   Power: 160-175% FTP @ 88-95 rpm
+   Power: 53%-58% FTP @ 88-95 rpm
 
 3. Easy Cooldown
    Duration: 10.0 min (600s)
-   Power: 145-160% FTP @ 85-92 rpm
-
+   Power: 48%-53% FTP @ 85-92 rpm
 
 
 ================================================================================
@@ -1235,45 +1271,36 @@ DURATION: 90 minutes
 TARGET TSS: 75-85
 ================================================================================
 
-NOTES:
-Proven format from last week - 3x18min @ 240-250W (80-83% FTP)
-Target HR: 150s during intervals, 130s during recovery
-This is your reliable power zone - should feel controlled but challenging
-Focus on smooth power delivery and good fueling strategy
-Slightly reduced volume from last week's 3x20min to manage fatigue
-
-
 INTERVAL BREAKDOWN:
 --------------------------------------------------------------------------------
 
 1. Warmup
    Duration: 10.0 min (600s)
-   Power: 50-65% FTP (ramp) @ 85-95 rpm
+   Power: 50% → 65% FTP (ramp) @ 85-95 rpm
 
 2. Threshold Interval 1
    Duration: 18.0 min (1080s)
-   Power: 80-83% FTP (ramp) @ 88-95 rpm
+   Power: 80% → 83% FTP (ramp) @ 88-95 rpm
 
 3. Recovery
    Duration: 5.0 min (300s)
-   Power: 150-170% FTP @ 85-92 rpm
+   Power: 50%-57% FTP @ 85-92 rpm
 
 4. Threshold Interval 2
    Duration: 18.0 min (1080s)
-   Power: 80-83% FTP (ramp) @ 88-95 rpm
+   Power: 80% → 83% FTP (ramp) @ 88-95 rpm
 
 5. Recovery
    Duration: 5.0 min (300s)
-   Power: 150-170% FTP @ 85-92 rpm
+   Power: 50%-57% FTP @ 85-92 rpm
 
 6. Threshold Interval 3
    Duration: 18.0 min (1080s)
-   Power: 80-83% FTP (ramp) @ 88-95 rpm
+   Power: 80% → 83% FTP (ramp) @ 88-95 rpm
 
 7. Cooldown
    Duration: 16.0 min (960s)
-   Power: 60-50% FTP (ramp) @ 85-92 rpm
-
+   Power: 60% → 50% FTP (ramp) @ 85-92 rpm
 
 
 ================================================================================
@@ -1284,8 +1311,6 @@ DURATION: 45 minutes
 TARGET TSS: 0-0
 ================================================================================
 
-
-
 ================================================================================
 DATE: 2025-11-22
 WORKOUT: Long Endurance Ride - Aerobic Base Building
@@ -1293,19 +1318,6 @@ TYPE: BIKE
 DURATION: 180 minutes
 TARGET TSS: 110-130
 ================================================================================
-
-NOTES:
-PRIMARY GOAL: Build aerobic base with 3 hours Zone 2 work
-This is lower intensity than last week - managing fatigue load
-If XC skiing conditions are good, this can be substituted with 3-3.5hr ski
-Fueling practice: 60-70g carbs/hour, test race nutrition
-Hydration: 500-600ml/hour depending on temperature
-Keep intensity controlled - this is NOT a hard ride
-HR should stay mostly 140-155 bpm, brief spikes to 160s on climbs OK
-If legs feel heavy from Thursday's threshold work, keep power at lower end (200-210W)
-
-
-
 
 ================================================================================
 DATE: 2025-11-23
@@ -1315,19 +1327,6 @@ DURATION: 45 minutes
 TARGET TSS: 25-35
 ================================================================================
 
-NOTES:
-Easy conversational pace - this is active recovery
-Target: 8:30-9:30/mile pace (adjust based on feel)
-HR should stay below 150 bpm
-Focus on easy, relaxed running form
-If legs are tired from Saturday's long ride, keep this shorter (30-35 min)
-Alternative: Easy XC ski if snow conditions are good
-Purpose: Active recovery while maintaining aerobic stimulus
-This completes your weekly cross-training and prepares you for next week
-
-
-
-
 ================================================================================
 DATE: 2025-11-24
 WORKOUT: Active Recovery - Yoga & Mobility
@@ -1335,8 +1334,6 @@ TYPE: MOBILITY
 DURATION: 45 minutes
 TARGET TSS: 0-0
 ================================================================================
-
-
 
 ================================================================================
 DATE: 2025-11-25
@@ -1346,41 +1343,32 @@ DURATION: 60 minutes
 TARGET TSS: 40-50
 ================================================================================
 
-NOTES:
-Light activation ride to prep neuromuscular system for tomorrow's TT race
-Two short openers at 90-95% FTP to prime legs without creating fatigue
-Keep HR below 145 bpm except during openers
-Focus on smooth pedaling and mental preparation
-Hydrate well and ensure good nutrition today
-
-
 INTERVAL BREAKDOWN:
 --------------------------------------------------------------------------------
 
 1. Easy Warmup
    Duration: 10.0 min (600s)
-   Power: 150-170% FTP @ 85-95 rpm
+   Power: 50%-57% FTP @ 85-95 rpm
 
 2. Steady Zone 2
    Duration: 20.0 min (1200s)
-   Power: 180-210W (adjust to your FTP) @ 88-95 rpm
+   Power: 60%-70% FTP @ 88-95 rpm
 
 3. Race Prep Opener 1
    Duration: 3.0 min (180s)
-   Power: 270-285W (adjust to your FTP) @ 90-100 rpm
+   Power: 90%-95% FTP @ 90-100 rpm
 
 4. Recovery
    Duration: 4.0 min (240s)
-   Power: 150-170% FTP @ 85-95 rpm
+   Power: 50%-57% FTP @ 85-95 rpm
 
 5. Race Prep Opener 2
    Duration: 3.0 min (180s)
-   Power: 270-285W (adjust to your FTP) @ 90-100 rpm
+   Power: 90%-95% FTP @ 90-100 rpm
 
 6. Easy Cooldown
    Duration: 20.0 min (1200s)
-   Power: 150-170% FTP @ 85-95 rpm
-
+   Power: 50%-57% FTP @ 85-95 rpm
 
 
 ================================================================================
@@ -1391,18 +1379,6 @@ DURATION: 75 minutes
 TARGET TSS: 95-115
 ================================================================================
 
-NOTES:
-TIME TRIAL RACE - Sustained maximal effort
-Pacing strategy: Start controlled (95-98% FTP), settle into rhythm (98-102% FTP), finish strong
-Target average power: 285-300W for full effort
-Focus on aerodynamic position and smooth power delivery
-Mental cue: 'Sustainable discomfort' - find the edge without blowing up
-This is excellent threshold development disguised as racing
-Expected NP: 290-305W if pacing is executed well
-
-
-
-
 ================================================================================
 DATE: 2025-11-27
 WORKOUT: Turkey Trot 5K - Family Fun Run
@@ -1410,17 +1386,6 @@ TYPE: RUN
 DURATION: 30 minutes
 TARGET TSS: 20-30
 ================================================================================
-
-NOTES:
-LIGHT EFFORT - This is a family activity, not a training stimulus
-Target: Conversational pace throughout, HR should stay below 155 bpm
-Focus on enjoying the event and time with family
-If you feel competitive urges, remind yourself: yesterday's TT was your hard effort
-This serves as active recovery from the race
-Hydrate well and enjoy Thanksgiving!
-
-
-
 
 ================================================================================
 DATE: 2025-11-27
@@ -1430,21 +1395,12 @@ DURATION: 45 minutes
 TARGET TSS: 25-30
 ================================================================================
 
-NOTES:
-OPTIONAL - Only if you have time and energy after Turkey Trot
-Very easy spin to promote blood flow and recovery
-HR should stay below 130 bpm throughout
-This is purely for recovery, not training stimulus
-Skip if you're feeling fatigued or want to prioritize family time
-
-
 INTERVAL BREAKDOWN:
 --------------------------------------------------------------------------------
 
 1. Easy Recovery Spin
    Duration: 45.0 min (2700s)
-   Power: 150-175% FTP @ 85-95 rpm
-
+   Power: 50%-58% FTP @ 85-95 rpm
 
 
 ================================================================================
@@ -1455,21 +1411,6 @@ DURATION: 210 minutes
 TARGET TSS: 140-160
 ================================================================================
 
-NOTES:
-EXTENDED AVAILABILITY WINDOW - Take advantage of extra time today
-This is your key gravel-specific endurance builder for the week
-Target: 3.5 hours total, with 3 hours in Zone 2 (140-155 HR, 190-230W)
-On flat sections, focus on holding 200-220W consistently
-Allow power to rise naturally on climbs but keep HR controlled
-Fuel strategy: Start fueling at 45 minutes, consume 60-80g carbs/hour
-Hydration: 2-3 bottles depending on temperature
-This builds the aerobic foundation for 50-100 mile gravel events
-Mental cue: 'Sustainable forever pace' - could you hold this for 5+ hours?
-If energy is low from yesterday's activities, scale back to 2.5-3 hours
-
-
-
-
 ================================================================================
 DATE: 2025-11-29
 WORKOUT: VO2max Development - 5x4min
@@ -1478,74 +1419,60 @@ DURATION: 75 minutes
 TARGET TSS: 75-85
 ================================================================================
 
-NOTES:
-VO2max reintroduction after 4-week gap - this drives FTP improvements
-Target: 5x4min at 110-115% FTP (330-345W) with 4min recovery
-These should feel HARD but sustainable - RPE 8-9 during intervals
-Focus on smooth power delivery, avoid surging at start of intervals
-Cadence: 95-105 rpm during intervals helps maintain power without excessive muscular strain
-Recovery intervals: spin easy at 150-170W to clear lactate
-If you're feeling fatigued from yesterday's long ride, scale to 4x4min
-Mental cue: 'Controlled suffering' - embrace the discomfort but stay in control
-This workout addresses the 12-week declining VO2max trend
-Proper execution here will support continued FTP progression toward 320W target
-
-
 INTERVAL BREAKDOWN:
 --------------------------------------------------------------------------------
 
 1. Warmup
    Duration: 10.0 min (600s)
-   Power: 50-65% FTP (ramp) @ 85-95 rpm
+   Power: 50% → 65% FTP (ramp) @ 85-95 rpm
 
 2. Warmup Build
    Duration: 5.0 min (300s)
-   Power: 65-85% FTP (ramp) @ 88-95 rpm
+   Power: 65% → 85% FTP (ramp) @ 88-95 rpm
 
 3. Recovery
    Duration: 3.0 min (180s)
-   Power: 150-170% FTP @ 85-95 rpm
+   Power: 50%-57% FTP @ 85-95 rpm
 
 4. VO2max Interval 1
    Duration: 4.0 min (240s)
-   Power: 330-345W (adjust to your FTP) @ 95-105 rpm
+   Power: 110%-115% FTP @ 95-105 rpm
 
 5. Recovery
    Duration: 4.0 min (240s)
-   Power: 150-170% FTP @ 85-95 rpm
+   Power: 50%-57% FTP @ 85-95 rpm
 
 6. VO2max Interval 2
    Duration: 4.0 min (240s)
-   Power: 330-345W (adjust to your FTP) @ 95-105 rpm
+   Power: 110%-115% FTP @ 95-105 rpm
 
 7. Recovery
    Duration: 4.0 min (240s)
-   Power: 150-170% FTP @ 85-95 rpm
+   Power: 50%-57% FTP @ 85-95 rpm
 
 8. VO2max Interval 3
    Duration: 4.0 min (240s)
-   Power: 330-345W (adjust to your FTP) @ 95-105 rpm
+   Power: 110%-115% FTP @ 95-105 rpm
 
 9. Recovery
    Duration: 4.0 min (240s)
-   Power: 150-170% FTP @ 85-95 rpm
+   Power: 50%-57% FTP @ 85-95 rpm
 
 10. VO2max Interval 4
    Duration: 4.0 min (240s)
-   Power: 330-345W (adjust to your FTP) @ 95-105 rpm
+   Power: 110%-115% FTP @ 95-105 rpm
 
 11. Recovery
    Duration: 4.0 min (240s)
-   Power: 150-170% FTP @ 85-95 rpm
+   Power: 50%-57% FTP @ 85-95 rpm
 
 12. VO2max Interval 5
    Duration: 4.0 min (240s)
-   Power: 330-345W (adjust to your FTP) @ 95-105 rpm
+   Power: 110%-115% FTP @ 95-105 rpm
 
 13. Cooldown
    Duration: 10.0 min (600s)
-   Power: 60-45% FTP (ramp) @ 85-95 rpm
-
+   Power: 60% → 45% FTP (ramp) @ 85-95 rpm
 
 
 ================================================================================
@@ -1556,17 +1483,13 @@ DURATION: 45 minutes
 TARGET TSS: 30-40
 ================================================================================
 
-NOTES:
-Easy conversational pace run - active recovery
-Target: HR below 150 bpm, should feel comfortable throughout
-Distance: 4-5 miles at easy pace
-Focus on form and relaxation, not speed
-You've noted improving run capabilities - enjoy the progress!
-This provides cross-training stimulus without interfering with cycling recovery
-Hydrate well and stretch afterward
-
-
-
+================================================================================
+DATE: 2025-11-30
+WORKOUT: Pre-Lab Recovery - Stretching & Mobility
+TYPE: MOBILITY
+DURATION: 30 minutes
+TARGET TSS: 0-0
+================================================================================
 
 ================================================================================
 DATE: 2025-11-30
@@ -1576,30 +1499,6 @@ DURATION: 0 minutes
 TARGET TSS: 0-0
 ================================================================================
 
-NOTES:
-HEAT CHAMBER STUDY TOMORROW (Dec 1st) - Preparation checklist:
-Sleep: Aim for 8+ hours tonight, prioritize sleep quality
-Hydration: Drink 3+ liters of water today, urine should be pale yellow
-Nutrition: Eat normally, avoid alcohol, ensure adequate carbohydrates
-Recovery: This week's training load (450 TSS) positions you well-recovered
-Mental prep: The lab work will provide valuable VO2max and thermoregulation data
-Note resting HR tomorrow morning as baseline before testing
-Bring water bottle, towel, and comfortable clothing to lab
-This data will inform your training periodization and gravel event preparation
-
-
-
-
-================================================================================
-DATE: 2025-11-30
-WORKOUT: Pre-Lab Recovery - Stretching & Mobility
-TYPE: MOBILITY
-DURATION: 30 minutes
-TARGET TSS: 0-0
-================================================================================
-
-
-
 ================================================================================
 DATE: 2025-12-01
 WORKOUT: Heat Chamber Session #1
@@ -1607,16 +1506,6 @@ TYPE: OTHER
 DURATION: 90 minutes
 TARGET TSS: 80-100
 ================================================================================
-
-NOTES:
-95°F at 75% humidity - research protocol
-15 min acclimation, then alternating 20-50% VO2 efforts
-No wearables - manually log RPE (1-10) post-session
-Note perceived sweat rate and heat tolerance improvements
-This is physiological adaptation work, not performance training
-
-
-
 
 ================================================================================
 DATE: 2025-12-01
@@ -1626,20 +1515,12 @@ DURATION: 30 minutes
 TARGET TSS: 15-20
 ================================================================================
 
-NOTES:
-Very easy spin to promote blood flow after heat session
-HR should stay below 130 bpm
-Focus on smooth pedaling, no intensity
-Hydrate well during and after
-
-
 INTERVAL BREAKDOWN:
 --------------------------------------------------------------------------------
 
 1. Easy Recovery Spin
    Duration: 30.0 min (1800s)
-   Power: 150-170% FTP @ 85-95 rpm
-
+   Power: 50%-57% FTP @ 85-95 rpm
 
 
 ================================================================================
@@ -1650,36 +1531,28 @@ DURATION: 30 minutes
 TARGET TSS: 20-25
 ================================================================================
 
-NOTES:
-Light activation before tonight's race
-Two progressive builds to prime neuromuscular system
-Keep overall intensity very low - this is prep, not training
-Hydrate and fuel appropriately before race
-
-
 INTERVAL BREAKDOWN:
 --------------------------------------------------------------------------------
 
 1. Easy Warmup
    Duration: 10.0 min (600s)
-   Power: 150-170% FTP @ 85-95 rpm
+   Power: 50%-57% FTP @ 85-95 rpm
 
 2. Progressive Build 1
    Duration: 2.0 min (120s)
-   Power: 70-85% FTP (ramp) @ 90-100 rpm
+   Power: 70% → 85% FTP (ramp) @ 90-100 rpm
 
 3. Recovery
    Duration: 3.0 min (180s)
-   Power: 150-170% FTP @ 85-95 rpm
+   Power: 50%-57% FTP @ 85-95 rpm
 
 4. Progressive Build 2
    Duration: 2.0 min (120s)
-   Power: 75-90% FTP (ramp) @ 90-100 rpm
+   Power: 75% → 90% FTP (ramp) @ 90-100 rpm
 
 5. Easy Cooldown
    Duration: 13.0 min (780s)
-   Power: 150-170% FTP @ 85-95 rpm
-
+   Power: 50%-57% FTP @ 85-95 rpm
 
 
 ================================================================================
@@ -1690,17 +1563,6 @@ DURATION: 75 minutes
 TARGET TSS: 100-120
 ================================================================================
 
-NOTES:
-Race effort - execute your race strategy
-Use tactical awareness from last week's TTT
-Attack on climbs where your 4.3 w/kg is an advantage
-This serves as high-quality threshold/VO2max stimulus
-Track power data for competitive performance analysis
-Post-race: note any PRs or performance insights
-
-
-
-
 ================================================================================
 DATE: 2025-12-03
 WORKOUT: VO2max Development - 5x4min Intervals
@@ -1709,79 +1571,68 @@ DURATION: 90 minutes
 TARGET TSS: 85-95
 ================================================================================
 
-NOTES:
-CAPITALIZING ON BREAKTHROUGH: You proved last week you can hold this intensity
-Target: 335-345W (112-115% FTP) for each 4-min interval
-4-min recovery between intervals at easy spin
-Focus: Maintain smooth, controlled breathing throughout
-If you complete all 5 intervals at target, this confirms your VO2max capacity improvement
-Proper warmup is critical - don't skip the progressive builds
-This is high-quality work - execute with confidence
-
-
 INTERVAL BREAKDOWN:
 --------------------------------------------------------------------------------
 
 1. Easy Warmup
    Duration: 10.0 min (600s)
-   Power: 150-170% FTP @ 85-95 rpm
+   Power: 50%-57% FTP @ 85-95 rpm
 
 2. Progressive Build 1
    Duration: 2.0 min (120s)
-   Power: 65-85% FTP (ramp) @ 90-100 rpm
+   Power: 65% → 85% FTP (ramp) @ 90-100 rpm
 
 3. Recovery
    Duration: 3.0 min (180s)
-   Power: 150-170% FTP @ 85-95 rpm
+   Power: 50%-57% FTP @ 85-95 rpm
 
 4. Progressive Build 2
    Duration: 2.0 min (120s)
-   Power: 75-95% FTP (ramp) @ 90-100 rpm
+   Power: 75% → 95% FTP (ramp) @ 90-100 rpm
 
 5. Recovery
    Duration: 3.0 min (180s)
-   Power: 150-170% FTP @ 85-95 rpm
+   Power: 50%-57% FTP @ 85-95 rpm
 
 6. VO2max Interval 1
    Duration: 4.0 min (240s)
-   Power: 335-345W (adjust to your FTP) @ 95-105 rpm
+   Power: 112%-115% FTP @ 95-105 rpm
 
 7. Recovery
    Duration: 4.0 min (240s)
-   Power: 150-170% FTP @ 85-95 rpm
+   Power: 50%-57% FTP @ 85-95 rpm
 
 8. VO2max Interval 2
    Duration: 4.0 min (240s)
-   Power: 335-345W (adjust to your FTP) @ 95-105 rpm
+   Power: 112%-115% FTP @ 95-105 rpm
 
 9. Recovery
    Duration: 4.0 min (240s)
-   Power: 150-170% FTP @ 85-95 rpm
+   Power: 50%-57% FTP @ 85-95 rpm
 
 10. VO2max Interval 3
    Duration: 4.0 min (240s)
-   Power: 335-345W (adjust to your FTP) @ 95-105 rpm
+   Power: 112%-115% FTP @ 95-105 rpm
 
 11. Recovery
    Duration: 4.0 min (240s)
-   Power: 150-170% FTP @ 85-95 rpm
+   Power: 50%-57% FTP @ 85-95 rpm
 
 12. VO2max Interval 4
    Duration: 4.0 min (240s)
-   Power: 335-345W (adjust to your FTP) @ 95-105 rpm
+   Power: 112%-115% FTP @ 95-105 rpm
 
 13. Recovery
    Duration: 4.0 min (240s)
-   Power: 150-170% FTP @ 85-95 rpm
+   Power: 50%-57% FTP @ 85-95 rpm
 
 14. VO2max Interval 5
    Duration: 4.0 min (240s)
-   Power: 335-345W (adjust to your FTP) @ 95-105 rpm
+   Power: 112%-115% FTP @ 95-105 rpm
 
 15. Cooldown
    Duration: 10.0 min (600s)
-   Power: 140-160% FTP @ 80-90 rpm
-
+   Power: 47%-53% FTP @ 80-90 rpm
 
 
 ================================================================================
@@ -1791,90 +1642,3 @@ TYPE: RUN
 DURATION: 45 minutes
 TARGET TSS: 30-40
 ================================================================================
-
-NOTES:
-Conversational pace throughout - you should be able to talk easily
-Focus on form and relaxation, not pace
-This is active recovery after yesterday's VO2max session
-HR should stay in Zone 1-2 (below 145 bpm)
-If legs feel heavy, shorten to 30-35 minutes
-Complement to cycling fitness without adding cycling-specific fatigue
-
-
-
-
-================================================================================
-DATE: 2025-12-05
-WORKOUT: Heat Chamber Session #2
-TYPE: OTHER
-DURATION: 90 minutes
-TARGET TSS: 80-100
-================================================================================
-
-NOTES:
-95°F at 75% humidity - research protocol
-15 min acclimation, then alternating 20-50% VO2 efforts
-No wearables - manually log RPE (1-10) post-session
-Compare to Monday: any improvements in heat tolerance?
-Note time to reach steady-state effort and sweat response
-Second exposure this week - adaptations should be emerging
-
-
-
-
-================================================================================
-DATE: 2025-12-05
-WORKOUT: Post-Heat Mobility & Recovery
-TYPE: MOBILITY
-DURATION: 30 minutes
-TARGET TSS: 0-0
-================================================================================
-
-
-
-================================================================================
-DATE: 2025-12-06
-WORKOUT: Active Recovery Spin
-TYPE: BIKE
-DURATION: 45 minutes
-TARGET TSS: 25-30
-================================================================================
-
-NOTES:
-Very easy spin - busy schedule day
-HR should stay below 130 bpm throughout
-Focus on smooth pedaling and leg turnover
-This promotes recovery while maintaining movement patterns
-Can be done on trainer or easy outdoor route
-If schedule is too tight, this can be shortened to 30 min or skipped
-
-
-INTERVAL BREAKDOWN:
---------------------------------------------------------------------------------
-
-1. Easy Recovery Ride
-   Duration: 45.0 min (2700s)
-   Power: 150-175% FTP @ 85-95 rpm
-
-
-
-================================================================================
-DATE: 2025-12-07
-WORKOUT: Long Endurance Ride - Mixed Terrain
-TYPE: BIKE
-DURATION: 180 minutes
-TARGET TSS: 140-160
-================================================================================
-
-NOTES:
-PRIMARY GOAL: Build aerobic endurance base for 50-100 mile gravel events
-Target 3 hours total ride time - this is your weekly long ride
-Weather check: If conditions are poor (heavy rain/cold), Zwift alternative acceptable
-Nutrition: Practice race-day fueling - 60-70g carbs/hour after first hour
-Hydration: 500-750ml fluid per hour
-Technical practice: Seek out varied terrain to build handling confidence
-Effort should feel sustainable - conversational for most of ride
-This complements your VO2max work by building aerobic foundation
-If you feel strong in final hour, can include 2-3 short surges (2-3 min at 240-260W) to simulate race efforts
-
-
