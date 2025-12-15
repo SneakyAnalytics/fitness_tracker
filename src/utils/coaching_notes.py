@@ -1001,24 +1001,39 @@ Next Week Focus: {self.next_week_focus}
             patterns['compliance_trend'] = 'moderate'
         
         # Analyze recovery patterns
-        recovery_keywords_positive = ['recovering well', 'good recovery', 'fresh', 'rested']
-        recovery_keywords_negative = ['fatigue', 'tired', 'not recovering', 'burnout', 'exhausted']
+        # Positive indicators: explicit recovery weeks, positive recovery mentions in observations
+        recovery_keywords_positive = ['recovering well', 'good recovery', 'fresh', 'rested', 
+                                     'recovery week', 'deload', 'recovery execution', 
+                                     'recovery capacity', 'strong recovery']
+        # Negative indicators: fatigue/tiredness in KEY OBSERVATIONS (current state, not future monitoring)
+        recovery_keywords_negative = ['not recovering', 'burnout', 'exhausted', 
+                                     'fatigue accumulation', 'chronic fatigue', 'overreaching']
         
         recovery_mentions = []
         for cont in recent_continuity:
-            all_text = ' '.join(cont.key_observations + cont.areas_to_monitor).lower()
-            if any(kw in all_text for kw in recovery_keywords_positive):
+            # Check key observations and progression notes for CURRENT recovery state
+            observations_text = ' '.join(cont.key_observations + cont.progression_notes).lower()
+            
+            # Positive: Recovery week execution or explicit positive recovery mentions
+            if any(kw in observations_text for kw in recovery_keywords_positive):
                 recovery_mentions.append('positive')
-            elif any(kw in all_text for kw in recovery_keywords_negative):
+            # Negative: Fatigue mentioned as CURRENT problem in observations (not just future monitoring)
+            elif any(kw in observations_text for kw in recovery_keywords_negative):
+                recovery_mentions.append('negative')
+            # Also check if "fatigue" appears as CURRENT issue, not future monitoring
+            elif 'fatigue' in observations_text and 'despite' not in observations_text:
+                # "despite fatigue" means they're performing well despite it = not a problem
+                # Plain "fatigue" as observation = current issue
                 recovery_mentions.append('negative')
             else:
                 recovery_mentions.append('neutral')
         
-        if recovery_mentions.count('negative') >= len(recovery_mentions) * 0.5:
+        # Determine recovery trend - be more conservative about flagging decline
+        if recovery_mentions.count('negative') >= len(recovery_mentions) * 0.6:  # Changed from 0.5
             patterns['recovery_trend'] = 'declining'
             patterns['recurring_concerns'].append("Recovery showing signs of decline - may need deload week")
             patterns['insights'].append("Multiple weeks showing recovery concerns - prioritize rest")
-        elif recovery_mentions.count('positive') >= len(recovery_mentions) * 0.6:
+        elif recovery_mentions.count('positive') >= len(recovery_mentions) * 0.4:  # Changed from 0.6
             patterns['recovery_trend'] = 'strong'
             patterns['recurring_strengths'].append("Consistent positive recovery signals")
         else:

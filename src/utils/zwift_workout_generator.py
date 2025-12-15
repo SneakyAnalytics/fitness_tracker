@@ -197,19 +197,19 @@ def generate_zwift_workout(workout_date: str, workout_name: str, intervals: List
         for i in range(num_messages):
             offset = int((i + 1) * message_interval)
             
-            # Add trivia question, then answer 60 seconds later
-            if i % 4 == 0:  # Every 4th message is trivia
-                trivia_q = dynamic_content.get_fresh_content("general")
-                if '🏆 Sports Trivia:' in trivia_q:  # Check if it's actually trivia
-                    # Get answer immediately after getting question (they're paired)
-                    trivia_answer = dynamic_content.get_trivia_answer()
-                    text_events.append((offset, clean_zwift_text(trivia_q)))
-                    # Add answer 60 seconds later if there's time
-                    if trivia_answer and offset + 60 < total_duration:
-                        text_events.append((offset + 60, clean_zwift_text(trivia_answer)))
+            # Every 4th message is trivia (question + answer back-to-back)
+            if i % 4 == 0:
+                trivia_pair = dynamic_content.get_trivia_pair()
+                if trivia_pair:
+                    question, answer = trivia_pair
+                    # Add question
+                    text_events.append((offset, clean_zwift_text(question)))
+                    # Add answer 45 seconds later (back-to-back, guaranteed)
+                    if offset + 45 < total_duration:
+                        text_events.append((offset + 45, clean_zwift_text(answer)))
                     continue
             
-            # Regular varied content
+            # Regular varied content (quotes, jokes, fun facts, AI encouragement)
             message = dynamic_content.get_fresh_content("general")
             text_events.append((offset, clean_zwift_text(message)))
         

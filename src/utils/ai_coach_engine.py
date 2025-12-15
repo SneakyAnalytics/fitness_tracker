@@ -156,8 +156,8 @@ class AICoachEngine:
         if self.model in [AIModel.GEMINI_FREE, AIModel.GEMINI_PRO]:
             # Google Gemini - Updated Nov 2024+ model names
             genai.configure(api_key=api_key)
-            # Use latest stable models (Gemini 2.5 Flash is FREE with 15 RPM limit)
-            model_name = "gemini-2.5-flash" if self.model == AIModel.GEMINI_FREE else "gemini-2.5-pro"
+            # Use latest stable models (Gemini 1.5/2.0 Flash is FREE with 15 RPM limit)
+            model_name = "gemini-1.5-flash-002" if self.model == AIModel.GEMINI_FREE else "gemini-1.5-pro"
             self.client = genai.GenerativeModel(model_name)
             print(f"✅ Configured {model_name}")
         

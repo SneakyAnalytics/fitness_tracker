@@ -42,31 +42,39 @@ class DynamicWorkoutContent:
         elif context == "daily_special":
             return self._get_daily_special()
         
-        # For all other contexts, pull from APIs in random order
+        # For all other contexts, pull from APIs ONLY (no static fallbacks)
         content_getters = [
             self._get_quote,
             self._get_dad_joke,
             self._get_fun_fact,
-            self._get_trivia,
-            self._get_cycling_fact,
             self._get_ai_generated_encouragement,
+            self._get_number_fact,
+            self._get_advice_slip,
+            self._get_affirmation,
+            self._get_chuck_norris_fact,
+            self._get_kanye_quote,
+            self._get_science_news,
+            self._get_arxiv_paper,
+            self._get_wikipedia_today,
         ]
         
         # Randomize order to vary content types
         random.shuffle(content_getters)
         
-        # Try each API until one works
-        for getter in content_getters:
-            try:
-                message = getter()
-                if message and message not in self.used_messages:
-                    self.used_messages.add(message)
-                    return message
-            except Exception as e:
-                print(f"API call failed: {e}")
-                continue
+        # Try each API until one works - retry up to 3 times if needed
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            for getter in content_getters:
+                try:
+                    message = getter()
+                    if message and message not in self.used_messages:
+                        self.used_messages.add(message)
+                        return message
+                except Exception as e:
+                    print(f"API call failed (attempt {attempt + 1}/{max_attempts}): {e}")
+                    continue
         
-        # If all APIs fail, use simple fallback
+        # If all APIs fail after retries, return simple encouragement (no canned facts)
         return self._get_simple_fallback()
     
     def _get_quote(self) -> Optional[str]:
@@ -131,8 +139,8 @@ class DynamicWorkoutContent:
             pass
         return None
     
-    def _get_trivia(self) -> Optional[str]:
-        """Get sports trivia from Open Trivia Database - returns just the question"""
+    def get_trivia_pair(self) -> Optional[tuple[str, str]]:
+        """Get sports trivia question AND answer as a pair to ensure they appear together"""
         try:
             response = requests.get(
                 'https://opentdb.com/api.php?amount=1&category=21&type=multiple',  # Sports category
@@ -148,41 +156,185 @@ class DynamicWorkoutContent:
                     question = html.unescape(question)
                     answer = html.unescape(answer)
                     
-                    # Store answer for later retrieval
-                    self._pending_trivia_answer = f'🏆 Answer: {answer}'
+                    # Return both as a tuple for guaranteed pairing
+                    question_msg = f'🏆 Sports Trivia: {question}'
+                    answer_msg = f'🏆 Answer: {answer}'
                     
-                    return f'🏆 Sports Trivia: {question}'
+                    # Mark both as used
+                    self.used_messages.add(question_msg)
+                    self.used_messages.add(answer_msg)
+                    
+                    return (question_msg, answer_msg)
+        except Exception as e:
+            print(f"Trivia API failed: {e}")
+        return None
+    
+    # REMOVED: _get_cycling_fact
+    # User doesn't want canned/static cycling facts - they want fresh API content only
+    
+    def _get_number_fact(self) -> Optional[str]:
+        """Get random number fact from Numbers API"""
+        try:
+            response = requests.get(
+                'http://numbersapi.com/random/trivia',
+                timeout=self.api_timeout
+            )
+            if response.status_code == 200:
+                fact = response.text
+                return f'🔢 {fact}'
         except:
             pass
         return None
     
-    def get_trivia_answer(self) -> Optional[str]:
-        """Get the answer to the last trivia question"""
-        if hasattr(self, '_pending_trivia_answer'):
-            answer = self._pending_trivia_answer
-            delattr(self, '_pending_trivia_answer')
-            return answer
+    def _get_advice_slip(self) -> Optional[str]:
+        """Get random advice from Advice Slip API"""
+        try:
+            response = requests.get(
+                'https://api.adviceslip.com/advice',
+                timeout=self.api_timeout
+            )
+            if response.status_code == 200:
+                data = response.json()
+                advice = data['slip']['advice']
+                return f'💡 {advice}'
+        except:
+            pass
         return None
     
-    def _get_cycling_fact(self) -> Optional[str]:
-        """Get cycling-related facts (could use Wikipedia API or custom list)"""
-        cycling_facts = [
-            "🚴 Did you know? The fastest recorded speed on a bicycle is 183.9 mph (296 km/h)!",
-            "🚴 Cycling fact: Your bike has more parts than a typical car engine!",
-            "🚴 Pro cyclists can burn 8,000-10,000 calories during a Tour de France stage!",
-            "🚴 The world record for distance cycled in 24 hours is 556 miles (895 km)!",
-            "🚴 Cycling increases your lung capacity by up to 20%!",
-            "🚴 The bicycle is the most efficient mode of human-powered transportation!",
-            "🚴 Elite cyclists have resting heart rates as low as 28 bpm!",
-            "🚴 Indoor cycling was invented in the 1990s as a winter training tool!",
-            "🚴 Your quads are the largest muscle group working during cycling!",
-            "🚴 Cycling can reduce your biological age by up to 10 years!",
-        ]
-        
-        # Filter out used facts
-        available_facts = [f for f in cycling_facts if f not in self.used_messages]
-        if available_facts:
-            return random.choice(available_facts)
+    def _get_affirmation(self) -> Optional[str]:
+        """Get positive affirmation"""
+        try:
+            response = requests.get(
+                'https://www.affirmations.dev/',
+                timeout=self.api_timeout
+            )
+            if response.status_code == 200:
+                data = response.json()
+                affirmation = data['affirmation']
+                return f'✨ {affirmation}'
+        except:
+            pass
+        return None
+    
+    def _get_chuck_norris_fact(self) -> Optional[str]:
+        """Get Chuck Norris fact (usually funny/absurd)"""
+        try:
+            response = requests.get(
+                'https://api.chucknorris.io/jokes/random',
+                timeout=self.api_timeout
+            )
+            if response.status_code == 200:
+                data = response.json()
+                fact = data['value']
+                # Keep it short and appropriate
+                if len(fact) < 150:
+                    return f'💥 {fact}'
+        except:
+            pass
+        return None
+    
+    def _get_kanye_quote(self) -> Optional[str]:
+        """Get Kanye West quote (often motivational/entertaining)"""
+        try:
+            response = requests.get(
+                'https://api.kanye.rest/',
+                timeout=self.api_timeout
+            )
+            if response.status_code == 200:
+                data = response.json()
+                quote = data['quote']
+                return f'🎤 Kanye: "{quote}"'
+        except:
+            pass
+        return None
+    
+    def _get_science_news(self) -> Optional[str]:
+        """Get science news headlines from various sources"""
+        try:
+            # Try New York Times Science section (free API)
+            # Note: For production, get free API key from https://developer.nytimes.com/
+            # For now, try RSS feeds or other free sources
+            
+            # Hacker News API - often has science/research posts
+            response = requests.get(
+                'https://hacker-news.firebaseio.com/v0/topstories.json',
+                timeout=self.api_timeout
+            )
+            if response.status_code == 200:
+                story_ids = response.json()[:10]  # Get top 10
+                # Get a random story from top 10
+                story_id = random.choice(story_ids)
+                story_response = requests.get(
+                    f'https://hacker-news.firebaseio.com/v0/item/{story_id}.json',
+                    timeout=self.api_timeout
+                )
+                if story_response.status_code == 200:
+                    story = story_response.json()
+                    title = story.get('title', '')
+                    # Filter for science-y keywords
+                    science_keywords = ['study', 'research', 'science', 'discover', 'health', 'medical', 'brain', 'AI', 'tech']
+                    if any(keyword.lower() in title.lower() for keyword in science_keywords):
+                        if len(title) < 120:
+                            return f'🔬 Tech/Science: {title}'
+        except:
+            pass
+        return None
+    
+    def _get_arxiv_paper(self) -> Optional[str]:
+        """Get recent research paper title from arXiv"""
+        try:
+            # arXiv API - recent papers in health/biology/sports science
+            categories = ['q-bio', 'physics', 'cs.AI']  # Biology, Physics, AI
+            category = random.choice(categories)
+            
+            response = requests.get(
+                f'http://export.arxiv.org/api/query?search_query=cat:{category}&sortBy=submittedDate&sortOrder=descending&max_results=20',
+                timeout=self.api_timeout
+            )
+            if response.status_code == 200:
+                import xml.etree.ElementTree as ET
+                root = ET.fromstring(response.content)
+                
+                # Get random entry from results
+                entries = root.findall('{http://www.w3.org/2005/Atom}entry')
+                if entries:
+                    entry = random.choice(entries)
+                    title = entry.find('{http://www.w3.org/2005/Atom}title')
+                    if title is not None:
+                        title_text = title.text.strip().replace('\n', ' ')
+                        if len(title_text) < 120:
+                            return f'📚 Research: {title_text}'
+        except:
+            pass
+        return None
+    
+    def _get_wikipedia_today(self) -> Optional[str]:
+        """Get 'On This Day' from Wikipedia or featured article"""
+        try:
+            # Wikipedia's "On This Day" API
+            today = datetime.now()
+            response = requests.get(
+                f'https://api.wikimedia.org/feed/v1/wikipedia/en/onthisday/all/{today.month}/{today.day}',
+                timeout=self.api_timeout
+            )
+            if response.status_code == 200:
+                data = response.json()
+                # Get a random event from today in history
+                if 'events' in data and data['events']:
+                    event = random.choice(data['events'][:5])  # Pick from top 5 events
+                    year = event.get('year', '')
+                    text = event.get('text', '')
+                    if text and len(text) < 120:
+                        return f'📅 On this day in {year}: {text}'
+                
+                # Try featured article instead
+                if 'selected' in data and data['selected']:
+                    article = random.choice(data['selected'])
+                    text = article.get('text', '')
+                    if text and len(text) < 120:
+                        return f'📖 {text}'
+        except:
+            pass
         return None
     
     def _get_ai_generated_encouragement(self) -> Optional[str]:
