@@ -147,7 +147,7 @@ def render_achievement_timeline(manager: 'CoachingNotesManager'):
             with col1:
                 st.markdown(f"**{row['Description']}**")
             with col2:
-                st.badge(row['Category'], type="success")
+                st.badge(row['Category'])
             with col3:
                 st.caption(row['Date'].strftime('%Y-%m-%d'))
     else:
