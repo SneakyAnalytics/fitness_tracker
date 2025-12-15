@@ -36,18 +36,22 @@ def render_achievements_tab():
     manager = CoachingNotesManager()
     
     # Create tabs for different views
-    viz_tabs = st.tabs(["📅 Achievement Timeline", "🎯 Active Goals", "📊 Pattern Insights"])
+    viz_tabs = st.tabs(["📅 Achievement Timeline", "⚡ Power PRs", "🎯 Active Goals", "📊 Pattern Insights"])
     
     # Tab 1: Achievement Timeline
     with viz_tabs[0]:
         render_achievement_timeline(manager)
     
-    # Tab 2: Active Goals
+    # Tab 2: Power PRs
     with viz_tabs[1]:
+        render_power_achievements()
+    
+    # Tab 3: Active Goals
+    with viz_tabs[2]:
         render_active_goals(manager)
     
-    # Tab 3: Pattern Insights
-    with viz_tabs[2]:
+    # Tab 4: Pattern Insights
+    with viz_tabs[3]:
         render_pattern_insights(manager)
 
 
@@ -166,6 +170,176 @@ def render_achievement_timeline(manager: 'CoachingNotesManager'):
             st.metric("Days Since Last Achievement", days_since_last)
         else:
             st.metric("Days Since Last Achievement", "N/A")
+
+
+def render_power_achievements():
+    """Render top power achievements/personal records."""
+    from src.storage.database import WorkoutDatabase
+    from src.utils.workout_visualizer import WorkoutVisualizer
+    
+    st.subheader("⚡ Peak Power Achievements")
+    st.markdown("*Your all-time best power outputs across key durations*")
+    
+    try:
+        db = WorkoutDatabase()
+        
+        # Get all personal bests
+        personal_bests = db.get_personal_bests(athlete_id='default')
+        
+        if not personal_bests or not any(personal_bests.values()):
+            st.info("No peak power records yet. Complete workouts to set your personal bests!")
+            return
+        
+        # Standard power durations to display
+        standard_durations = ['5s', '1min', '5min', '20min', '60min']
+        
+        # Display PRs in cards
+        st.markdown("### 🏆 Personal Records")
+        
+        # Create rows of 3 columns each
+        for i in range(0, len(standard_durations), 3):
+            cols = st.columns(3)
+            for j, duration in enumerate(standard_durations[i:i+3]):
+                with cols[j]:
+                    if duration in personal_bests and personal_bests[duration]:
+                        pr = personal_bests[duration][0]  # Top record
+                        
+                        # Format power value
+                        power = pr['effort_value']
+                        
+                        # Display as metric card
+                        st.metric(
+                            label=f"{duration} Peak Power",
+                            value=f"{power:.0f}W",
+                            delta=None
+                        )
+                        
+                        # Show date and medal
+                        medal = pr.get('medal', '')
+                        date_str = pr['achieved_date']
+                        try:
+                            date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+                            days_ago = (datetime.now() - date_obj).days
+                            if days_ago == 0:
+                                time_str = "Today"
+                            elif days_ago == 1:
+                                time_str = "Yesterday"
+                            elif days_ago < 7:
+                                time_str = f"{days_ago} days ago"
+                            else:
+                                time_str = date_obj.strftime('%b %d, %Y')
+                        except:
+                            time_str = date_str
+                        
+                        st.caption(f"{medal} {time_str}")
+                    else:
+                        # No record for this duration
+                        st.metric(
+                            label=f"{duration} Peak Power",
+                            value="--",
+                            delta=None
+                        )
+                        st.caption("No record set")
+        
+        # Top 3 for each duration
+        st.divider()
+        st.markdown("### 📊 Top 3 Efforts by Duration")
+        
+        # Duration selector
+        available_durations = [d for d in standard_durations if d in personal_bests and personal_bests[d]]
+        
+        if available_durations:
+            selected_duration = st.selectbox("Select duration:", available_durations)
+            
+            if selected_duration in personal_bests:
+                top_efforts = personal_bests[selected_duration]
+                
+                # Create DataFrame
+                data = []
+                for effort in top_efforts:
+                    data.append({
+                        'Rank': f"{effort['medal']} #{effort['rank']}",
+                        'Power (W)': f"{effort['effort_value']:.0f}",
+                        'Date': effort['achieved_date']
+                    })
+                
+                df = pd.DataFrame(data)
+                st.table(df)
+        
+        # Power curve visualization
+        st.divider()
+        st.markdown("### 📈 Peak Power Curve")
+        
+        # Prepare data for power curve
+        curve_data = []
+        duration_seconds = {
+            '5s': 5,
+            '1min': 60,
+            '5min': 300,
+            '20min': 1200,
+            '60min': 3600
+        }
+        
+        for duration in standard_durations:
+            if duration in personal_bests and personal_bests[duration]:
+                pr = personal_bests[duration][0]
+                curve_data.append({
+                    'Duration (s)': duration_seconds.get(duration, 0),
+                    'Duration': duration,
+                    'Power (W)': pr['effort_value']
+                })
+        
+        if curve_data:
+            df_curve = pd.DataFrame(curve_data)
+            df_curve = df_curve.sort_values('Duration (s)')
+            
+            # Create power curve chart
+            fig = go.Figure()
+            
+            fig.add_trace(go.Scatter(
+                x=df_curve['Duration'],
+                y=df_curve['Power (W)'],
+                mode='lines+markers',
+                name='Peak Power',
+                line=dict(color='#FF6B6B', width=3),
+                marker=dict(size=10, color='#FF6B6B'),
+                hovertemplate='<b>%{x}</b><br>Power: %{y:.0f}W<extra></extra>'
+            ))
+            
+            fig.update_layout(
+                title="Peak Power Curve (All-Time Best)",
+                xaxis_title="Duration",
+                yaxis_title="Power (W)",
+                height=400,
+                hovermode='x unified',
+                showlegend=False
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Power stats
+            st.markdown("### 📊 Power Statistics")
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                avg_power = df_curve['Power (W)'].mean()
+                st.metric("Average Peak Power", f"{avg_power:.0f}W")
+            
+            with col2:
+                max_power = df_curve['Power (W)'].max()
+                st.metric("Highest Peak", f"{max_power:.0f}W")
+            
+            with col3:
+                # Count total PRs
+                total_prs = sum(len(efforts) for efforts in personal_bests.values())
+                st.metric("Total PRs Set", total_prs)
+        else:
+            st.info("Not enough data to create power curve yet.")
+    
+    except Exception as e:
+        st.error(f"Error loading power achievements: {str(e)}")
+        import traceback
+        st.code(traceback.format_exc())
 
 
 def render_active_goals(manager: 'CoachingNotesManager'):
