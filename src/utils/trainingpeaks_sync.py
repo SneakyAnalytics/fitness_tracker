@@ -25,8 +25,13 @@ class TrainingPeaksSync:
         load_dotenv()
         self.username = os.getenv("TRAININGPEAKS_USERNAME")
         self.password = os.getenv("TRAININGPEAKS_PASSWORD")
-        self.downloads_dir = Path.home() / "Downloads"
-        self.extract_dir = Path("/tmp") / "trainingpeaks_extracted"
+        # Use dedicated project directory for downloads instead of ~/Downloads
+        project_root = Path(__file__).parent.parent.parent
+        self.downloads_dir = project_root / "data" / "trainingpeaks_downloads"
+        self.extract_dir = project_root / "data" / "trainingpeaks_extracted"
+        # Ensure directories exist
+        self.downloads_dir.mkdir(parents=True, exist_ok=True)
+        self.extract_dir.mkdir(parents=True, exist_ok=True)
         self.api_base = "http://localhost:8000"
     
     def get_current_week_dates(self):
@@ -429,6 +434,30 @@ class TrainingPeaksSync:
                 print(f"❌ Error uploading metrics: {str(e)}")
                 results['errors'].append(f"Metrics error: {str(e)}")
         
+        # Clean up downloaded ZIP files after successful processing
+        print("\n🗑️  Cleaning up downloaded files...")
+        try:
+            zip_files = [
+                self.downloads_dir / f"WorkoutFileExport-{datetime.now().strftime('%Y%m%d')}.zip",
+                self.downloads_dir / f"WorkoutExport-{datetime.now().strftime('%Y%m%d')}.zip",
+                self.downloads_dir / f"MetricsExport-{datetime.now().strftime('%Y%m%d')}.zip"
+            ]
+            
+            # Also find any ZIP files from today in downloads directory
+            today_zips = list(self.downloads_dir.glob(f"*Export-{datetime.now().strftime('%Y%m%d')}*.zip"))
+            
+            for zip_file in today_zips:
+                try:
+                    if zip_file.exists():
+                        zip_file.unlink()
+                        print(f"   ✅ Removed: {zip_file.name}")
+                except Exception as e:
+                    print(f"   ⚠️  Could not remove {zip_file.name}: {e}")
+            
+            print("   ✅ Cleanup complete")
+        except Exception as e:
+            print(f"   ⚠️  Cleanup warning: {e}")
+        
         return results
     
     def run_sync(self, start_date=None, end_date=None, cleanup_fit_files=True):
@@ -455,8 +484,8 @@ class TrainingPeaksSync:
         
         try:
             with sync_playwright() as p:
-                # Launch browser
-                browser = p.chromium.launch(headless=False, downloads_path=str(self.downloads_dir))
+                # Launch browser in headless mode with custom download path
+                browser = p.chromium.launch(headless=True, downloads_path=str(self.downloads_dir))
                 context = browser.new_context(accept_downloads=True)
                 page = context.new_page()
                 
