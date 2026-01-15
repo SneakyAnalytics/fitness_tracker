@@ -31,6 +31,12 @@ def render_historical_analysis_tab():
                 value=datetime.now().date(),
                 help="Last day to download"
             )
+
+        overwrite_existing = st.checkbox(
+            "Overwrite existing analyses",
+            value=False,
+            help="Re-run AI analysis even if a workout already has analysis"
+        )
         
         with col3:
             st.write("")  # Spacing
@@ -95,6 +101,16 @@ def render_historical_analysis_tab():
                                             total_analyzed += 1
                                     except Exception as e:
                                         print(f"⚠️ Error analyzing {fit_file}: {e}")
+
+                                # Also analyze workouts directly from the database (non-cycling + no FIT file)
+                                try:
+                                    db_results = automation.analyze_workouts_from_database(
+                                        target_date=current_date,
+                                        reanalyze_existing=overwrite_existing
+                                    )
+                                    total_analyzed += db_results.get('workouts_analyzed', 0)
+                                except Exception as e:
+                                    print(f"⚠️ Error analyzing DB workouts for {current_date}: {e}")
                                 
                                 current_date += timedelta(days=1)
                             

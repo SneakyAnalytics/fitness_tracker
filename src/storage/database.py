@@ -2293,6 +2293,12 @@ class WorkoutDatabase:
         try:
             c.execute('SELECT id FROM fit_files WHERE file_name = ?', (file_name,))
             result = c.fetchone()
+            if result:
+                return result[0]
+
+            # Fallback: fuzzy match for prefixed filenames
+            c.execute('SELECT id FROM fit_files WHERE file_name LIKE ? ORDER BY id DESC LIMIT 1', (f"%{file_name}",))
+            result = c.fetchone()
             return result[0] if result else None
         finally:
             conn.close()
