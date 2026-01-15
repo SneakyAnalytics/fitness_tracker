@@ -229,13 +229,27 @@ class DailyAutoSyncAndAnalyze:
             try:
                 # Parse workout data
                 workout_data = json.loads(workout_data_json) if isinstance(workout_data_json, str) else workout_data_json
+
+                # Prefer FIT data if available for richer visuals (power/HR/cadence series)
+                fit_data = None
+                if fit_file_id:
+                    try:
+                        conn = sqlite3.connect(self.db.db_path)
+                        c = conn.cursor()
+                        c.execute('SELECT fit_data FROM fit_files WHERE id = ?', (fit_file_id,))
+                        row = c.fetchone()
+                        conn.close()
+                        if row and row[0]:
+                            fit_data = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+                    except Exception as e:
+                        logger.warning(f"   ⚠️  Could not load fit_data for fit_file_id={fit_file_id}: {e}")
                 
                 # Create analyzer
                 analyzer = FitFileAnalyzer(use_dynamic_models=True)
                 
                 # Run analysis using the workout data
                 analysis = analyzer.analyze_workout_from_parsed_data(
-                    parsed_data=workout_data,
+                    parsed_data=fit_data if fit_data else workout_data,
                     athlete_ftp=float(ftp_watts)
                 )
                 
