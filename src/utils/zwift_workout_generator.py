@@ -187,8 +187,9 @@ def generate_zwift_workout(workout_date: str, workout_name: str, intervals: List
         # Calculate total workout duration to space out messages
         total_duration = sum(interval.get('duration', 0) for interval in intervals)
         
-        # Add 10-15 text events throughout the workout (one every ~2-3 minutes)
-        num_messages = min(15, max(10, total_duration // 180))  # 1 per 3 minutes, 10-15 total
+        # Add 20-30 text events throughout the workout (one every ~1-2 minutes)
+        # More frequent = more entertaining and keeps mind occupied
+        num_messages = min(30, max(20, total_duration // 90))  # 1 per 1.5 minutes, 20-30 total
         message_interval = total_duration / (num_messages + 1)  # Space evenly
         
         # Collect all text events first with their absolute time offsets
@@ -197,8 +198,8 @@ def generate_zwift_workout(workout_date: str, workout_name: str, intervals: List
         for i in range(num_messages):
             offset = int((i + 1) * message_interval)
             
-            # Every 4th message is trivia (question + answer back-to-back)
-            if i % 4 == 0:
+            # Every 5th message is trivia (question + answer back-to-back)
+            if i % 5 == 0:
                 trivia_pair = dynamic_content.get_trivia_pair()
                 if trivia_pair:
                     question, answer = trivia_pair
@@ -207,6 +208,18 @@ def generate_zwift_workout(workout_date: str, workout_name: str, intervals: List
                     # Add answer 45 seconds later (back-to-back, guaranteed)
                     if offset + 45 < total_duration:
                         text_events.append((offset + 45, clean_zwift_text(answer)))
+                    continue
+            
+            # Every 6th message is a story with summary (science or news headline + AI explanation)
+            if i % 6 == 0:
+                story_pair = dynamic_content.get_story_with_summary()
+                if story_pair:
+                    headline, summary = story_pair
+                    # Add headline
+                    text_events.append((offset, clean_zwift_text(headline)))
+                    # Add summary 60 seconds later (gives time to read/process headline)
+                    if offset + 60 < total_duration:
+                        text_events.append((offset + 60, clean_zwift_text(summary)))
                     continue
             
             # Regular varied content (quotes, jokes, fun facts, AI encouragement)

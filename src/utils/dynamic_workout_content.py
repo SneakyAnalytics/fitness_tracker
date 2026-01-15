@@ -15,8 +15,11 @@ class DynamicWorkoutContent:
     
     def __init__(self):
         self.used_messages: Set[str] = set()
+        self.used_stories: Set[str] = set()  # Track used story headlines
+        self.content_type_counts: Dict[str, int] = {}  # Track how many times each type is used
         self.api_timeout = 3  # seconds
         self.gemini_api_key = os.getenv('GEMINI_API_KEY')
+        self.news_api_key = os.getenv('NEWS_API_KEY')  # Free from newsapi.org
         
     def get_fresh_content(self, context: str = "general", workout_type: str = "", 
                          interval_name: str = "", duration: int = 0) -> str:
@@ -44,18 +47,18 @@ class DynamicWorkoutContent:
         
         # For all other contexts, pull from APIs ONLY (no static fallbacks)
         content_getters = [
-            self._get_quote,
-            self._get_dad_joke,
-            self._get_fun_fact,
-            self._get_ai_generated_encouragement,
-            self._get_number_fact,
-            self._get_advice_slip,
-            self._get_affirmation,
-            self._get_chuck_norris_fact,
-            self._get_kanye_quote,
-            self._get_science_news,
-            self._get_arxiv_paper,
-            self._get_wikipedia_today,
+            ('quote', self._get_quote),
+            ('joke', self._get_dad_joke),
+            ('fact', self._get_fun_fact),
+            ('encouragement', self._get_ai_generated_encouragement),
+            ('number', self._get_number_fact),
+            ('advice', self._get_advice_slip),
+            ('affirmation', self._get_affirmation),
+            ('chuck_norris', self._get_chuck_norris_fact),
+            ('kanye', self._get_kanye_quote),
+            ('science', self._get_science_news),
+            ('research', self._get_arxiv_paper),
+            ('wikipedia', self._get_wikipedia_today),
         ]
         
         # Randomize order to vary content types
@@ -63,12 +66,20 @@ class DynamicWorkoutContent:
         
         # Try each API until one works - retry up to 3 times if needed
         max_attempts = 3
+        max_per_type = 3  # Limit each content type to 3 appearances per workout
+        
         for attempt in range(max_attempts):
-            for getter in content_getters:
+            for content_type, getter in content_getters:
+                # Skip if we've used this type too many times already
+                if self.content_type_counts.get(content_type, 0) >= max_per_type:
+                    continue
+                    
                 try:
                     message = getter()
                     if message and message not in self.used_messages:
                         self.used_messages.add(message)
+                        # Track content type usage
+                        self.content_type_counts[content_type] = self.content_type_counts.get(content_type, 0) + 1
                         return message
                 except Exception as e:
                     print(f"API call failed (attempt {attempt + 1}/{max_attempts}): {e}")
@@ -91,6 +102,22 @@ class DynamicWorkoutContent:
                 return f'💬 "{quote}" - {author}'
         except:
             pass
+        
+        # Backup: Try ZenQuotes API
+        try:
+            response = requests.get(
+                'https://zenquotes.io/api/random',
+                timeout=self.api_timeout
+            )
+            if response.status_code == 200:
+                data = response.json()
+                if data and len(data) > 0:
+                    quote = data[0]['q']
+                    author = data[0].get('a', 'Unknown')
+                    return f'💬 "{quote}" - {author}'
+        except:
+            pass
+        
         return None
     
     def _get_dad_joke(self) -> Optional[str]:
@@ -169,21 +196,88 @@ class DynamicWorkoutContent:
             print(f"Trivia API failed: {e}")
         return None
     
+    def get_story_with_summary(self) -> Optional[tuple[str, str]]:
+        """Get a news/science story headline + AI-generated summary as a pair.
+        
+        This tries multiple sources:
+        1. Current events from News API (if API key available)
+        2. Science headlines from Hacker News
+        3. Research papers from arXiv
+        
+        Returns: (headline_text, summary_text) or None
+        """
+        # Try to get a story from various sources
+        story_data = None
+        
+        # Priority 1: News API for current events (most interesting/relevant)
+        if self.news_api_key:
+            story_data = self._get_news_api_story()
+        
+        # Priority 2: Science headlines from Hacker News
+        if not story_data:
+            story_data = self._get_science_headline_full()
+        
+        # Priority 3: Research paper from arXiv
+        if not story_data:
+            story_data = self._get_arxiv_story_full()
+        
+        # If we got a story, generate AI summary (with fallback)
+        if story_data:
+            headline, description = story_data
+            
+            # Check if already used
+            if headline in self.used_stories:
+                return None
+            
+            # Try AI summary first
+            summary = self._generate_story_summary(headline, description)
+            
+            # Fallback: Create simple summary from description if AI unavailable
+            if not summary:
+                summary = self._create_simple_summary(description)
+            
+            if summary:
+                self.used_stories.add(headline)
+                self.used_messages.add(headline)
+                self.used_messages.add(summary)
+                return (headline, summary)
+        
+        return None
+    
     # REMOVED: _get_cycling_fact
     # User doesn't want canned/static cycling facts - they want fresh API content only
     
     def _get_number_fact(self) -> Optional[str]:
         """Get random number fact from Numbers API"""
+        # Numbers API is often slow/down, so try alternatives
+        
+        # Try Random Useless Facts as backup (often includes numbers)
+        try:
+            response = requests.get(
+                'https://uselessfacts.jsph.pl/random.json?language=en',
+                timeout=5  # Slightly longer timeout
+            )
+            if response.status_code == 200:
+                data = response.json()
+                fact = data['text']
+                # Check if it has numbers in it
+                if any(char.isdigit() for char in fact):
+                    return f'🔢 {fact}'
+        except:
+            pass
+        
+        # Original Numbers API (often times out)
         try:
             response = requests.get(
                 'http://numbersapi.com/random/trivia',
-                timeout=self.api_timeout
+                timeout=5
             )
             if response.status_code == 200:
                 fact = response.text
                 return f'🔢 {fact}'
         except:
             pass
+        
         return None
     
     def _get_advice_slip(self) -> Optional[str]:
@@ -191,14 +285,14 @@ class DynamicWorkoutContent:
         try:
             response = requests.get(
                 'https://api.adviceslip.com/advice',
-                timeout=self.api_timeout
+                timeout=5  # Slightly longer timeout for this API
             )
             if response.status_code == 200:
                 data = response.json()
                 advice = data['slip']['advice']
                 return f'💡 {advice}'
-        except:
-            pass
+        except Exception as e:
+            print(f"Advice API failed: {e}")
         return None
     
     def _get_affirmation(self) -> Optional[str]:
@@ -249,36 +343,265 @@ class DynamicWorkoutContent:
         return None
     
     def _get_science_news(self) -> Optional[str]:
-        """Get science news headlines from various sources"""
+        """Get tech/science/innovation headlines from Hacker News"""
         try:
-            # Try New York Times Science section (free API)
-            # Note: For production, get free API key from https://developer.nytimes.com/
-            # For now, try RSS feeds or other free sources
-            
-            # Hacker News API - often has science/research posts
+            # Hacker News API - tech, startups, science, innovation
             response = requests.get(
                 'https://hacker-news.firebaseio.com/v0/topstories.json',
                 timeout=self.api_timeout
             )
             if response.status_code == 200:
-                story_ids = response.json()[:10]  # Get top 10
-                # Get a random story from top 10
-                story_id = random.choice(story_ids)
-                story_response = requests.get(
-                    f'https://hacker-news.firebaseio.com/v0/item/{story_id}.json',
-                    timeout=self.api_timeout
-                )
-                if story_response.status_code == 200:
-                    story = story_response.json()
-                    title = story.get('title', '')
-                    # Filter for science-y keywords
-                    science_keywords = ['study', 'research', 'science', 'discover', 'health', 'medical', 'brain', 'AI', 'tech']
-                    if any(keyword.lower() in title.lower() for keyword in science_keywords):
-                        if len(title) < 120:
-                            return f'🔬 Tech/Science: {title}'
+                story_ids = response.json()[:20]  # Get top 20 for more variety
+                
+                # Try multiple stories to find interesting ones
+                for story_id in random.sample(story_ids, min(10, len(story_ids))):
+                    story_response = requests.get(
+                        f'https://hacker-news.firebaseio.com/v0/item/{story_id}.json',
+                        timeout=self.api_timeout
+                    )
+                    if story_response.status_code == 200:
+                        story = story_response.json()
+                        title = story.get('title', '')
+                        
+                        # Broader filter - tech, science, innovation, startups, space, AI, etc.
+                        interesting_keywords = [
+                            'AI', 'tech', 'startup', 'science', 'research', 'study',
+                            'discover', 'innovation', 'breakthrough', 'space', 'NASA',
+                            'quantum', 'robot', 'crypto', 'blockchain', 'energy',
+                            'climate', 'health', 'medical', 'brain', 'DNA', 'gene',
+                            'solar', 'electric', 'battery', 'Mars', 'satellite',
+                            'machine learning', 'neural', 'algorithm', 'data',
+                            'breakthrough', 'invention', 'launch', 'open source'
+                        ]
+                        
+                        # Also exclude boring stuff
+                        boring_keywords = ['show hn:', 'ask hn:', 'hiring', 'jobs', 'resume']
+                        
+                        title_lower = title.lower()
+                        
+                        if any(boring.lower() in title_lower for boring in boring_keywords):
+                            continue
+                        
+                        if any(keyword.lower() in title_lower for keyword in interesting_keywords):
+                            if len(title) < 140:
+                                # Vary the emoji based on topic
+                                if any(word in title_lower for word in ['space', 'mars', 'nasa', 'satellite', 'rocket']):
+                                    return f'🚀 Space/Tech: {title}'
+                                elif any(word in title_lower for word in ['AI', 'robot', 'machine learning', 'neural']):
+                                    return f'🤖 AI/Tech: {title}'
+                                elif any(word in title_lower for word in ['energy', 'solar', 'battery', 'climate']):
+                                    return f'⚡ Energy/Tech: {title}'
+                                else:
+                                    return f'🔬 Tech/Science: {title}'
         except:
             pass
         return None
+    
+    def _get_news_api_story(self) -> Optional[tuple[str, str]]:
+        """Get trending news story from News API with description.
+        
+        Returns: (headline, description) tuple or None
+        Get free API key from: https://newsapi.org/
+        """
+        if not self.news_api_key:
+            return None
+        
+        try:
+            # Get top headlines (general news, highly trafficked)
+            response = requests.get(
+                'https://newsapi.org/v2/top-headlines',
+                params={
+                    'apiKey': self.news_api_key,
+                    'language': 'en',
+                    'pageSize': 20,
+                    'country': 'us'  # Or remove for international
+                },
+                timeout=self.api_timeout
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                articles = data.get('articles', [])
+                
+                if articles:
+                    # Pick random article from top 20
+                    article = random.choice(articles)
+                    title = article.get('title', '')
+                    description = article.get('description', '')
+                    
+                    # Clean title (remove source suffix like " - CNN")
+                    if ' - ' in title:
+                        title = title.split(' - ')[0]
+                    
+                    if title and description and len(title) < 120:
+                        headline = f'📰 News: {title}'
+                        return (headline, description)
+        except Exception as e:
+            print(f"News API failed: {e}")
+        
+        return None
+    
+    def _get_science_headline_full(self) -> Optional[tuple[str, str]]:
+        """Get science headline with URL/description for AI summary.
+        
+        Returns: (headline, description) tuple or None
+        """
+        try:
+            response = requests.get(
+                'https://hacker-news.firebaseio.com/v0/topstories.json',
+                timeout=self.api_timeout
+            )
+            if response.status_code == 200:
+                story_ids = response.json()[:20]  # Get top 20
+                
+                # Try to find a science story
+                for story_id in random.sample(story_ids, min(10, len(story_ids))):
+                    story_response = requests.get(
+                        f'https://hacker-news.firebaseio.com/v0/item/{story_id}.json',
+                        timeout=self.api_timeout
+                    )
+                    if story_response.status_code == 200:
+                        story = story_response.json()
+                        title = story.get('title', '')
+                        url = story.get('url', '')
+                        
+                        # Filter for science-y keywords
+                        science_keywords = ['study', 'research', 'science', 'discover', 'health', 'medical', 'brain', 'AI', 'tech']
+                        if any(keyword.lower() in title.lower() for keyword in science_keywords):
+                            if len(title) < 120 and url:
+                                headline = f'🔬 Science: {title}'
+                                # For Hacker News, we don't have full description
+                                # Provide a helpful note for the fallback summary
+                                description = f"A trending tech/science story: {title}. Check it out after your workout!"
+                                return (headline, description)
+        except:
+            pass
+        return None
+    
+    def _get_arxiv_story_full(self) -> Optional[tuple[str, str]]:
+        """Get research paper with abstract for AI summary.
+        
+        Returns: (headline, abstract) tuple or None
+        """
+        try:
+            categories = ['q-bio', 'physics', 'cs.AI', 'cs.LG']  # Biology, Physics, AI, Machine Learning
+            category = random.choice(categories)
+            
+            response = requests.get(
+                f'http://export.arxiv.org/api/query?search_query=cat:{category}&sortBy=submittedDate&sortOrder=descending&max_results=10',
+                timeout=self.api_timeout
+            )
+            
+            if response.status_code == 200:
+                import xml.etree.ElementTree as ET
+                root = ET.fromstring(response.content)
+                
+                entries = root.findall('{http://www.w3.org/2005/Atom}entry')
+                if entries:
+                    entry = random.choice(entries)
+                    title_elem = entry.find('{http://www.w3.org/2005/Atom}title')
+                    summary_elem = entry.find('{http://www.w3.org/2005/Atom}summary')
+                    
+                    if title_elem is not None and summary_elem is not None:
+                        title = title_elem.text.strip().replace('\n', ' ')
+                        abstract = summary_elem.text.strip().replace('\n', ' ')
+                        
+                        if len(title) < 120:
+                            headline = f'📚 Research: {title}'
+                            return (headline, abstract)
+        except:
+            pass
+        return None
+    
+    def _generate_story_summary(self, headline: str, description: str) -> Optional[str]:
+        """Use AI to generate a simple, understandable summary of a story.
+        
+        Args:
+            headline: The story headline
+            description: Story description or abstract
+            
+        Returns:
+            Short summary text or None
+        """
+        if not self.gemini_api_key:
+            return None
+        
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=self.gemini_api_key)
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            
+            prompt = f"""Explain this story in simple, clear language that someone exercising can understand:
+
+Headline: {headline}
+Description: {description[:500]}
+
+Provide a 1-2 sentence summary (max 150 characters) explaining what this story means in simple terms. Make it conversational and easy to understand while riding a bike.
+
+Just return the summary, nothing else."""
+            
+            response = model.generate_content(prompt)
+            summary = response.text.strip().strip('"\'')
+            
+            # Keep it concise
+            if len(summary) > 200:
+                summary = summary[:197] + '...'
+            
+            if summary:
+                return f'💡 {summary}'
+        except Exception as e:
+            error_msg = str(e)
+            if 'quota' in error_msg.lower() or 'resource_exhausted' in error_msg.lower():
+                print(f"⚠️  Gemini API quota exhausted - falling back to simple summaries")
+            else:
+                print(f"AI summary generation failed: {error_msg[:100]}")
+        
+        return None
+    
+    def _create_simple_summary(self, description: str) -> Optional[str]:
+        """Create a simple summary from description text when AI is unavailable.
+        
+        This is a fallback for when Gemini API quota is exhausted.
+        Extracts the first 1-2 sentences from the description.
+        
+        Args:
+            description: Story description or abstract
+            
+        Returns:
+            Simple summary text or None
+        """
+        if not description:
+            return None
+        
+        try:
+            # Clean up the text
+            text = description.strip()
+            
+            # Try to extract first 1-2 sentences
+            sentences = []
+            for delimiter in ['. ', '! ', '? ']:
+                parts = text.split(delimiter)
+                if len(parts) > 1:
+                    sentences = parts
+                    break
+            
+            if not sentences:
+                # No sentence delimiters, just truncate
+                summary = text[:150]
+            else:
+                # Take first sentence or two
+                summary = sentences[0]
+                if len(summary) < 80 and len(sentences) > 1:
+                    summary += '. ' + sentences[1]
+            
+            # Truncate if still too long
+            if len(summary) > 180:
+                summary = summary[:177] + '...'
+            
+            return f'💡 {summary}'
+        except Exception as e:
+            print(f"Simple summary creation failed: {e}")
+            return None
     
     def _get_arxiv_paper(self) -> Optional[str]:
         """Get recent research paper title from arXiv"""
@@ -311,30 +634,53 @@ class DynamicWorkoutContent:
     def _get_wikipedia_today(self) -> Optional[str]:
         """Get 'On This Day' from Wikipedia or featured article"""
         try:
-            # Wikipedia's "On This Day" API
+            # Wikipedia's REST API v1
             today = datetime.now()
             response = requests.get(
-                f'https://api.wikimedia.org/feed/v1/wikipedia/en/onthisday/all/{today.month}/{today.day}',
+                f'https://en.wikipedia.org/api/rest_v1/feed/onthisday/all/{today.month:02d}/{today.day:02d}',
+                headers={'User-Agent': 'FitnessTracker/1.0'},
                 timeout=self.api_timeout
             )
             if response.status_code == 200:
                 data = response.json()
                 # Get a random event from today in history
                 if 'events' in data and data['events']:
-                    event = random.choice(data['events'][:5])  # Pick from top 5 events
+                    event = random.choice(data['events'][:10])  # Pick from top 10 events
                     year = event.get('year', '')
                     text = event.get('text', '')
-                    if text and len(text) < 120:
+                    if text and len(text) < 150:
                         return f'📅 On this day in {year}: {text}'
                 
-                # Try featured article instead
-                if 'selected' in data and data['selected']:
-                    article = random.choice(data['selected'])
-                    text = article.get('text', '')
-                    if text and len(text) < 120:
-                        return f'📖 {text}'
-        except:
-            pass
+                # Try births or deaths
+                if 'births' in data and data['births']:
+                    person = random.choice(data['births'][:5])
+                    year = person.get('year', '')
+                    text = person.get('text', '')
+                    if text and len(text) < 150:
+                        return f'🎂 Born on this day in {year}: {text}'
+        except Exception as e:
+            print(f"Wikipedia Today API failed: {e}")
+        
+        # Backup: Try Today in History API
+        try:
+            today = datetime.now()
+            response = requests.get(
+                f'https://history.muffinlabs.com/date/{today.month}/{today.day}',
+                timeout=self.api_timeout
+            )
+            if response.status_code == 200:
+                data = response.json()
+                if 'data' in data and 'Events' in data['data']:
+                    events = data['data']['Events']
+                    if events:
+                        event = random.choice(events[:10])
+                        year = event.get('year', '')
+                        text = event.get('text', '')
+                        if text and len(text) < 150:
+                            return f'📅 {year}: {text}'
+        except Exception as e:
+            print(f"History API backup failed: {e}")
+        
         return None
     
     def _get_ai_generated_encouragement(self) -> Optional[str]:
@@ -446,6 +792,8 @@ class DynamicWorkoutContent:
     def reset_used_messages(self):
         """Reset the used messages set (call between workouts)"""
         self.used_messages.clear()
+        self.used_stories.clear()
+        self.content_type_counts.clear()  # Reset content type tracking
 
 
 # Global instance

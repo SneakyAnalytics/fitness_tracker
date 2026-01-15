@@ -43,8 +43,8 @@ class DailyAutoSyncAndAnalyze:
         """Initialize the daily automation system"""
         self.db = WorkoutDatabase(db_path)
         self.project_root = Path(__file__).parent.parent.parent
-        self.downloads_dir = Path.home() / "Downloads"
-        self.tp_extract_dir = Path("/tmp") / "trainingpeaks_extracted"
+        self.downloads_dir = self.project_root / "data" / "trainingpeaks_downloads"
+        self.tp_extract_dir = self.project_root / "data" / "trainingpeaks_extracted"
         
         # Rate limiting for Gemini API
         self.api_delay = 6  # seconds between analyses
@@ -158,6 +158,127 @@ class DailyAutoSyncAndAnalyze:
         logger.info(f"Found {len(fit_files)} FIT file(s) for {target_date}")
         return fit_files
     
+    def analyze_workouts_from_database(
+        self,
+        target_date: date,
+        ftp_watts: Optional[int] = None,
+        results: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """
+        Analyze workouts directly from database without needing FIT files on disk.
+        
+        Args:
+            target_date: Date to analyze workouts for
+            ftp_watts: Athlete's FTP in watts
+            results: Results dict to update (creates new if None)
+            
+        Returns:
+            Updated results dict
+        """
+        if results is None:
+            results = {
+                'date': str(target_date),
+                'sync_successful': True,
+                'fit_files_downloaded': 0,
+                'workouts_analyzed': 0,
+                'personal_bests': 0,
+                'errors': []
+            }
+        
+        # Load FTP if not provided
+        if ftp_watts is None:
+            settings = self.db.get_athlete_settings()
+            ftp_watts = settings.get('ftp', 300)
+        
+        # Get workouts for this date that don't have analysis yet
+        import sqlite3
+        import json
+        conn = sqlite3.connect(self.db.db_path)
+        c = conn.cursor()
+        
+        c.execute("""
+            SELECT w.id, w.workout_day, w.workout_title, w.workout_data
+            FROM workouts w
+            LEFT JOIN workout_analyses wa ON w.id = wa.workout_id
+            WHERE w.workout_day = ? AND wa.id IS NULL
+            ORDER BY w.id
+        """, (str(target_date),))
+        
+        workouts_to_analyze = c.fetchall()
+        conn.close()
+        
+        logger.info(f"Found {len(workouts_to_analyze)} workouts without analysis for {target_date}")
+        
+        # Step 3: Analyze each workout
+        logger.info("")
+        logger.info("STEP 3: AI Analysis (from database)")
+        logger.info("-" * 60)
+        
+        for i, (workout_id, workout_day, workout_title, workout_data_json) in enumerate(workouts_to_analyze):
+            logger.info(f"[{i+1}/{len(workouts_to_analyze)}] {workout_title}")
+            
+            try:
+                # Parse workout data
+                workout_data = json.loads(workout_data_json) if isinstance(workout_data_json, str) else workout_data_json
+                
+                # Create analyzer
+                analyzer = FitFileAnalyzer(use_dynamic_models=True)
+                
+                # Run analysis using the workout data
+                analysis = analyzer.analyze_workout_from_parsed_data(
+                    parsed_data=workout_data,
+                    athlete_ftp=float(ftp_watts)
+                )
+                
+                if analysis:
+                    # Store analysis
+                    pb_count = self.db.store_workout_analysis(
+                        workout_id=workout_id,
+                        analysis_text=analysis.get('analysis_text', ''),
+                        analysis_data=json.dumps(analysis.get('analysis_data', {}))
+                    )
+                    
+                    results['workouts_analyzed'] += 1
+                    results['personal_bests'] += (pb_count or 0)
+                    logger.info(f"   ✅ Analysis complete ({pb_count} new PBs)")
+                else:
+                    results['errors'].append(f"Failed to analyze {workout_title}")
+                    logger.warning(f"   ⚠️  Analysis failed")
+                
+                # Rate limiting
+                if i < len(workouts_to_analyze) - 1:
+                    logger.info(f"   ⏸️  Rate limiting: {self.api_delay}s...")
+                    time.sleep(self.api_delay)
+                    
+            except Exception as e:
+                error_msg = f"Error analyzing {workout_title}: {str(e)}"
+                logger.error(f"   ❌ {error_msg}")
+                results['errors'].append(error_msg)
+                import traceback
+                traceback.print_exc()
+        
+        # Step 4: Cleanup (no files to clean if analyzing from DB)
+        logger.info("")
+        logger.info("STEP 4: Cleanup")
+        logger.info("-" * 60)
+        logger.info("   ℹ️  Analyzed from database, no files to clean up")
+        
+        # Final summary
+        logger.info("")
+        logger.info("=" * 60)
+        logger.info("✅ DAILY AUTOMATION COMPLETE")
+        logger.info("=" * 60)
+        logger.info(f"Date: {results['date']}")
+        logger.info(f"Workouts Analyzed: {results['workouts_analyzed']}")
+        logger.info(f"New Personal Bests: {results['personal_bests']}")
+        if results['errors']:
+            logger.info(f"Errors: {len(results['errors'])}")
+            for error in results['errors']:
+                logger.error(f"  - {error}")
+        logger.info("=" * 60)
+        
+        return results
+    
     def analyze_workout(
         self,
         fit_file_path: Path,
@@ -235,7 +356,26 @@ class DailyAutoSyncAndAnalyze:
         try:
             # Lookup FIT file ID by filename if not provided
             if not fit_file_id and 'file_name' in analysis:
-                fit_file_id = self.db.get_fit_file_id_by_name(analysis['file_name'])
+                # Strip date prefix if present (format: YYYY-MM-DD-filename.fit)
+                file_name = analysis['file_name']
+                if file_name.count('-') >= 2:
+                    parts = file_name.split('-', 3)  # Split max 3 times
+                    if len(parts[0]) == 4 and parts[0].isdigit():  # Year
+                        file_name = parts[3]  # Get everything after YYYY-MM-DD-
+                
+                fit_file_id = self.db.get_fit_file_id_by_name(file_name)
+            
+            # Lookup workout_id from fit_file if not provided
+            # This links the analysis to the workout record for better UI display
+            if not workout_id and fit_file_id:
+                import sqlite3
+                conn = sqlite3.connect(self.db.db_path)
+                c = conn.cursor()
+                c.execute('SELECT id FROM workouts WHERE fit_file_id = ?', (fit_file_id,))
+                result = c.fetchone()
+                if result:
+                    workout_id = result[0]
+                conn.close()
             
             # Store the analysis with full data for visualization
             analysis_id = self.db.store_workout_analysis(
@@ -389,9 +529,9 @@ class DailyAutoSyncAndAnalyze:
         fit_files = sync_results.get('fit_file_paths', [])
         
         if not fit_files:
-            # Fallback to searching by date if paths not in results
-            logger.info("No FIT file paths in sync results, searching by date...")
-            fit_files = self.find_todays_fit_files(target_date)
+            # Fallback: Analyze workouts directly from database
+            logger.info("No FIT file paths in sync results, analyzing from database...")
+            return self.analyze_workouts_from_database(target_date, ftp_watts, results)
         
         if not fit_files:
             results['errors'].append("No FIT files found after sync")
