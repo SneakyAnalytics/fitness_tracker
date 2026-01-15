@@ -199,14 +199,14 @@ class DailyAutoSyncAndAnalyze:
 
         if reanalyze_existing:
             c.execute("""
-                SELECT w.id, w.workout_day, w.workout_title, w.workout_data
+                SELECT w.id, w.workout_day, w.workout_title, w.workout_data, w.fit_file_id
                 FROM workouts w
                 WHERE w.workout_day = ?
                 ORDER BY w.id
             """, (str(target_date),))
         else:
             c.execute("""
-                SELECT w.id, w.workout_day, w.workout_title, w.workout_data
+                SELECT w.id, w.workout_day, w.workout_title, w.workout_data, w.fit_file_id
                 FROM workouts w
                 LEFT JOIN workout_analyses wa ON w.id = wa.workout_id
                 WHERE w.workout_day = ? AND wa.id IS NULL
@@ -223,7 +223,7 @@ class DailyAutoSyncAndAnalyze:
         logger.info("STEP 3: AI Analysis (from database)")
         logger.info("-" * 60)
         
-        for i, (workout_id, workout_day, workout_title, workout_data_json) in enumerate(workouts_to_analyze):
+        for i, (workout_id, workout_day, workout_title, workout_data_json, fit_file_id) in enumerate(workouts_to_analyze):
             logger.info(f"[{i+1}/{len(workouts_to_analyze)}] {workout_title}")
             
             try:
@@ -243,6 +243,7 @@ class DailyAutoSyncAndAnalyze:
                     # Store analysis (full analysis object for UI + visualization)
                     self.db.store_workout_analysis(
                         workout_id=workout_id,
+                        fit_file_id=fit_file_id,
                         analysis_text=analysis.get('ai_analysis', ''),
                         analysis_data=analysis,
                         peak_efforts=analysis.get('peak_efforts')
