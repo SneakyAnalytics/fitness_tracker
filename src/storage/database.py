@@ -2853,6 +2853,8 @@ class WorkoutDatabase:
                     'analyzed_at': row['analyzed_at'],
                     'analysis_text': ai_analysis or 'No analysis text available',
                     'peak_efforts': peak_efforts,
+                    'workout_id': row['workout_id'],
+                    'fit_file_id': row['fit_file_id'],
                     'workout_date': workout_date or 'Unknown',
                     'title': display_title,
                     'file_name': file_name,

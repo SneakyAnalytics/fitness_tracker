@@ -186,7 +186,16 @@ def render_historical_analysis_tab():
         
         # Deduplicate - keep first (most recent) of each workout_id
         seen_workout_ids = set()
+        seen_fallback_keys = set()
         options = []
+
+        # Identify dates that have at least one non-generic title
+        non_generic_dates = set()
+        for a in week_analyses:
+            title = a.get('title', 'Unknown Workout')
+            date_str = a.get('workout_date', 'Unknown')
+            if title and not title.startswith('Zwift Workout'):
+                non_generic_dates.add(date_str)
         
         for a in week_analyses:
             workout_id = a.get('workout_id')
@@ -200,6 +209,10 @@ def render_historical_analysis_tab():
             
             # Use TrainingPeaks workout title (from workouts table) instead of FIT filename
             title = a.get('title', 'Unknown Workout')
+
+            # Skip generic Zwift workout entries when a better title exists for the same date
+            if (not workout_id) and title.startswith('Zwift Workout') and date_str in non_generic_dates:
+                continue
             
             # Clean up the title for better display
             if title.startswith('Zwift - '):
@@ -208,6 +221,13 @@ def render_historical_analysis_tab():
                 title = title_parts[0]  # Just the workout name, not the Zwift world/route
             
             display_key = f"{date_str} - {title}"
+
+            # Fallback dedupe for entries without workout_id
+            fallback_key = f"{date_str}:{title}"
+            if not workout_id:
+                if fallback_key in seen_fallback_keys:
+                    continue
+                seen_fallback_keys.add(fallback_key)
             options.append((display_key, a))
         
         # Sort options by date (newest first)
