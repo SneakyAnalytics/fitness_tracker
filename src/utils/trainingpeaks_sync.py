@@ -637,24 +637,26 @@ class TrainingPeaksSync:
                         'sport': data.get('sport', 'cycling')
                     })
                 
-                # Get proposed workouts for this day
+                # Get proposed workouts for this day and nearby days (±1) to allow reschedules
                 c.execute('''
-                    SELECT pw.name, pw.type, pw.plannedDuration,
+                    SELECT dp.date, pw.name, pw.type, pw.plannedDuration,
                            pw.plannedTSS_min, pw.plannedTSS_max, pw.notes
                     FROM proposed_workouts pw
                     JOIN daily_plans dp ON pw.dailyPlanId = dp.id
-                    WHERE dp.date = ?
-                ''', (day,))
+                    WHERE dp.date BETWEEN date(?, '-1 day') AND date(?, '+1 day')
+                    ORDER BY dp.date ASC
+                ''', (day, day))
                 
                 proposed_workouts = []
                 for row in c.fetchall():
                     proposed_workouts.append({
-                        'name': row[0],
-                        'type': row[1],
-                        'plannedDuration': row[2],
-                        'plannedTSS_min': row[3],
-                        'plannedTSS_max': row[4],
-                        'notes': row[5]
+                        'date': row[0],
+                        'name': row[1],
+                        'type': row[2],
+                        'plannedDuration': row[3],
+                        'plannedTSS_min': row[4],
+                        'plannedTSS_max': row[5],
+                        'notes': row[6]
                     })
                 
                 if not proposed_workouts:

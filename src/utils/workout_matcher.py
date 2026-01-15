@@ -103,6 +103,7 @@ class WorkoutMatcher:
         proposed_list = []
         for p in proposed_workouts:
             proposed_list.append({
+                'date': p.get('date'),
                 'name': p['name'],
                 'type': p.get('type', 'bike'),
                 'tss_range': f"{p.get('plannedTSS_min', 0)}-{p.get('plannedTSS_max', 0)}",
@@ -121,13 +122,18 @@ PROPOSED WORKOUTS PLANNED:
 
 **MATCHING INSTRUCTIONS (PRIORITY ORDER):**
 
-1. **INTENSITY FIRST** - Match intensity characteristics before duration/TSS:
+0. **SAME-DAY FIRST**: If a proposed workout exists on the same date as the actual workout, prefer it unless there's a clear mismatch.
+    - Only use adjacent-day workouts when the same-day options are clearly wrong (e.g., injury, reschedule, or no reasonable match).
+
+1. **WORKOUT TITLE FIRST** - Titles often map directly to the plan (Race, Warmup, Recovery, Zone 2, Threshold, VO2max).
+    - If the actual workout title contains a key term that appears in a proposed workout name for that same day, pick that.
+    - Example: "Race" should match a proposed "Race" workout on that date.
+
+2. **INTENSITY NEXT** - Match intensity characteristics before duration/TSS:
    - High TSS/short duration (40-80 TSS in 20-45min) = RACE, VO2max, or Threshold intervals
    - High TSS/long duration (100+ TSS in 90+ min) = Long endurance ride  
    - Low TSS/short duration (<15 TSS in 10-30min) = Warmup or recovery spin
    - Moderate TSS/moderate duration (40-70 TSS in 60-90min) = Tempo or Zone 2
-
-2. **Title clues**: "Pre-Group Ride", "warmup", "recovery", "spin" vs "Race", "TTT", "Threshold", "VO2"
 
 3. **Athlete comments**: Look for context like "pre-race warmup" or "main event" or "stopped early due to injury"
 
@@ -150,8 +156,9 @@ PROPOSED WORKOUTS PLANNED:
 ❌ **NEVER** match a 10-30min workout to a 2+ hour workout (huge duration mismatch)
 ❌ **NEVER** match 2 short workouts to 1 long workout - they're separate events
 ✅ **ALWAYS** match warmups to warmup workouts (look for "warmup", "pre-", "spin" in title)
-✅ **ALWAYS** check if athlete stopped early (injury/mechanical) - use TSS to match, not planned duration
-✅ **ALWAYS** prioritize BACKUP/OPTION B workouts if main workout clearly didn't happen
+✅ **ALWAYS** check if athlete stopped early (injury/mechanical) - use intensity clues + title + comments first
+✅ **ALWAYS** prioritize SAME-DAY workouts unless there is strong evidence of rescheduling
+✅ **ALWAYS** consider adjacent-day workouts only if all same-day candidates are poor matches
 
 **EXAMPLE SCENARIOS:**
 
@@ -222,14 +229,15 @@ Return ONLY the JSON, no explanation."""
         print(f"Tried models: {', '.join(self.MODELS)}")
         print("📊 Falling back to TSS+duration matching...")
         # Fall back to simple TSS+duration matching
-        return self._fallback_matching(actual_workouts, proposed_workouts)
+        return self._fallback_matching(actual_workouts, proposed_workouts, date)
     
     def _fallback_matching(
         self,
         actual_workouts: List[Dict[str, Any]],
-        proposed_workouts: List[Dict[str, Any]]
+        proposed_workouts: List[Dict[str, Any]],
+        reference_date: str
     ) -> Dict[int, str]:
-        """Fallback to TSS+duration matching if AI fails"""
+        """Fallback to title + same-day + TSS+duration matching if AI fails"""
         matches = {}
         available_proposed = proposed_workouts.copy()
         
@@ -242,10 +250,24 @@ Return ONLY the JSON, no explanation."""
                 tss_proposed_avg = (proposed.get('plannedTSS_min', 0) + proposed.get('plannedTSS_max', 0)) / 2
                 dur_actual = actual.get('duration_min', 0)
                 dur_proposed = proposed.get('plannedDuration', 0)
+                proposed_date = proposed.get('date')
+
+                # Base score on TSS + duration
                 
                 tss_diff = abs(tss_actual - tss_proposed_avg)
                 dur_diff = abs(dur_actual - dur_proposed)
                 score = tss_diff + dur_diff
+
+                # Prefer same-day proposed workouts
+                if proposed_date and proposed_date != reference_date:
+                    score += 25  # penalty for adjacent day
+
+                # Prefer title keyword matches
+                title = (actual.get('title') or '').lower()
+                name = (proposed.get('name') or '').lower()
+                if title and name:
+                    if any(k in title for k in ['race', 'warmup', 'recovery', 'tempo', 'threshold', 'vo2', 'zone 2']) and any(k in name for k in ['race', 'warmup', 'recovery', 'tempo', 'threshold', 'vo2', 'zone 2']):
+                        score -= 15  # reward title intent match
                 
                 if score < best_score:
                     best_score = score
