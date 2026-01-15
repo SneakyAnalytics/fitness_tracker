@@ -162,7 +162,8 @@ class DailyAutoSyncAndAnalyze:
         self,
         target_date: date,
         ftp_watts: Optional[int] = None,
-        results: Dict[str, Any] = None
+        results: Dict[str, Any] = None,
+        reanalyze_existing: bool = False
     ) -> Dict[str, Any]:
         """
         Analyze workouts directly from database without needing FIT files on disk.
@@ -190,19 +191,27 @@ class DailyAutoSyncAndAnalyze:
             settings = self.db.get_athlete_settings()
             ftp_watts = settings.get('ftp', 300)
         
-        # Get workouts for this date that don't have analysis yet
+        # Get workouts for this date (optionally reanalyze existing)
         import sqlite3
         import json
         conn = sqlite3.connect(self.db.db_path)
         c = conn.cursor()
-        
-        c.execute("""
-            SELECT w.id, w.workout_day, w.workout_title, w.workout_data
-            FROM workouts w
-            LEFT JOIN workout_analyses wa ON w.id = wa.workout_id
-            WHERE w.workout_day = ? AND wa.id IS NULL
-            ORDER BY w.id
-        """, (str(target_date),))
+
+        if reanalyze_existing:
+            c.execute("""
+                SELECT w.id, w.workout_day, w.workout_title, w.workout_data
+                FROM workouts w
+                WHERE w.workout_day = ?
+                ORDER BY w.id
+            """, (str(target_date),))
+        else:
+            c.execute("""
+                SELECT w.id, w.workout_day, w.workout_title, w.workout_data
+                FROM workouts w
+                LEFT JOIN workout_analyses wa ON w.id = wa.workout_id
+                WHERE w.workout_day = ? AND wa.id IS NULL
+                ORDER BY w.id
+            """, (str(target_date),))
         
         workouts_to_analyze = c.fetchall()
         conn.close()
