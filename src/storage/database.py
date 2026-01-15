@@ -2340,7 +2340,8 @@ class WorkoutDatabase:
                 result = c.fetchone()
                 if result:
                     existing_id = result[0]
-            elif fit_file_id:
+
+            if existing_id is None and fit_file_id:
                 c.execute('SELECT id FROM workout_analyses WHERE fit_file_id = ?', (fit_file_id,))
                 result = c.fetchone()
                 if result:
@@ -2823,7 +2824,7 @@ class WorkoutDatabase:
                         fit_data = analysis_data['parsed_data']
                     
                     # Get AI analysis text
-                    if not ai_analysis and 'ai_analysis' in analysis_data:
+                    if (not ai_analysis) and 'ai_analysis' in analysis_data:
                         ai_analysis = analysis_data['ai_analysis']
                     
                     # Get file name
