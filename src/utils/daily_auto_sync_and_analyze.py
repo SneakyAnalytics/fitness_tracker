@@ -240,16 +240,17 @@ class DailyAutoSyncAndAnalyze:
                 )
                 
                 if analysis:
-                    # Store analysis
-                    pb_count = self.db.store_workout_analysis(
+                    # Store analysis (full analysis object for UI + visualization)
+                    self.db.store_workout_analysis(
                         workout_id=workout_id,
-                        analysis_text=analysis.get('analysis_text', ''),
-                        analysis_data=json.dumps(analysis.get('analysis_data', {}))
+                        analysis_text=analysis.get('ai_analysis', ''),
+                        analysis_data=analysis,
+                        peak_efforts=analysis.get('peak_efforts')
                     )
                     
                     results['workouts_analyzed'] += 1
-                    results['personal_bests'] += (pb_count or 0)
-                    logger.info(f"   ✅ Analysis complete ({pb_count} new PBs)")
+                    # Personal bests are tracked when analyzing FIT files; keep count unchanged here
+                    logger.info("   ✅ Analysis complete")
                 else:
                     results['errors'].append(f"Failed to analyze {workout_title}")
                     logger.warning(f"   ⚠️  Analysis failed")
