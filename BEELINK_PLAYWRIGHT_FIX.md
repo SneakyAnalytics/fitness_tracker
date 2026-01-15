@@ -18,6 +18,7 @@ cd /path/to/fitness_tracker
 ```
 
 This script will:
+
 1. Stop containers
 2. Rebuild with Playwright/Chromium
 3. Start containers
@@ -50,6 +51,7 @@ RUN playwright install-deps chromium
 ```
 
 And system dependencies:
+
 ```dockerfile
 RUN apt-get update && apt-get install -y \
     # ... existing packages ...
@@ -66,11 +68,13 @@ RUN apt-get update && apt-get install -y \
 docker-compose build --no-cache
 ```
 
-**Why `--no-cache`?** 
+**Why `--no-cache`?**
+
 - Ensures fresh installation of Playwright
 - Prevents using cached layers without Chromium
 
 **Expected output:**
+
 ```
 ...
 #12 [5/7] RUN playwright install chromium
@@ -97,6 +101,7 @@ docker exec fitness-tracker-ui sh -c "ls -la /root/.cache/ms-playwright/chromium
 ```
 
 **Expected output:**
+
 ```
 drwxr-xr-x 4 root root 4096 Jan 14 10:30 chromium-1140
 ```
@@ -113,6 +118,7 @@ drwxr-xr-x 4 root root 4096 Jan 14 10:30 chromium-1140
 ## What Was Wrong?
 
 **Before:**
+
 ```dockerfile
 # Dockerfile only installed Python package
 RUN pip install --no-cache-dir -r requirements.txt
@@ -120,6 +126,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 ```
 
 **After:**
+
 ```dockerfile
 # Install Python package
 RUN pip install --no-cache-dir -r requirements.txt
@@ -138,6 +145,7 @@ RUN playwright install-deps chromium
 ### "Executable doesn't exist" still appears
 
 **Solution 1: Check cache layers**
+
 ```bash
 # Rebuild again with --no-cache
 docker-compose down
@@ -146,6 +154,7 @@ docker-compose up -d
 ```
 
 **Solution 2: Verify system dependencies**
+
 ```bash
 # Check if libraries are installed
 docker exec fitness-tracker-ui dpkg -l | grep libnss3
@@ -173,6 +182,7 @@ docker-compose build --no-cache
 ### Build takes forever (> 15 minutes)
 
 This is normal for first Playwright install:
+
 - Chromium download: ~200 MB
 - System dependencies: ~100 MB
 - Total build time: 5-15 minutes depending on internet speed
@@ -197,11 +207,13 @@ After fix, verify:
 If issues persist:
 
 1. **Check container logs:**
+
    ```bash
    docker-compose logs -f streamlit
    ```
 
 2. **Get shell in container:**
+
    ```bash
    docker exec -it fitness-tracker-ui bash
    # Then try: playwright --version
@@ -223,6 +235,7 @@ If issues persist:
 **Time to fix:** 5-10 minutes (mostly waiting for Chromium download).
 
 **Files changed:**
+
 - `Dockerfile` - Added Playwright browser installation
 - `docs/architecture/automation-and-sync.md` - Added Docker/Playwright troubleshooting
 - `deploy_playwright_fix.sh` - Automated deployment script (new)

@@ -949,3 +949,101 @@ Call log:
 
 2025-12-06 22:15:28,966 - __main__ - ERROR - ❌ TrainingPeaks sync failed
 2025-12-06 22:15:28,966 - __main__ - WARNING - ⚠️  No FIT files downloaded, skipping analysis
+2026-01-11 22:00:08,736 - __main__ - INFO - Initialized daily automation with database: data/fitness_data.db
+2026-01-11 22:00:08,737 - __main__ - INFO - 
+2026-01-11 22:00:08,737 - __main__ - INFO - ============================================================
+2026-01-11 22:00:08,737 - __main__ - INFO - 🚀 DAILY AUTOMATION - 2026-01-11
+2026-01-11 22:00:08,737 - __main__ - INFO - ============================================================
+2026-01-11 22:00:08,737 - __main__ - INFO - 
+2026-01-11 22:00:08,737 - __main__ - INFO - STEP 1: TrainingPeaks Sync
+2026-01-11 22:00:08,737 - __main__ - INFO - ------------------------------------------------------------
+2026-01-11 22:00:08,738 - __main__ - INFO - ============================================================
+2026-01-11 22:00:08,738 - __main__ - INFO - 🔄 TrainingPeaks Sync - 2026-01-11
+2026-01-11 22:00:08,738 - __main__ - INFO - ============================================================
+2026-01-11 22:00:39,455 - __main__ - INFO - ✅ TrainingPeaks sync completed
+2026-01-11 22:00:39,456 - __main__ - INFO -    FIT files uploaded: 1
+2026-01-11 22:00:39,456 - __main__ - INFO -    Workouts CSV: ✅
+2026-01-11 22:00:39,456 - __main__ - INFO -    Metrics CSV: ✅
+2026-01-11 22:00:39,456 - __main__ - INFO - 
+2026-01-11 22:00:39,456 - __main__ - INFO - STEP 2: Get FIT Files from Sync
+2026-01-11 22:00:39,456 - __main__ - INFO - ------------------------------------------------------------
+2026-01-11 22:00:39,456 - __main__ - INFO - Found 1 FIT file(s) to analyze
+2026-01-11 22:00:39,456 - __main__ - INFO - 
+2026-01-11 22:00:39,456 - __main__ - INFO - STEP 3: AI Analysis
+2026-01-11 22:00:39,456 - __main__ - INFO - ------------------------------------------------------------
+2026-01-11 22:00:39,456 - __main__ - INFO - [1/1] tp-5350487.2026-01-11-17-36-47-339Z.GarminPing.AAAAAGlj369CaGhk.FIT
+2026-01-11 22:00:39,472 - __main__ - INFO - Loaded FTP from athlete_settings: 300W
+2026-01-11 22:00:39,472 - __main__ - INFO - 🤖 Analyzing: tp-5350487.2026-01-11-17-36-47-339Z.GarminPing.AAAAAGlj369CaGhk.FIT
+2026-01-11 22:00:40,036 - __main__ - INFO -    ✅ Analysis complete
+2026-01-11 22:00:40,181 - __main__ - INFO -    💾 Stored analysis ID: 225
+2026-01-11 22:00:40,181 - __main__ - INFO - 
+2026-01-11 22:00:40,181 - __main__ - INFO - STEP 4: Cleanup
+2026-01-11 22:00:40,181 - __main__ - INFO - ------------------------------------------------------------
+2026-01-11 22:00:40,181 - __main__ - INFO - 🧹 Cleaning up temporary files...
+2026-01-11 22:00:40,182 - __main__ - INFO -    🗑️  Removed: 2026-01-11-tp-5350487.2026-01-11-17-36-47-339Z.GarminPing.AAAAAGlj369CaGhk.FIT
+2026-01-11 22:00:40,182 - __main__ - INFO -    🗑️  Removed: tp-5350487.2026-01-11-17-36-47-339Z.GarminPing.AAAAAGlj369CaGhk.FIT
+2026-01-11 22:00:40,183 - __main__ - INFO -    🗑️  Removed: WorkoutFileExport-Robinson-Jake-2026-01-11-2026-01-11.zip
+2026-01-11 22:00:40,183 - __main__ - INFO -    🗑️  Removed: WorkoutExport-Robinson-Jake-2026-01-11-2026-01-11.zip
+2026-01-11 22:00:40,183 - __main__ - INFO -    🗑️  Removed: MetricsExport-Robinson-Jake-2026-01-11-2026-01-11.zip
+2026-01-11 22:00:40,184 - __main__ - INFO -    🗑️  Removed temp dir: MetricsExport-Robinson-Jake-2026-01-11-2026-01-11
+2026-01-11 22:00:40,185 - __main__ - INFO -    🗑️  Removed temp dir: WorkoutExport-Robinson-Jake-2026-01-11-2026-01-11
+2026-01-11 22:00:40,185 - __main__ - INFO -    🗑️  Removed temp dir: WorkoutFileExport-Robinson-Jake-2026-01-11-2026-01-11
+2026-01-11 22:00:40,185 - __main__ - INFO - ✅ Cleanup complete
+2026-01-11 22:00:40,185 - __main__ - INFO - 
+2026-01-11 22:00:40,185 - __main__ - INFO - ============================================================
+2026-01-11 22:00:40,185 - __main__ - INFO - ✅ DAILY AUTOMATION COMPLETE
+2026-01-11 22:00:40,185 - __main__ - INFO - ============================================================
+2026-01-11 22:00:40,185 - __main__ - INFO - Date: 2026-01-11
+2026-01-11 22:00:40,185 - __main__ - INFO - FIT Files Downloaded: 1
+2026-01-11 22:00:40,185 - __main__ - INFO - Workouts Analyzed: 1
+2026-01-11 22:00:40,185 - __main__ - INFO - New Personal Bests: 0
+2026-01-11 22:00:40,185 - __main__ - INFO - ============================================================
+2026-01-11 22:00:40,185 - __main__ - INFO - 
+2026-01-12 22:00:52,393 - __main__ - INFO - Initialized daily automation with database: data/fitness_data.db
+2026-01-12 22:00:52,393 - __main__ - INFO - 
+2026-01-12 22:00:52,393 - __main__ - INFO - ============================================================
+2026-01-12 22:00:52,393 - __main__ - INFO - 🚀 DAILY AUTOMATION - 2026-01-12
+2026-01-12 22:00:52,394 - __main__ - INFO - ============================================================
+2026-01-12 22:00:52,394 - __main__ - INFO - 
+2026-01-12 22:00:52,394 - __main__ - INFO - STEP 1: TrainingPeaks Sync
+2026-01-12 22:00:52,394 - __main__ - INFO - ------------------------------------------------------------
+2026-01-12 22:00:52,394 - __main__ - INFO - ============================================================
+2026-01-12 22:00:52,394 - __main__ - INFO - 🔄 TrainingPeaks Sync - 2026-01-12
+2026-01-12 22:00:52,394 - __main__ - INFO - ============================================================
+2026-01-12 22:01:22,524 - __main__ - INFO - ✅ TrainingPeaks sync completed
+2026-01-12 22:01:22,525 - __main__ - INFO -    FIT files uploaded: 0
+2026-01-12 22:01:22,525 - __main__ - INFO -    Workouts CSV: ❌
+2026-01-12 22:01:22,525 - __main__ - INFO -    Metrics CSV: ❌
+2026-01-12 22:01:22,525 - __main__ - WARNING - ⚠️  No FIT files downloaded, skipping analysis
+2026-01-13 22:00:02,550 - __main__ - INFO - Initialized daily automation with database: data/fitness_data.db
+2026-01-13 22:00:02,551 - __main__ - INFO - 
+2026-01-13 22:00:02,551 - __main__ - INFO - ============================================================
+2026-01-13 22:00:02,551 - __main__ - INFO - 🚀 DAILY AUTOMATION - 2026-01-13
+2026-01-13 22:00:02,551 - __main__ - INFO - ============================================================
+2026-01-13 22:00:02,551 - __main__ - INFO - 
+2026-01-13 22:00:02,551 - __main__ - INFO - STEP 1: TrainingPeaks Sync
+2026-01-13 22:00:02,551 - __main__ - INFO - ------------------------------------------------------------
+2026-01-13 22:00:02,551 - __main__ - INFO - ============================================================
+2026-01-13 22:00:02,551 - __main__ - INFO - 🔄 TrainingPeaks Sync - 2026-01-13
+2026-01-13 22:00:02,551 - __main__ - INFO - ============================================================
+2026-01-13 22:00:32,058 - __main__ - INFO - ✅ TrainingPeaks sync completed
+2026-01-13 22:00:32,058 - __main__ - INFO -    FIT files uploaded: 0
+2026-01-13 22:00:32,058 - __main__ - INFO -    Workouts CSV: ❌
+2026-01-13 22:00:32,058 - __main__ - INFO -    Metrics CSV: ❌
+2026-01-13 22:00:32,058 - __main__ - WARNING - ⚠️  No FIT files downloaded, skipping analysis
+2026-01-14 22:00:06,418 - __main__ - INFO - Initialized daily automation with database: data/fitness_data.db
+2026-01-14 22:00:06,418 - __main__ - INFO - 
+2026-01-14 22:00:06,418 - __main__ - INFO - ============================================================
+2026-01-14 22:00:06,418 - __main__ - INFO - 🚀 DAILY AUTOMATION - 2026-01-14
+2026-01-14 22:00:06,418 - __main__ - INFO - ============================================================
+2026-01-14 22:00:06,418 - __main__ - INFO - 
+2026-01-14 22:00:06,418 - __main__ - INFO - STEP 1: TrainingPeaks Sync
+2026-01-14 22:00:06,418 - __main__ - INFO - ------------------------------------------------------------
+2026-01-14 22:00:06,418 - __main__ - INFO - ============================================================
+2026-01-14 22:00:06,418 - __main__ - INFO - 🔄 TrainingPeaks Sync - 2026-01-14
+2026-01-14 22:00:06,418 - __main__ - INFO - ============================================================
+2026-01-14 22:00:33,441 - __main__ - INFO - ✅ TrainingPeaks sync completed
+2026-01-14 22:00:33,441 - __main__ - INFO -    FIT files uploaded: 0
+2026-01-14 22:00:33,441 - __main__ - INFO -    Workouts CSV: ❌
+2026-01-14 22:00:33,441 - __main__ - INFO -    Metrics CSV: ❌
+2026-01-14 22:00:33,441 - __main__ - WARNING - ⚠️  No FIT files downloaded, skipping analysis

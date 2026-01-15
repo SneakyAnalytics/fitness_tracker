@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+  fastapi:
+    build: .
+    container_name: fitness-tracker-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./src:/app/src
+    environment:
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
+    command: >
+      sh -c "uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 120s
+
+  streamlit:
+    build: .
+    container_name: fitness-tracker-ui
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./src:/app/src
+    environment:
+      - PYTHONUNBUFFERED=1
+      - API_URL=http://fastapi:8000
+      - STREAMLIT_PASSWORD=${STREAMLIT_PASSWORD}
+      - TRAININGPEAKS_USERNAME=${TRAININGPEAKS_USERNAME}
+      - TRAININGPEAKS_PASSWORD=q8ND$$MMGjhb&6r&
+    env_file:
+      - .env
+    command: >
+      sh -c "streamlit run src/ui/streamlit_app.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true"
+    depends_on:
+      - fastapi
+
+networks:
+  default:
+    name: fitness-tracker-network

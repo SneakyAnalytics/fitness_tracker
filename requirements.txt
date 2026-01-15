@@ -1,15 +1,16 @@
 # requirements.txt
 
 # Core API & UI
-fastapi==0.109.0
-uvicorn==0.27.0
-streamlit==1.29.0
+fastapi==0.121.3
+uvicorn==0.38.0
+streamlit==1.51.0
+python-multipart==0.0.6
 
 # Data processing
 python-dateutil==2.8.2
 typing-extensions==4.15.0
-pydantic==2.5.3
-plotly==5.18.0
+pydantic==2.12.4
+plotly==6.5.0
 requests==2.31.0
 python-dotenv==1.0.0
 

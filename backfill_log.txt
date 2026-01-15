@@ -1,0 +1,48 @@
+================================================================================
+🔄 BACKFILL WORKOUT ANALYSES
+================================================================================
+📅 Looking back: 60 days
+🔍 Mode: LIVE
+♻️  Force re-analyze: False
+
+Database migration completed successfully
+📊 Querying FIT files from 2025-11-06 to 2026-01-05
+
+📁 Found 5 FIT files to analyze
+
+📋 Breakdown by workout type:
+   Unknown: 5 workouts
+
+🚀 Starting analysis...
+--------------------------------------------------------------------------------
+
+📊 2025-11-11 - Zwift Workout 2004934441532669968
+   Type: Unknown | FIT ID: 642
+   ❌ Error: 'FitFileAnalyzer' object has no attribute 'analyze_fit_file'
+
+📊 2025-11-09 - Garmin-AAAAAGkQxPpa-l8Q
+   Type: Unknown | FIT ID: 604
+   ❌ Error: 'FitFileAnalyzer' object has no attribute 'analyze_fit_file'
+
+📊 2025-11-08 - Garmin-AAAAAGkPcccgcxTX
+   Type: Unknown | FIT ID: 606
+   ❌ Error: 'FitFileAnalyzer' object has no attribute 'analyze_fit_file'
+
+📊 2025-11-07 - Garmin-AAAAAGkOI9crlxM_
+   Type: Unknown | FIT ID: 605
+   ❌ Error: 'FitFileAnalyzer' object has no attribute 'analyze_fit_file'
+
+📊 2025-11-06 - Zwift Workout 2000926096547119120
+   Type: Unknown | FIT ID: 610
+   ❌ Error: 'FitFileAnalyzer' object has no attribute 'analyze_fit_file'
+
+================================================================================
+📈 SUMMARY
+================================================================================
+✅ Analyzed: 0
+⏭️  Skipped: 0
+❌ Errors: 5
+🚴 Bike workouts analyzed: 0
+
+💡 Tip: Run this script weekly to keep analyses up to date
+💡 Use --days 90 for a longer historical analysis window

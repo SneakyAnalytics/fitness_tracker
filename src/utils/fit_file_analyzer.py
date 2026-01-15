@@ -98,14 +98,150 @@ class FitFileAnalyzer:
         if not parsed_data:
             return None
         
-        # Skip AI analysis for non-cycling workouts
+        return self.analyze_workout_from_parsed_data(parsed_data, athlete_ftp, athlete_notes)
+    
+    def _get_csv_tss_for_workout(self, parsed_data: Dict[str, Any]) -> Optional[float]:
+        """
+        Get TSS from workouts CSV table - more reliable than FIT file TSS.
+        Matches by workout_day and looks for actual_tss in metrics.
+        
+        Returns:
+            TSS value from CSV or None if not found
+        """
+        from pathlib import Path
+        import sqlite3
+        import json
+        import ast
+        
+        try:
+            # Get workout date
+            workout_date = parsed_data.get('workout_date')
+            if not workout_date and 'start_time' in parsed_data:
+                from datetime import datetime
+                start_time = parsed_data['start_time']
+                if isinstance(start_time, str):
+                    workout_date = start_time[:10]
+            
+            if not workout_date:
+                return None
+            
+            # Connect to database
+            db_path = Path(__file__).parent.parent.parent / 'data' / 'fitness_data.db'
+            conn = sqlite3.connect(str(db_path))
+            c = conn.cursor()
+            
+            # Query workouts table for this date
+            c.execute('''
+                SELECT workout_data
+                FROM workouts
+                WHERE workout_day = ?
+                  AND json_extract(workout_data, '$.type') = 'Bike'
+                LIMIT 1
+            ''', (workout_date,))
+            
+            row = c.fetchone()
+            conn.close()
+            
+            if not row:
+                return None
+            
+            # Parse workout_data JSON
+            workout_data = json.loads(row[0])
+            
+            # Extract metrics (stored as string representation of dict)
+            metrics_str = workout_data.get('metrics', '{}')
+            if isinstance(metrics_str, str):
+                metrics = ast.literal_eval(metrics_str)
+            else:
+                metrics = metrics_str
+            
+            # Get actual_tss
+            tss = metrics.get('actual_tss')
+            return float(tss) if tss else None
+            
+        except Exception as e:
+            print(f"⚠️  Could not retrieve CSV TSS: {e}")
+            return None
+    
+    def analyze_workout_from_parsed_data(self, parsed_data: Dict[str, Any], 
+                                        athlete_ftp: Optional[float] = None,
+                                        athlete_notes: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """
+        Analyze a workout from already-parsed FIT data (useful when database stores JSON)
+        
+        Args:
+            parsed_data: Already-parsed workout data (dict from JSON)
+            athlete_ftp: Optional FTP value for power calculations  
+            athlete_notes: Optional notes from the athlete about the workout
+            
+        Returns:
+            Dictionary containing parsed metrics, AI analysis, and detected personal bests
+        """
+        if not parsed_data:
+            return None
+        
+        # Normalize data structure - stored JSON may have different field names
+        # Convert duration_hours to duration_seconds if needed
+        if 'duration_hours' in parsed_data and 'duration_seconds' not in parsed_data:
+            parsed_data['duration_seconds'] = parsed_data['duration_hours'] * 3600
+        
+        # Ensure metrics.duration is in minutes if present
+        if 'metrics' not in parsed_data:
+            parsed_data['metrics'] = {}
+        if 'duration' not in parsed_data['metrics'] and 'duration_hours' in parsed_data:
+            parsed_data['metrics']['duration'] = parsed_data['duration_hours'] * 60
+        
+        # Get TSS from CSV data (workouts table) if available - this is most accurate
+        # FIT file TSS from compressed .fit.gz files is unreliable
+        csv_tss = self._get_csv_tss_for_workout(parsed_data)
+        
+        if csv_tss and csv_tss > 0:
+            # Use CSV TSS - most reliable
+            print(f"✓ Using CSV TSS: {csv_tss:.1f}")
+            if 'power_metrics' not in parsed_data:
+                parsed_data['power_metrics'] = {}
+            parsed_data['power_metrics']['tss'] = csv_tss
+            parsed_data['metrics']['tss'] = csv_tss
+        else:
+            # Fall back to FIT TSS only if reasonable (> 10)
+            power_metrics = parsed_data.get('power_metrics', {})
+            fit_tss = power_metrics.get('tss', 0)
+            
+            if fit_tss > 10:
+                # FIT TSS looks reasonable, use it
+                print(f"✓ Using FIT TSS: {fit_tss:.1f}")
+                parsed_data['metrics']['tss'] = fit_tss
+            else:
+                # Bad or missing TSS - will affect workout matching
+                print(f"⚠️  No reliable TSS available (FIT: {fit_tss:.4f}, CSV: {csv_tss})")
+                parsed_data['metrics']['tss'] = None
+        
+        # Detect sport type
         sport = parsed_data.get('sport', 'cycling').lower()
-        if sport not in ['cycling', 'bike', 'biking']:
-            print(f"⊘ Skipping AI analysis for non-cycling workout (sport: {sport})")
+        is_cycling = sport in ['cycling', 'bike', 'biking']
+        
+        # Non-cycling workouts get simpler analysis (no power metrics, just basic summary)
+        if not is_cycling:
+            print(f"ℹ️  Analyzing non-cycling workout (sport: {sport})")
+            # Create basic analysis for non-cycling
+            duration_hours = parsed_data.get('duration_hours', 0)
+            distance = parsed_data.get('distance_km', 0)
+            avg_hr = parsed_data.get('heart_rate_data', {}).get('average_hr', 0)
+            max_hr = parsed_data.get('heart_rate_data', {}).get('max_hr', 0)
+            
+            ai_analysis = f"""### {sport.title()} Workout Summary
+
+**Duration:** {duration_hours:.2f} hours ({duration_hours * 60:.0f} minutes)
+**Distance:** {distance:.2f} km
+**Heart Rate:** Avg {avg_hr:.0f} bpm, Max {max_hr:.0f} bpm
+
+This {sport} workout has been logged. Detailed AI analysis is currently only available for cycling workouts.
+"""
+            
             return {
                 'parsed_data': parsed_data,
                 'peak_efforts': {},
-                'ai_analysis': f"Non-cycling workout ({sport}) - AI analysis skipped",
+                'ai_analysis': ai_analysis,
                 'analyzed_at': datetime.now().isoformat()
             }
         
@@ -135,25 +271,24 @@ class FitFileAnalyzer:
         # Try to find best matching proposed workout (allows for timezone issues)
         proposed_workout = self._find_best_matching_workout(parsed_data, workout_date)
         
-        # Skip AI analysis if no matching proposed workout found
+        # Continue with analysis even if no proposed workout found
+        # (historical workouts may not have proposed workouts)
         if not proposed_workout:
-            print(f"⊘ Skipping AI analysis - no matching proposed workout found")
-            return {
-                'parsed_data': parsed_data,
-                'peak_efforts': {},
-                'ai_analysis': f"No matching proposed workout found - AI analysis skipped",
-                'analyzed_at': datetime.now().isoformat()
-            }
+            print(f"ℹ️ No proposed workout found - analyzing as standalone workout")
         
-        # Detect peak efforts (passing proposed workout for custom intervals)
+        # Detect peak efforts (passing proposed workout for custom intervals if available)
         peak_efforts = self._detect_peak_efforts(parsed_data, proposed_workout)
         
-        # Generate AI analysis
-        ai_analysis = self._generate_ai_analysis(parsed_data, peak_efforts, athlete_notes)
+        # Detect intervals automatically
+        intervals_data = self._detect_intervals(parsed_data, athlete_ftp)
+        
+        # Generate AI analysis (pass intervals for context)
+        ai_analysis = self._generate_ai_analysis(parsed_data, peak_efforts, athlete_notes, intervals_data)
         
         return {
             'parsed_data': parsed_data,
             'peak_efforts': peak_efforts,
+            'intervals': intervals_data,
             'ai_analysis': ai_analysis,
             'analyzed_at': datetime.now().isoformat()
         }
@@ -313,16 +448,83 @@ class FitFileAnalyzer:
             traceback.print_exc()
             return None
     
+    def _detect_intervals(self, parsed_data: Dict[str, Any], athlete_ftp: Optional[float] = None) -> Dict[str, Any]:
+        """
+        Automatically detect intervals from workout power data
+        
+        Args:
+            parsed_data: Output from FitParser.parse_fit_file()
+            athlete_ftp: Athlete's FTP in watts
+            
+        Returns:
+            Dictionary with detected intervals or empty dict if detection fails
+        """
+        try:
+            from .interval_detector import IntervalDetector
+            from .interval_classifier import IntervalClassifier
+            
+            # Get power data
+            power_metrics = parsed_data.get('power_metrics')
+            if not power_metrics or 'power_series' not in power_metrics:
+                print("⊘ No power data available for interval detection")
+                return {}
+            
+            power_series = power_metrics['power_series']
+            
+            # Get FTP
+            if not athlete_ftp:
+                athlete_ftp = power_metrics.get('ftp', 300)  # Default to 300 if not available
+            
+            # Get optional HR and cadence data
+            hr_series = None
+            hr_metrics = parsed_data.get('hr_metrics')
+            if hr_metrics and 'hr_series' in hr_metrics:
+                hr_series = hr_metrics['hr_series']
+            
+            cadence_series = None
+            if 'cadence_series' in parsed_data:
+                cadence_series = parsed_data['cadence_series']
+            
+            # Detect intervals
+            print(f"🔍 Detecting intervals with FTP={int(athlete_ftp)}W...")
+            detector = IntervalDetector(ftp=int(athlete_ftp))
+            intervals_data = detector.detect_intervals(
+                power_stream=power_series,
+                hr_stream=hr_series,
+                cadence_stream=cadence_series
+            )
+            
+            # Classify intervals
+            classifier = IntervalClassifier(ftp=int(athlete_ftp))
+            classified_data = classifier.classify_intervals(intervals_data)
+            
+            # Generate description
+            description = classifier.describe_workout_structure(classified_data)
+            classified_data['description'] = description
+            
+            print(f"✓ Detected {classified_data['interval_count']} intervals: {description}")
+            
+            return classified_data
+            
+        except Exception as e:
+            print(f"⚠️  Interval detection failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return {}
+    
     def _find_best_matching_workout(self, parsed_data: Dict[str, Any], workout_date: str, 
-                                   date_window_days: int = 2) -> Optional[Dict[str, Any]]:
+                                   date_window_days: int = 2, 
+                                   used_workout_ids: Optional[set] = None) -> Optional[Dict[str, Any]]:
         """
         Find the best matching proposed workout based on TSS, duration, and workout characteristics.
         Searches within a date window (default ±2 days) to account for timezone issues.
+        Handles multiple workouts per day by tracking which proposed workouts are already matched.
         
         Args:
             parsed_data: Parsed FIT file data
             workout_date: Original workout date
             date_window_days: Number of days before/after to search
+            used_workout_ids: Set of (date, name) tuples already matched to avoid duplicates
             
         Returns:
             Best matching proposed workout dict or None
@@ -376,44 +578,66 @@ class FitFileAnalyzer:
             best_score = 0
             best_match = None
             
+            # Track used workouts to prevent duplicates
+            if used_workout_ids is None:
+                used_workout_ids = set()
+            
             for row in candidates:
                 date, name, wtype, planned_dur, tss_min, tss_max, rpe_min, rpe_max, intervals, sections, notes = row
                 
+                # Skip if this workout already matched to another file on same day
+                workout_id = (date, name)
+                if workout_id in used_workout_ids:
+                    continue
+                
                 # Calculate match score (0-100)
-                # Priority: Date (50 pts) > Duration (30 pts) > TSS (20 pts)
+                # For multi-workout days: TSS+Duration matter more than exact date
+                # Priority: TSS (40 pts) > Duration (40 pts) > Date (20 pts)
                 score = 0
                 
-                # Date proximity (50 points max) - HIGHEST PRIORITY
+                # Date proximity (20 points max) - Lower priority for multi-workout days
                 days_diff = abs((datetime.strptime(date, '%Y-%m-%d') - base_date).days)
                 if days_diff == 0:
-                    score += 50  # Same day
+                    score += 20  # Same day
                 elif days_diff == 1:
-                    score += 25  # 1 day off
+                    score += 10  # 1 day off
                 elif days_diff == 2:
-                    score += 10  # 2 days off
+                    score += 5   # 2 days off
                 
-                # Duration match (30 points max)
+                # Duration match (40 points max) - CRITICAL for distinguishing workouts
                 if planned_dur:
                     dur_diff_pct = abs(actual_duration_min - planned_dur) / planned_dur * 100
-                    if dur_diff_pct <= 10:
-                        score += 30  # Within 10%
+                    if dur_diff_pct <= 5:
+                        score += 40  # Within 5% - excellent match
+                    elif dur_diff_pct <= 10:
+                        score += 35  # Within 10%
                     elif dur_diff_pct <= 20:
-                        score += 20  # Within 20%
-                    elif dur_diff_pct <= 40:
-                        score += 10  # Within 40%
+                        score += 25  # Within 20%
+                    elif dur_diff_pct <= 30:
+                        score += 15  # Within 30%
+                    elif dur_diff_pct <= 50:
+                        score += 5   # Within 50%
                 
-                # TSS match (20 points max)
+                # TSS match (40 points max) - CRITICAL for workout intensity
                 if tss_min and tss_max:
-                    tss_avg = (tss_min + tss_max) / 2
-                    tss_diff_pct = abs(actual_tss - tss_avg) / tss_avg * 100
-                    if tss_diff_pct <= 10:
-                        score += 20  # Within 10%
-                    elif tss_diff_pct <= 20:
-                        score += 15  # Within 20%
-                    elif tss_diff_pct <= 40:
-                        score += 10  # Within 40%
-                    elif tss_diff_pct <= 60:
-                        score += 5   # Within 60%
+                    # Use TSS range instead of average for better matching
+                    if actual_tss >= tss_min and actual_tss <= tss_max:
+                        score += 40  # Within range - perfect
+                    else:
+                        # Calculate distance from range
+                        if actual_tss < tss_min:
+                            tss_diff_pct = (tss_min - actual_tss) / tss_min * 100
+                        else:
+                            tss_diff_pct = (actual_tss - tss_max) / tss_max * 100
+                        
+                        if tss_diff_pct <= 10:
+                            score += 35  # Just outside range
+                        elif tss_diff_pct <= 20:
+                            score += 25  # Within 20%
+                        elif tss_diff_pct <= 40:
+                            score += 15  # Within 40%
+                        elif tss_diff_pct <= 60:
+                            score += 8   # Within 60%
                 
                 print(f"  {date} - {name}: score={score} (TSS {tss_min}-{tss_max}, {planned_dur}min)")
                 
@@ -439,6 +663,11 @@ class FitFileAnalyzer:
             
             # Only return if score is reasonable (>= 45 points - requires same-day with some duration/TSS match)
             if best_match and best_score >= 45:
+                # Mark this workout as used to prevent duplicate matching on same day
+                workout_id = (best_match['date'], best_match['name'])
+                if used_workout_ids is not None:
+                    used_workout_ids.add(workout_id)
+                
                 print(f"✓ Best match (score={best_score}): {best_match['name']} on {best_match['date']}")
                 return best_match
             elif best_match:
@@ -551,7 +780,8 @@ class FitFileAnalyzer:
     
     def _generate_ai_analysis(self, parsed_data: Dict[str, Any], 
                              peak_efforts: Dict[str, Dict[str, float]],
-                             athlete_notes: Optional[str] = None) -> str:
+                             athlete_notes: Optional[str] = None,
+                             intervals_data: Optional[Dict] = None) -> str:
         """
         Generate AI-powered workout analysis using Gemini
         
@@ -559,6 +789,7 @@ class FitFileAnalyzer:
             parsed_data: Parsed FIT file data
             peak_efforts: Detected peak efforts
             athlete_notes: Optional notes from athlete
+            intervals_data: Optional detected intervals data
             
         Returns:
             AI-generated workout analysis text
@@ -602,6 +833,33 @@ class FitFileAnalyzer:
 - 90th Percentile HR: {np.percentile(hr_array, 90):.0f} bpm
 - 10th Percentile HR: {np.percentile(hr_array, 10):.0f} bpm
 - HR Variability (std dev): {np.std(hr_array):.1f} bpm"""
+        
+        # Format detected intervals
+        detected_intervals_text = ""
+        if intervals_data and intervals_data.get('intervals'):
+            detected_intervals_text = "\n\n🤖 AUTO-DETECTED INTERVAL STRUCTURE:\n"
+            detected_intervals_text += f"Workout Structure: {intervals_data.get('description', 'Unknown')}\n\n"
+            
+            for interval in intervals_data['intervals']:
+                mins = interval['duration_sec'] // 60
+                secs = interval['duration_sec'] % 60
+                interval_type = interval['type'].replace('_', ' ').title()
+                
+                detected_intervals_text += (
+                    f"  • {interval_type}: {mins}:{secs:02d} @ "
+                    f"{int(interval['avg_power'])}W ({interval['intensity_zone']}, "
+                    f"{interval['percent_ftp']:.0f}% FTP)"
+                )
+                
+                if interval.get('avg_hr'):
+                    detected_intervals_text += f", HR: {int(interval['avg_hr'])}bpm"
+                
+                detected_intervals_text += "\n"
+            
+            # Add summary
+            summary = intervals_data.get('summary', {})
+            detected_intervals_text += f"\nSummary: {summary.get('work_intervals', 0)} work intervals, "
+            detected_intervals_text += f"{summary.get('rest_intervals', 0)} recovery periods\n"
         
         # ENHANCED: Analyze trends throughout the workout
         trend_analysis = self._analyze_workout_trends(parsed_data)
@@ -711,22 +969,12 @@ Target RPE: {proposed_workout.get('targetRPE', {}).get('min', 'N/A')}-{proposed_
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
         
-        # Generate interval-by-interval execution analysis
-        interval_execution = ""
         if proposed_workout:
-            interval_execution = self._analyze_prescribed_intervals(parsed_data, proposed_workout)
-            if interval_execution:
-                print(f"✓ Generated interval-by-interval analysis ({len(interval_execution)} chars)")
-            else:
-                print(f"⚠️ No interval execution data generated")
-        
-        if proposed_workout:
-            # Build prompt WITH proposed workout context
-            prompt = f"""You are an expert cycling coach analyzing workout EXECUTION compared to the PLANNED workout.
+            # Build prompt WITH proposed workout context (as reference only)
+            prompt = f"""You are an expert cycling coach analyzing workout execution with a supportive, constructive approach.
 
 {proposed_workout_text}
-{interval_execution}
-📊 ACTUAL WORKOUT EXECUTION:
+ACTUAL WORKOUT EXECUTION:
 
 WORKOUT METRICS:
 Duration: {duration_hours:.2f} hours ({duration_hours * 60:.0f} minutes)
@@ -753,58 +1001,74 @@ HEART RATE DATA:
 
 HEART RATE ZONES (% of workout time):
 {hr_zones_text or "No heart rate zone data"}
+{detected_intervals_text}
 {trend_analysis}
 ATHLETE NOTES:
 {athlete_notes or "No notes provided"}
 
-**ANALYSIS INSTRUCTIONS:**
+**CRITICAL ANALYSIS INSTRUCTIONS:**
 
-As a professional cycling coach, analyze how well the athlete EXECUTED the prescribed workout plan. Be specific and concrete.
+You must use the AUTO-DETECTED INTERVAL STRUCTURE above as the PRIMARY SOURCE OF TRUTH for what actually happened in the workout. The planned workout is provided only for REFERENCE to understand the athlete's intent.
 
-1. **ADHERENCE SCORE (Rate 1-10)**
-   - Rate overall adherence to the prescribed plan
-   - Did athlete complete all {total_work_intervals} work intervals as prescribed?
-   - Were power targets hit during work intervals?
-   - Were recovery intervals at appropriate low intensity?
-   - Was total duration close to planned {proposed_workout.get('plannedDuration', 'N/A')} minutes?
-   - Was TSS close to target {proposed_workout.get('plannedTSS', {}).get('min', 'N/A')}-{proposed_workout.get('plannedTSS', {}).get('max', 'N/A')}?
+**IMPORTANT GUIDELINES:**
+1. The detected intervals show ACTUAL execution - trust these classifications (work, recovery, vo2max, threshold, etc.)
+2. Intervals labeled "vo2max" or "threshold" in detected intervals ARE work intervals that were executed
+3. Intervals labeled "recovery" or "rest" ARE actual recovery periods at low power
+4. DO NOT assume the athlete failed to execute work intervals - check the detected intervals first
+5. Power execution within ±5-10% of targets is NORMAL and GOOD (not a failure)
+6. Athletes often modify workouts slightly (shorter warmup, different interval count) - this is acceptable
+7. Focus on the QUALITY of execution for the intervals that were actually performed
 
-2. **INTERVAL-BY-INTERVAL EXECUTION ANALYSIS**
-   - Go through each prescribed interval and assess execution
-   - For WORK intervals: Did power hit the target range? Any struggles or early termination?
-   - For RECOVERY intervals: Did athlete actually recover (low power, HR coming down)?
-   - Note any intervals that were executed exceptionally well
-   - Note any intervals where athlete struggled or deviated from plan
-   - Comment on whether warmup and cooldown were adequate
+**SCORING RUBRIC (Rate 1-10):**
+- 9-10: Exceptional execution, hit all targets, perfect pacing
+- 7-8: Very good execution, minor deviations (±5-10% power, HR appropriate)
+- 5-6: Acceptable execution, some struggles but completed core work
+- 3-4: Significant struggles, major deviations from targets
+- 1-2: Did not execute the workout as intended, abandoned early
 
-3. **POWER DELIVERY QUALITY**
-   - Analyze power progression throughout the workout (use the trend data)
-   - Was power consistent during work intervals or erratic?
-   - Did power fade in later intervals compared to early intervals?
-   - Comment on normalized power vs average power (close = good pacing)
-   - Look at power variability - smooth intervals or lots of surging?
+**ANALYSIS STRUCTURE:**
 
-4. **HEART RATE RESPONSE ASSESSMENT**
-   - How did HR respond during work intervals? Appropriate for the power?
-   - HR drift analysis: Did HR climb at steady power (sign of heat/fatigue)?
-   - Recovery quality: Did HR drop appropriately during recovery intervals?
-   - Compare HR zones to power zones - do they match the intended intensity?
-   - Indoor workouts run 10-15 bpm higher - factor this in
+1. **EXECUTION SCORE (Rate 1-10 using rubric above)**
+   - Based on the AUTO-DETECTED INTERVALS, did athlete complete appropriate work?
+   - Were work intervals (vo2max, threshold, tempo, etc.) executed at proper intensity?
+   - Were recovery intervals truly easy to allow adaptation?
+   - Was overall TSS close to planned {proposed_workout.get('plannedTSS', {}).get('min', 'N/A')}-{proposed_workout.get('plannedTSS', {}).get('max', 'N/A')}?
 
-5. **CADENCE EXECUTION**
-   - Were cadence targets from the prescribed intervals met?
-   - Was cadence consistent or variable?
-   - Any signs of grinding (low cadence) indicating fatigue?
+2. **WHAT WENT WELL**
+   - Identify 2-3 positive aspects of the execution
+   - Reference specific intervals from the detected intervals that were executed well
+   - Mention good pacing, appropriate power delivery, or smart execution decisions
 
-6. **WORKOUT TYPE ADHERENCE**
-   - This was prescribed as a {workout_type} workout
-   - Did the execution match this workout type's goals?
-   - Were the appropriate energy systems targeted?
+3. **INTERVAL EXECUTION QUALITY**
+   - Review the detected intervals and assess quality
+   - For work intervals: Was power appropriate for the interval type? (e.g., vo2max = Z5/Z6, threshold = Z4)
+   - For recovery intervals: Was power actually low (~50-60% FTP) to allow recovery?
+   - Comment on progression through the workout (did athlete fade or maintain quality?)
 
-Be detailed and specific. Reference actual power numbers, HR values, and interval times. Use exact data from the trend analysis and peak efforts. Focus on execution quality and adherence to the plan. Response should be 400-600 words."""
+4. **POWER & HEART RATE RELATIONSHIP**
+   - Did HR respond appropriately to power output?
+   - Any signs of HR drift (HR climbing at steady power = fatigue/heat)?
+   - Recovery quality: Did HR drop during rest intervals?
+   - Indoor workouts typically run 10-15 bpm higher - factor this in
+
+5. **CONSTRUCTIVE FEEDBACK (1-2 items maximum)**
+   - If there are areas for improvement, mention them constructively
+   - Focus on actionable insights (pacing, recovery discipline, warmup adequacy)
+   - Frame as opportunities for optimization, not failures
+
+6. **TRAINING IMPACT & NEXT STEPS**
+   - What physiological adaptations will this workout drive?
+   - Recommended recovery time before next hard session
+   - Type of workout that would complement this one well
+
+Be specific and reference actual numbers from the detected intervals. Use an encouraging, professional coaching tone. Response should be 400-600 words."""
         else:
-            # Build the prompt WITHOUT proposed workout
-            prompt = f"""Analyze this cycling workout and provide coaching insights:
+            # Build the prompt WITHOUT proposed workout - analyze as standalone session
+            prompt = f"""You are an expert cycling coach analyzing this workout. Since there was no planned workout for this session, provide an objective analysis of what the athlete accomplished and how their body responded.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WORKOUT EXECUTION:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 WORKOUT METRICS:
 Duration: {duration_hours:.2f} hours ({duration_hours * 60:.0f} minutes)
@@ -815,8 +1079,8 @@ POWER DATA:
 - Normalized Power: {power_metrics.get('normalized_power', 0):.0f}W
 - Max Power: {power_metrics.get('max_power', 0):.0f}W
 - Intensity Factor: {power_metrics.get('intensity_factor', 0):.2f}
-- TSS (actual): {power_metrics.get('tss', 0):.1f}
-- FTP (used for calculations): {power_metrics.get('ftp', 0):.0f}W
+- TSS: {power_metrics.get('tss', 0):.1f}
+- FTP: {power_metrics.get('ftp', 0):.0f}W
 
 POWER ZONES (% of workout time):
 {power_zones_text or "No power zone data"}
@@ -831,27 +1095,65 @@ HEART RATE DATA:
 
 HEART RATE ZONES (% of workout time):
 {hr_zones_text or "No heart rate zone data"}
+{detected_intervals_text}
 {trend_analysis}
-IMPORTANT ANALYSIS GUIDELINES:
-1. Focus primarily on POWER ZONES distribution to assess workout intensity
-2. If power zones show mostly Zone 1-2, this is a recovery/easy ride regardless of other metrics
-3. Heart rate can be affected by many factors (heat, fatigue, hydration) - don't over-emphasize it
-4. Look at the overall zone distribution patterns to understand the workout structure
-5. Use the trend analysis data to identify fatigue patterns and execution quality
-
 ATHLETE NOTES:
 {athlete_notes or "No notes provided"}
 
-Please provide:
-1. **Workout Quality Assessment**: Overall quality (1-10 rating) and why
-2. **Effort Distribution**: How the effort was distributed across zones and what this indicates
-3. **Power & HR Trends**: Analyze the progression data - did athlete fade? maintain power? show HR drift?
-4. **Cadence Patterns**: Comment on cadence consistency and whether it was in optimal range
-5. **Notable Achievements**: Any impressive efforts, personal bests, or standout metrics
-6. **Recovery Recommendations**: How much recovery needed and what type of workout should come next
-7. **Performance Insights**: 2-3 actionable insights about pacing, effort, or execution
+**ANALYSIS INSTRUCTIONS FOR STANDALONE WORKOUT:**
 
-Keep your response concise but insightful (400-600 words). Be specific and reference the trend data. Use a motivating, coach-like tone."""
+This was an UNPLANNED session (warmup, cooldown, spontaneous ride, or training outside the structured plan). Focus on characterizing WHAT the workout was and HOW the athlete performed.
+
+**IMPORTANT GUIDELINES:**
+1. Use AUTO-DETECTED INTERVALS to identify what type of session this was
+2. Characterize the workout based on intensity distribution (endurance, tempo, threshold, VO2max mix)
+3. Assess execution quality - did athlete pace well, maintain intensity, recover appropriately?
+4. Look for physiological responses - HR appropriate for power, no excessive drift, good recovery
+5. Consider context from athlete notes (warmup before race, recovery spin, group ride, etc.)
+
+**SCORING RUBRIC (Rate 1-10):**
+- 9-10: Excellent quality for the workout type, smart execution, appropriate intensity
+- 7-8: Good execution, reasonable pacing, appropriate for purpose
+- 5-6: Acceptable session, some good elements but room for improvement
+- 3-4: Sub-optimal quality, poor pacing, or mismatched intensity for type
+- 1-2: Poor execution or incomplete session
+
+**ANALYSIS STRUCTURE:**
+
+1. **WORKOUT CHARACTERIZATION**
+   - What type of session was this? (Recovery ride, group ride, warmup, tempo session, mixed efforts, etc.)
+   - Based on intensity distribution and detected intervals, what was the primary training stimulus?
+   - Duration and TSS appropriate for the apparent workout type?
+
+2. **EXECUTION QUALITY SCORE (Rate 1-10 using rubric above)**
+   - How well did the athlete execute for this type of workout?
+   - Was pacing appropriate? (steady for endurance, proper rest in intervals, etc.)
+   - Did athlete maintain quality throughout or fade?
+
+3. **INTERVAL STRUCTURE ANALYSIS (if applicable)**
+   - Review detected intervals - were they executed consistently?
+   - For recovery periods: Was power actually low enough to recover?
+   - For work efforts: Appropriate intensity for the interval type?
+   - Any standout efforts or particularly well-executed segments?
+
+4. **PHYSIOLOGICAL RESPONSE**
+   - How did heart rate track with power output?
+   - Any signs of excessive fatigue (HR drift, inability to hit power targets)?
+   - Recovery quality between efforts (if applicable)
+   - Appropriate cardiovascular stress for the power output?
+
+5. **TRAINING VALUE**
+   - What physiological adaptations will this session provide?
+   - How does this fit into a broader training context?
+   - Was this likely the intended purpose based on execution?
+
+6. **RECOMMENDATIONS**
+   - If this was a warmup: Was duration/intensity appropriate for the main event?
+   - If recovery ride: Was intensity truly easy enough for recovery?
+   - If group ride/mixed efforts: Comments on pacing strategy
+   - General suggestions for similar sessions in future
+
+Be specific with numbers from the detected intervals and power data. Use an objective, analytical coaching tone that recognizes this was unplanned but still provides valuable insights. Response should be 350-500 words."""
 
         # Try each model in the list until one works
         last_error = None

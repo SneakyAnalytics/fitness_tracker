@@ -149,7 +149,12 @@ class WorkoutTypeAnalyzer:
         for bike_type, patterns in self.WORKOUT_PATTERNS.items():
             for pattern in patterns:
                 if re.search(pattern, title_lower):
-                    # If we have IF, validate it's in expected range
+                    # For interval-based workouts (VO2max, Threshold), trust the title
+                    # because whole-workout IF is diluted by warmup/cooldown
+                    if bike_type in ['VO2max', 'Threshold', 'Tempo']:
+                        return bike_type
+                    
+                    # For other workouts, validate IF is in expected range
                     if intensity_factor is not None:
                         if_range = self.IF_RANGES.get(bike_type)
                         if if_range and if_range[0] <= intensity_factor <= if_range[1]:
@@ -243,30 +248,110 @@ class WorkoutTypeAnalyzer:
         
         return 'Unclassified'
     
+    @staticmethod
+    def extract_interval_power(analysis_data_json: str, workout_type: str) -> Optional[float]:
+        """
+        Extract interval-specific average power from workout analysis data.
+        
+        For VO2max/Threshold/Tempo workouts, this extracts power from actual work intervals
+        rather than using whole-workout average (which includes warmup/cooldown).
+        
+        Args:
+            analysis_data_json: JSON string containing workout analysis with intervals
+            workout_type: Classified workout type (VO2max, Threshold, Tempo, etc.)
+            
+        Returns:
+            Average power from target intervals, or None if extraction fails
+        """
+        if not analysis_data_json:
+            return None
+            
+        # Only extract interval power for high-intensity interval workouts
+        interval_based_types = ['VO2max', 'Threshold', 'Tempo']
+        if workout_type not in interval_based_types:
+            return None
+            
+        try:
+            analysis_data = json.loads(analysis_data_json)
+            intervals = analysis_data.get('intervals', {}).get('intervals', [])
+            
+            if not intervals:
+                return None
+            
+            # Define interval type priorities based on workout classification
+            target_intervals = []
+            
+            if workout_type == 'VO2max':
+                # First try to get vo2max-specific intervals
+                target_intervals = [i for i in intervals if i.get('type') == 'vo2max']
+                if not target_intervals:
+                    # Fall back to high-intensity work intervals (Z5/Z4)
+                    target_intervals = [
+                        i for i in intervals 
+                        if i.get('type') == 'work' and i.get('intensity_zone') in ['Z5', 'Z4']
+                    ]
+            elif workout_type == 'Threshold':
+                # First try threshold-specific intervals
+                target_intervals = [i for i in intervals if i.get('type') == 'threshold']
+                if not target_intervals:
+                    # Fall back to Z4/Z3 work intervals
+                    target_intervals = [
+                        i for i in intervals 
+                        if i.get('type') == 'work' and i.get('intensity_zone') in ['Z4', 'Z3']
+                    ]
+            elif workout_type == 'Tempo':
+                # Tempo or sweet spot intervals
+                target_intervals = [i for i in intervals if i.get('type') in ['tempo', 'sweetspot']]
+                if not target_intervals:
+                    # Fall back to Z3 work intervals
+                    target_intervals = [
+                        i for i in intervals 
+                        if i.get('type') == 'work' and i.get('intensity_zone') == 'Z3'
+                    ]
+            
+            if target_intervals:
+                # Calculate average power across target intervals
+                interval_powers = [i.get('avg_power') for i in target_intervals if i.get('avg_power')]
+                if interval_powers:
+                    return sum(interval_powers) / len(interval_powers)
+        except Exception:
+            # If interval extraction fails, return None to use whole workout average
+            pass
+            
+        return None
+    
     def get_workout_history_by_type(self, workout_type: str, 
                                      num_workouts: int = 10) -> List[Dict]:
         """
         Get most recent workouts of a specific type.
         
         Returns workout details including date, title, metrics, and progression.
+        For interval workouts (VO2max, Threshold), extracts work interval average power.
         """
+        # Need workout_analyses table for interval data
         query = """
         SELECT 
-            workout_day,
-            workout_title,
-            json_extract(workout_data, '$.TSS') as tss,
-            json_extract(workout_data, '$.TimeTotalInHours') as hours,
-            json_extract(workout_data, '$.power_data.average') as avg_power,
-            json_extract(workout_data, '$.power_data.normalized_power') as normalized_power,
-            json_extract(workout_data, '$.power_data.intensity_factor') as intensity_factor,
-            json_extract(workout_data, '$.heart_rate_data.average_hr') as avg_hr,
-            workout_data
-        FROM workouts
-        WHERE json_extract(workout_data, '$.type') = 'Bike'
-        ORDER BY workout_day DESC
+            w.workout_day,
+            w.workout_title,
+            w.id as workout_id,
+            json_extract(w.workout_data, '$.TSS') as tss,
+            json_extract(w.workout_data, '$.TimeTotalInHours') as hours,
+            json_extract(w.workout_data, '$.power_data.average') as avg_power,
+            json_extract(w.workout_data, '$.power_data.normalized_power') as normalized_power,
+            json_extract(w.workout_data, '$.power_data.intensity_factor') as intensity_factor,
+            json_extract(w.workout_data, '$.heart_rate_data.average_hr') as avg_hr,
+            w.workout_data,
+            wa.analysis_data
+        FROM workouts w
+        LEFT JOIN workout_analyses wa ON w.id = wa.workout_id
+        WHERE json_extract(w.workout_data, '$.type') = 'Bike'
+        ORDER BY w.workout_day DESC
         """
         
         all_workouts = self._execute_query(query)
+        
+        # Workout types that should use interval power instead of overall average
+        interval_based_types = ['VO2max', 'Threshold', 'Tempo']
         
         # Filter by workout type
         typed_workouts = []
@@ -281,15 +366,26 @@ class WorkoutTypeAnalyzer:
             classified_type = self.classify_workout(title, if_val)
             
             if classified_type == workout_type:
+                # Default to whole workout average
+                avg_power = float(workout['avg_power']) if workout['avg_power'] else None
+                avg_hr = float(workout['avg_hr']) if workout['avg_hr'] else None
+                
+                # For interval-based workouts, extract work interval average power
+                if workout['analysis_data']:
+                    interval_power = self.extract_interval_power(workout['analysis_data'], classified_type)
+                    if interval_power is not None:
+                        avg_power = interval_power
+                
                 typed_workouts.append({
                     'date': workout['workout_day'],
                     'title': workout['workout_title'],
                     'tss': float(workout['tss']) if workout['tss'] else None,
                     'duration_hours': float(workout['hours']) if workout['hours'] else None,
-                    'avg_power': float(workout['avg_power']) if workout['avg_power'] else None,
+                    'avg_power': avg_power,
                     'normalized_power': float(workout['normalized_power']) if workout['normalized_power'] else None,
                     'intensity_factor': if_val,
-                    'avg_hr': float(workout['avg_hr']) if workout['avg_hr'] else None
+                    'avg_hr': avg_hr,
+                    'interval_based': classified_type in interval_based_types  # Flag for context
                 })
                 
                 if len(typed_workouts) >= num_workouts:

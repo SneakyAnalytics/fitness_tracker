@@ -1505,9 +1505,10 @@ browser = p.chromium.launch(
 ### Issue 0: Playwright Not Installed in Docker (COMMON)
 
 **Symptoms:**
+
 - Error immediately when clicking TrainingPeaks sync button
 - "Executable doesn't exist at /path/to/chromium"
-- "playwright._impl._api_types.Error: Browser is not installed"
+- "playwright.\_impl.\_api_types.Error: Browser is not installed"
 
 **This is the most common issue on new deployments (Beelink, Raspberry Pi, etc.)**
 
@@ -1529,10 +1530,10 @@ The Dockerfile installs the `playwright` Python package but **not** the Chromium
    ```bash
    # Stop containers
    docker-compose down
-   
+
    # Rebuild with no cache (important!)
    docker-compose build --no-cache
-   
+
    # Start containers
    docker-compose up -d
    ```
@@ -1549,7 +1550,7 @@ The Dockerfile installs the `playwright` Python package but **not** the Chromium
    ```bash
    # Check Playwright is installed in container
    docker exec fitness-tracker-ui python -c "from playwright.sync_api import sync_playwright; print('✅ Playwright installed')"
-   
+
    # Check Chromium browser exists
    docker exec fitness-tracker-ui sh -c "ls -la /root/.cache/ms-playwright/chromium-*/"
    ```
@@ -1557,6 +1558,7 @@ The Dockerfile installs the `playwright` Python package but **not** the Chromium
 5. **If still failing, check system dependencies:**
 
    The Dockerfile must include Chromium's required system libraries:
+
    ```dockerfile
    RUN apt-get update && apt-get install -y \
        libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \

@@ -1,0 +1,83 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Logs
+logs/*.log
+logs/*.err
+*.log
+
+# Documentation
+*.md
+!README.md
+
+# Archives
+archive/
+
+# Test files
+tests/
+pytest.ini
+
+# Scripts (excluding essential ones)
+scripts/test_*.py
+reanalyze_workouts.py
+redownload_and_reparse.py
+sync_week.py
+deduplicate_personal_bests.py
+test_historical_viz.py
+
+# Setup files
+setup_daily_automation.sh
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Database backups (keep main db)
+data/*.backup
+data/*.bak*
+
+# Week folders (if not needed in container)
+Week_*/
+
+# Home directory reference
+~/
+
+# Large data files (adjust as needed)
+data/trainingpeaks_downloads/*.zip

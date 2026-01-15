@@ -32,7 +32,8 @@ class TrainingPeaksSync:
         # Ensure directories exist
         self.downloads_dir.mkdir(parents=True, exist_ok=True)
         self.extract_dir.mkdir(parents=True, exist_ok=True)
-        self.api_base = "http://localhost:8000"
+        # Use API_URL from environment, fallback to localhost for local development
+        self.api_base = os.getenv("API_URL", "http://localhost:8000")
     
     def get_current_week_dates(self):
         """Get Monday to Sunday of current week"""
@@ -63,26 +64,31 @@ class TrainingPeaksSync:
         page.fill("input[name='Password']", self.password)
         page.click("button[type='submit']")
         
-        # Wait for potential captcha - give user 30 seconds
+        # Wait for potential captcha - give user 60 seconds in containerized environment
         print("⏸️  Waiting for login to complete (solve captcha if it appears)...")
         try:
-            page.wait_for_selector("button:has-text('Calendar')", timeout=30000)
+            page.wait_for_selector("button:has-text('Calendar')", timeout=60000)
             print("✅ Login successful!")
         except:
             print("❌ Login timeout - captcha may need to be solved manually")
             print("   Waiting an additional 30 seconds...")
             time.sleep(30)
         
+        # Add a small delay to ensure page is fully loaded
+        time.sleep(2)
+        
         # Navigate to Settings
         print("⚙️  Navigating to Settings...")
         
         # First, click Calendar to go to the main app
         try:
-            page.click("button:has-text('Calendar')", timeout=5000)
+            page.click("button:has-text('Calendar')", timeout=10000)
             print("   ✓ Clicked Calendar button")
+            time.sleep(1)  # Wait for navigation
         except Exception as e:
             print(f"   ⚠️  Could not find Calendar button: {e}")
             print("   Trying to continue anyway...")
+            time.sleep(1)
         
         # Give the page a moment to load
         time.sleep(3)
@@ -458,7 +464,230 @@ class TrainingPeaksSync:
         except Exception as e:
             print(f"   ⚠️  Cleanup warning: {e}")
         
+        # Link workouts to fit_files by matching TSS and duration
+        if results['workouts'] and results['fit_files'] > 0:
+            print("\n🔗 Linking workouts to FIT files...")
+            try:
+                self._match_workouts_to_fit_files(start_date, end_date)
+            except Exception as e:
+                print(f"   ⚠️  Matching warning: {e}")
+        
+        # Use AI to match workouts to proposed workouts for multi-workout days
+        if results['workouts']:
+            print("\n🤖 AI matching workouts to proposed workouts...")
+            try:
+                self._ai_match_to_proposed_workouts(start_date, end_date)
+            except Exception as e:
+                print(f"   ⚠️  AI matching warning: {e}")
+        
         return results
+    
+    def _match_workouts_to_fit_files(self, start_date, end_date):
+        """
+        Match workouts to fit_files by comparing TSS and duration.
+        This ensures workout records are linked to their FIT file data.
+        """
+        import sqlite3
+        import json
+        from pathlib import Path
+        
+        project_root = Path(__file__).parent.parent.parent
+        db_path = project_root / "data" / "fitness_data.db"
+        
+        conn = sqlite3.connect(str(db_path))
+        c = conn.cursor()
+        
+        try:
+            # Get workouts without fit_file_id in date range
+            c.execute('''
+                SELECT id, workout_day, workout_title, workout_data
+                FROM workouts
+                WHERE workout_day BETWEEN ? AND ?
+                  AND fit_file_id IS NULL
+                ORDER BY workout_day, id
+            ''', (start_date, end_date))
+            
+            workouts = []
+            for row in c.fetchall():
+                data = json.loads(row[3])
+                metrics = data.get('metrics', {})
+                workouts.append({
+                    'id': row[0],
+                    'day': row[1],
+                    'title': row[2],
+                    'tss': float(metrics.get('actual_tss', 0) or 0),
+                    'duration_min': float(metrics.get('actual_duration', 0) or 0)
+                })
+            
+            # Get fit_files in date range
+            c.execute('''
+                SELECT id, workout_day, file_name, fit_data
+                FROM fit_files
+                WHERE workout_day BETWEEN ? AND ?
+                ORDER BY workout_day, id
+            ''', (start_date, end_date))
+            
+            fit_files = []
+            for row in c.fetchall():
+                data = json.loads(row[3])
+                metrics = data.get('metrics', {})
+                fit_files.append({
+                    'id': row[0],
+                    'day': row[1],
+                    'file_name': row[2],
+                    'tss': float(metrics.get('tss', 0) or 0),
+                    'duration_min': float(metrics.get('duration', 0) or 0)
+                })
+            
+            # Match by day + closest TSS + duration
+            matched_count = 0
+            for workout in workouts:
+                candidates = [f for f in fit_files if f['day'] == workout['day']]
+                
+                if not candidates:
+                    continue
+                
+                best_match = None
+                best_score = 999999
+                
+                for fit in candidates:
+                    tss_diff = abs(workout['tss'] - fit['tss'])
+                    dur_diff = abs(workout['duration_min'] - fit['duration_min'])
+                    score = tss_diff + dur_diff
+                    
+                    if score < best_score:
+                        best_score = score
+                        best_match = fit
+                
+                # Match if score is reasonable (within 5 units total difference)
+                if best_match and best_score < 5:
+                    c.execute('UPDATE workouts SET fit_file_id = ? WHERE id = ?', 
+                             (best_match['id'], workout['id']))
+                    matched_count += 1
+                    # Remove from candidates to avoid duplicate matching
+                    fit_files.remove(best_match)
+            
+            conn.commit()
+            if matched_count > 0:
+                print(f"   ✅ Matched {matched_count} workouts to FIT files")
+            else:
+                print("   ℹ️  No new workout-FIT file matches needed")
+                
+        finally:
+            conn.close()
+    
+    def _ai_match_to_proposed_workouts(self, start_date, end_date):
+        """
+        Use AI to match workouts to proposed workouts on days with multiple workouts.
+        Stores the proposed_workout_name in the workouts table for use during analysis.
+        """
+        import sqlite3
+        import json
+        from pathlib import Path
+        from .workout_matcher import WorkoutMatcher
+        
+        project_root = Path(__file__).parent.parent.parent
+        db_path = project_root / "data" / "fitness_data.db"
+        
+        conn = sqlite3.connect(str(db_path))
+        c = conn.cursor()
+        
+        try:
+            matcher = WorkoutMatcher()
+            
+            # Find days with multiple workouts in the date range
+            c.execute('''
+                SELECT workout_day, COUNT(*) as workout_count
+                FROM workouts
+                WHERE workout_day BETWEEN ? AND ?
+                  AND (workout_data IS NOT NULL OR fit_file_id IS NOT NULL)
+                GROUP BY workout_day
+                HAVING workout_count > 1
+            ''', (start_date, end_date))
+            
+            multi_workout_days = [row[0] for row in c.fetchall()]
+            
+            if not multi_workout_days:
+                print("   ℹ️  No multi-workout days found")
+                return
+            
+            matched_count = 0
+            
+            for day in multi_workout_days:
+                # Get actual workouts for this day
+                c.execute('''
+                    SELECT id, workout_title, workout_data, athlete_comments
+                    FROM workouts
+                    WHERE workout_day = ?
+                    ORDER BY id
+                ''', (day,))
+                
+                actual_workouts = []
+                for row in c.fetchall():
+                    workout_id, title, data_json, comments = row
+                    data = json.loads(data_json) if data_json else {}
+                    metrics = data.get('metrics', {})
+                    
+                    actual_workouts.append({
+                        'id': workout_id,
+                        'title': title,
+                        'tss': float(metrics.get('actual_tss', 0) or 0),
+                        'duration_min': float(metrics.get('actual_duration', 0) or 0),
+                        'athlete_comments': comments or '',
+                        'sport': data.get('sport', 'cycling')
+                    })
+                
+                # Get proposed workouts for this day
+                c.execute('''
+                    SELECT pw.name, pw.type, pw.plannedDuration,
+                           pw.plannedTSS_min, pw.plannedTSS_max, pw.notes
+                    FROM proposed_workouts pw
+                    JOIN daily_plans dp ON pw.dailyPlanId = dp.id
+                    WHERE dp.date = ?
+                ''', (day,))
+                
+                proposed_workouts = []
+                for row in c.fetchall():
+                    proposed_workouts.append({
+                        'name': row[0],
+                        'type': row[1],
+                        'plannedDuration': row[2],
+                        'plannedTSS_min': row[3],
+                        'plannedTSS_max': row[4],
+                        'notes': row[5]
+                    })
+                
+                if not proposed_workouts:
+                    continue
+                
+                # Use AI to match
+                matches = matcher.match_workouts_for_day(
+                    actual_workouts,
+                    proposed_workouts,
+                    day
+                )
+                
+                # Store matches in database
+                for workout_id, proposed_name in matches.items():
+                    if proposed_name:
+                        c.execute('''
+                            UPDATE workouts
+                            SET proposed_workout_name = ?
+                            WHERE id = ?
+                        ''', (proposed_name, workout_id))
+                        matched_count += 1
+                        print(f"   ✓ Matched workout {workout_id} to '{proposed_name}'")
+            
+            conn.commit()
+            if matched_count > 0:
+                print(f"   ✅ AI matched {matched_count} workouts to proposed workouts")
+            
+        except Exception as e:
+            print(f"   ⚠️  AI matching error: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            conn.close()
     
     def run_sync(self, start_date=None, end_date=None, cleanup_fit_files=True):
         """Run the complete sync process
@@ -485,8 +714,16 @@ class TrainingPeaksSync:
         try:
             with sync_playwright() as p:
                 # Launch browser in headless mode with custom download path
-                browser = p.chromium.launch(headless=True, downloads_path=str(self.downloads_dir))
-                context = browser.new_context(accept_downloads=True)
+                browser = p.chromium.launch(
+                    headless=True, 
+                    downloads_path=str(self.downloads_dir),
+                    args=['--disable-blink-features=AutomationControlled']  # Avoid detection
+                )
+                context = browser.new_context(
+                    accept_downloads=True,
+                    viewport={'width': 1920, 'height': 1080},  # Set proper viewport size
+                    user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                )
                 page = context.new_page()
                 
                 # Run automation

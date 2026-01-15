@@ -2,23 +2,27 @@
 
 **A comprehensive training system with automated workout sync, AI analysis, intelligent coaching, and Zwift integration.**
 
-[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.28+-red.svg)](https://streamlit.io)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-green.svg)](https://fastapi.tiangolo.com)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 
 ---
 
 ## 🌟 Overview
 
-This is an end-to-end fitness tracking and coaching system that:
+This is a production-ready, AI-powered fitness tracking and coaching system running 24/7 that:
 
 - **Automatically syncs** workouts from TrainingPeaks (headless browser automation)
-- **Analyzes performance** using AI (Gemini) to extract insights from FIT files
-- **Tracks personal bests** across 8 effort durations (30s to 60min)
+- **Analyzes performance** using AI (Claude/Gemini) to extract insights from FIT files
+- **Tracks personal bests** across multiple effort durations (5s to 60min)
 - **Generates weekly training plans** using Claude AI with coaching continuity
-- **Creates Zwift workouts** with dynamic, never-repeating entertainment content
-- **Provides rich visualizations** in a Streamlit dashboard
+- **Creates Zwift workouts** (.zwo files) with structured intervals
+- **Provides rich visualizations** in a Streamlit dashboard with password protection
 
-**Cost:** ~$2/month (95% cheaper than original implementation using cost-optimized AI models)
+**Deployment:** Running on Windows 11 Beelink SER5 Max (32GB RAM) in living room, accessible via Tailscale mesh VPN from Mac, iPhone, and other devices.
+
+**Cost:** ~$2/month in AI API costs (95% cheaper than original implementation using cost-optimized models)
 
 ---
 
@@ -74,13 +78,36 @@ This is an end-to-end fitness tracking and coaching system that:
 
 ### Prerequisites
 
-- **Python 3.10+**
+- **Docker Desktop** (recommended) or Python 3.12+
 - **TrainingPeaks account** (for workout sync)
-- **Gemini API key** (free tier works: https://makersuite.google.com/app/apikey)
-- **Claude API key** (optional, for AI coaching: https://console.anthropic.com/)
-- **Zwift account** (optional, for workout file generation)
+- **AI API keys:**
+  - **Anthropic Claude** (for AI coaching): https://console.anthropic.com/
+  - **Google Gemini** (backup/analysis): https://makersuite.google.com/app/apikey
+- **Zwift account** (optional, for .zwo workout file generation)
 
 ### Installation
+
+**Option 1: Docker (Recommended)**
+
+```bash
+# 1. Clone repository
+git clone https://github.com/yourusername/fitness_tracker.git
+cd fitness_tracker
+
+# 2. Configure environment
+cp .env.example .env
+# Edit .env with your API keys and credentials
+
+# 3. Start containers
+docker compose up -d
+
+# 4. Access application
+# UI: http://localhost:8501 (password: fitness2026)
+# API: http://localhost:8000
+# API Docs: http://localhost:8000/docs
+```
+
+**Option 2: Local Development (Without Docker)**
 
 ```bash
 # 1. Clone repository
@@ -88,7 +115,7 @@ git clone https://github.com/yourusername/fitness_tracker.git
 cd fitness_tracker
 
 # 2. Create virtual environment
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # 3. Install dependencies
@@ -100,46 +127,199 @@ playwright install chromium
 # 5. Configure environment
 cp .env.example .env
 # Edit .env with your API keys and credentials
+
+# 6. Start application
+# Terminal 1: Start API
+uvicorn src.api.app:app --reload
+
+# Terminal 2: Start UI
+streamlit run src/ui/streamlit_app.py
 ```
 
 ### Configuration (.env file)
 
 ```bash
-# Required for TrainingPeaks sync
-TRAININGPEAKS_USERNAME=your_email@example.com
-TRAININGPEAKS_PASSWORD=your_password
+# Required: TrainingPeaks sync
+TP_USERNAME=your_email@example.com
+TP_PASSWORD=your_password
 
-# Required for AI analysis (FREE TIER WORKS!)
-GEMINI_API_KEY=your_gemini_api_key
+# Required: AI analysis and coaching
+ANTHROPIC_API_KEY=sk-ant-...  # Claude for coaching
+GOOGLE_API_KEY=AIza...         # Gemini for analysis
 
-# Optional: AI Coaching
-ANTHROPIC_API_KEY=your_claude_key
+# Optional: Streamlit password
+STREAMLIT_PASSWORD=fitness2026  # Default password
 
-# Optional: Custom paths
-ZWIFT_WORKOUTS_DIR=~/Documents/Zwift/Workouts/YOUR_ID
-DB_PATH=data/fitness_data.db
+# Optional: Custom paths (Mac example)
+ZWIFT_WORKOUTS_DIR=/Users/username/Documents/Zwift/Workouts/6870291
+
+# Optional: Custom paths (Windows example)
+# ZWIFT_WORKOUTS_DIR=C:/Users/username/fitness_tracker/shareable/zwift_workouts
 ```
 
-### First Run
+### First-Time Setup
 
 ```bash
-# Initialize database structure
-mkdir -p data logs
+# 1. Access UI
+open http://localhost:8501
 
-# Start Streamlit UI
-streamlit run src/ui/streamlit_app.py
+# 2. Login with password (default: fitness2026)
 
-# Navigate to "Performance Analytics" tab
-# Click "Run Analysis Now" to process your first workout
+# 3. Navigate to "📅 Calendar" tab
+# - You should see synced workouts from TrainingPeaks
+
+# 4. Test AI Coach
+# - Go to "🤖 AI Coach" tab
+# - Enter week number and dates
+# - Click "Generate Weekly Plan"
+# - Review generated workout plan
+
+# 5. Generate Zwift Files (optional)
+# - After generating weekly plan
+# - Click "Generate Zwift Workout Files"
+# - Files saved to ZWIFT_WORKOUTS_DIR
 ```
 
 ---
 
-## 📖 Usage Guide
+## 📖 Documentation
+
+### For AI Agents 🤖
+
+**Start here:** [docs/agent-instructions/README.md](./docs/agent-instructions/README.md)
+
+Comprehensive onboarding for AI agents with:
+
+- Development principles and standards
+- Code patterns and best practices
+- Common tasks and workflows
+- Deployment procedures
+
+### For Developers 👥
+
+- **[Getting Started](./docs/agent-instructions/getting-started.md)** - First-time setup, data flows, code patterns
+- **[Development Workflow](./docs/agent-instructions/development-workflow.md)** - Git, testing, deployment
+- **[Database Schema](./docs/architecture/database-schema.md)** - Complete database documentation
+- **[Streamlit App](./docs/architecture/streamlit-app.md)** - 4,400-line UI breakdown
+- **[System Overview](./docs/architecture/overview.md)** - High-level architecture
+
+### Deployment Guides 🚀
+
+- **[Beelink Setup](./docs/deployment/beelink-setup.md)** - Production server configuration
+- **[Docker Guide](./docs/deployment/docker-guide.md)** - Container deployment
+- **[Local Development](./docs/deployment/local-development.md)** - Run without Docker
+
+### Feature Documentation 📚
+
+- **[AI Coaching](./docs/features/ai-coaching.md)** - AI-powered weekly planning
+- **[TrainingPeaks Sync](./docs/features/trainingpeaks-sync.md)** - Automated workout import
+- **[Workout Analysis](./docs/features/workout-analysis.md)** - FIT file parsing and intervals
+- **[Session Comparison](./docs/features/session-comparison.md)** - Compare workouts
+
+**Full documentation index:** [docs/README.md](./docs/README.md)
+
+---
+
+## 🏗️ Architecture
+
+### High-Level Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Fitness Tracker System                  │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐ │
+│  │  Streamlit   │───→│   FastAPI    │───→│   SQLite     │ │
+│  │  Frontend    │    │   Backend    │    │   Database   │ │
+│  │  (Port 8501) │←───│ (Port 8000)  │←───│              │ │
+│  └──────────────┘    └──────────────┘    └──────────────┘ │
+│         │                    │                              │
+│         │                    ↓                              │
+│         │            ┌──────────────┐                       │
+│         │            │  Playwright  │                       │
+│         │            │ (TP Sync)    │                       │
+│         │            └──────────────┘                       │
+│         │                                                   │
+│         ↓                    ↓                              │
+│  ┌──────────────┐    ┌──────────────┐                      │
+│  │   Plotly     │    │     AI       │                      │
+│  │   Charts     │    │  Claude      │                      │
+│  │              │    │  Gemini      │                      │
+│  └──────────────┘    └──────────────┘                      │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Technology Stack
+
+- **Backend:** FastAPI (Python 3.12) - RESTful API with async support
+- **Frontend:** Streamlit - Interactive dashboard with 4,400+ lines
+- **Database:** SQLite - Local database with JSON columns for flexibility
+- **Deployment:** Docker Compose - Containerized for easy deployment
+- **Network:** Tailscale - Secure mesh VPN for remote access
+- **AI:** Claude 3.5 Sonnet (coaching), Gemini 1.5 Flash (analysis)
+- **Automation:** Playwright - Headless browser for TrainingPeaks sync
+- **Visualization:** Plotly - Interactive charts and graphs
+
+### Repository Structure
+
+```
+fitness_tracker/
+├── src/                      # Application code
+│   ├── api/                  # FastAPI backend
+│   ├── ui/                   # Streamlit frontend
+│   ├── storage/              # Database operations
+│   └── utils/                # Utility modules
+│       ├── interval_detector.py
+│       ├── zwift_workout_generator.py
+│       └── ai_coach_utils.py
+│
+├── docs/                     # Comprehensive documentation
+│   ├── agent-instructions/   # AI agent guides
+│   ├── architecture/         # System design docs
+│   ├── deployment/           # Setup and deployment
+│   ├── features/             # Feature documentation
+│   └── history/              # Historical docs
+│
+├── data/                     # SQLite database
+├── tests/                    # Test files
+├── scripts/                  # Utility scripts
+├── migrations/               # Database migrations
+│
+├── docker-compose.yml        # Container orchestration
+├── Dockerfile                # Docker image definition
+├── requirements.txt          # Python dependencies
+├── pytest.ini                # Test configuration
+├── .env                      # Environment variables (not in repo)
+└── README.md                 # This file
+```
+
+---
+
+## 🧪 Testing
+
+```bash
+# Run all tests
+pytest tests/
+
+# Run specific test file
+pytest tests/test_fit_parser_and_athlete_settings.py
+
+# Run with coverage
+pytest --cov=src tests/
+
+# Run with verbose output
+pytest -v tests/
+```
+
+---
+
+## 📊 Usage Examples
 
 ### Method 1: Automated Daily Workflow (Recommended)
 
-Set up hands-free automation that runs every night at 10pm PST:
+Set up hands-free automation that runs every night:
 
 ```bash
 # Run setup script

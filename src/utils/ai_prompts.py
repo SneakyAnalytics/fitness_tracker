@@ -297,7 +297,16 @@ You are an expert cycling coach specializing in endurance training and gravel ra
                     
                     # Analysis data (quality, insights, recovery)
                     analysis_data = analysis.get('analysis_data', {})
-                    if analysis_data:
+                    
+                    # Handle case where analysis_data might be a JSON string
+                    if isinstance(analysis_data, str):
+                        try:
+                            import json
+                            analysis_data = json.loads(analysis_data)
+                        except:
+                            analysis_data = {}
+                    
+                    if analysis_data and isinstance(analysis_data, dict):
                         if analysis_data.get('quality_rating'):
                             sections.append(f"  - Quality Rating: {analysis_data['quality_rating']}/10")
                         if analysis_data.get('effort_distribution'):
@@ -310,8 +319,19 @@ You are an expert cycling coach specializing in endurance training and gravel ra
                     # Peak efforts
                     peak_efforts = analysis.get('peak_efforts', {})
                     if peak_efforts:
-                        efforts_str = ", ".join([f"{dur}: {int(power)}W" for dur, power in peak_efforts.items() if power])
-                        if efforts_str:
+                        # Handle both old format (power as number) and new format (power as dict with 'power' key)
+                        efforts_list = []
+                        for dur, power_data in peak_efforts.items():
+                            if isinstance(power_data, dict):
+                                power = power_data.get('power', 0)
+                            else:
+                                power = power_data
+                            
+                            if power:
+                                efforts_list.append(f"{dur}: {int(power)}W")
+                        
+                        if efforts_list:
+                            efforts_str = ", ".join(efforts_list)
                             sections.append(f"  - Peak Powers: {efforts_str}")
                     
                     # Full analysis text if available

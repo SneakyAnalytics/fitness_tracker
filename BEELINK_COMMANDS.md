@@ -3,11 +3,13 @@
 ## Fix TrainingPeaks Sync (Playwright Issue)
 
 ### One-Command Fix
+
 ```bash
 ./deploy_playwright_fix.sh
 ```
 
 ### Manual Steps
+
 ```bash
 # 1. Stop containers
 docker-compose down
@@ -27,11 +29,13 @@ docker exec fitness-tracker-ui python -c "from playwright.sync_api import sync_p
 ## Regular Deployment (Code Updates)
 
 ### Quick Restart (no Dockerfile changes)
+
 ```bash
 docker-compose restart
 ```
 
 ### Full Rebuild (Dockerfile/requirements changed)
+
 ```bash
 docker-compose down
 docker-compose build
@@ -43,11 +47,13 @@ docker-compose up -d
 ## Monitoring
 
 ### Check Status
+
 ```bash
 docker-compose ps
 ```
 
 ### View Logs
+
 ```bash
 # All services
 docker-compose logs -f
@@ -61,6 +67,7 @@ docker-compose logs --tail=50 streamlit
 ```
 
 ### Check Health
+
 ```bash
 # API
 curl http://localhost:8000/health
@@ -74,6 +81,7 @@ curl -I http://localhost:8501
 ## Troubleshooting
 
 ### Container won't start
+
 ```bash
 # Check logs
 docker-compose logs streamlit | tail -50
@@ -83,6 +91,7 @@ docker exec -it fitness-tracker-ui bash
 ```
 
 ### Port already in use
+
 ```bash
 # Find what's using port 8501
 sudo lsof -i :8501
@@ -94,6 +103,7 @@ sudo kill <PID>
 ```
 
 ### Out of disk space
+
 ```bash
 # Check disk usage
 df -h
@@ -104,6 +114,7 @@ docker volume prune
 ```
 
 ### Environment variables not working
+
 ```bash
 # Check .env file exists
 ls -la .env
@@ -120,14 +131,17 @@ docker-compose restart
 ## Accessing Services
 
 ### From Beelink (localhost)
+
 - API: http://localhost:8000
 - Streamlit: http://localhost:8501
 
 ### From other devices (Tailscale)
+
 - API: http://100.117.194.8:8000
 - Streamlit: http://100.117.194.8:8501
 
 ### API Documentation
+
 - Swagger UI: http://100.117.194.8:8000/docs
 - ReDoc: http://100.117.194.8:8000/redoc
 
@@ -136,6 +150,7 @@ docker-compose restart
 ## Database
 
 ### Backup
+
 ```bash
 # Stop containers first
 docker-compose down
@@ -148,6 +163,7 @@ docker-compose up -d
 ```
 
 ### Restore
+
 ```bash
 docker-compose down
 cp data/fitness_data.db.backup_YYYYMMDD_HHMMSS data/fitness_data.db
@@ -155,6 +171,7 @@ docker-compose up -d
 ```
 
 ### Direct Access
+
 ```bash
 # SQLite CLI in container
 docker exec -it fitness-tracker-api sqlite3 data/fitness_data.db
@@ -168,6 +185,7 @@ sqlite3 data/fitness_data.db
 ## Git Updates
 
 ### Pull Latest Changes
+
 ```bash
 # Save local changes
 git stash
@@ -184,6 +202,7 @@ docker-compose up -d
 ```
 
 ### Check What Changed
+
 ```bash
 git status
 git diff
@@ -195,6 +214,7 @@ git log --oneline -10
 ## Performance
 
 ### Check Resource Usage
+
 ```bash
 # Docker stats
 docker stats
@@ -207,6 +227,7 @@ docker-compose ps -a --format "table {{.Name}}\t{{.Size}}"
 ```
 
 ### Clean Up
+
 ```bash
 # Remove stopped containers
 docker container prune
@@ -226,6 +247,7 @@ docker system prune -a --volumes
 ## Emergency Procedures
 
 ### Complete Reset
+
 ```bash
 # WARNING: This deletes everything except database
 docker-compose down
@@ -235,6 +257,7 @@ docker-compose up -d
 ```
 
 ### Rollback to Previous Version
+
 ```bash
 # Stop containers
 docker-compose down
@@ -249,6 +272,7 @@ docker-compose up -d
 ```
 
 ### Can't Access Beelink Remotely
+
 ```bash
 # Check Tailscale is running
 sudo systemctl status tailscaled

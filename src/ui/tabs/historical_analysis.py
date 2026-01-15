@@ -87,10 +87,14 @@ def render_historical_analysis_tab():
                                 fit_files = automation.find_todays_fit_files(current_date)
                                 
                                 for fit_file in fit_files:
-                                    analysis = automation.analyze_workout(fit_file)
-                                    if analysis:
-                                        automation.store_analysis(analysis)
-                                        total_analyzed += 1
+                                    # Analyze all workouts - FitFileAnalyzer handles non-cycling with placeholder
+                                    try:
+                                        analysis = automation.analyze_workout(fit_file)
+                                        if analysis:
+                                            automation.store_analysis(analysis)
+                                            total_analyzed += 1
+                                    except Exception as e:
+                                        print(f"⚠️ Error analyzing {fit_file}: {e}")
                                 
                                 current_date += timedelta(days=1)
                             
@@ -159,23 +163,36 @@ def render_historical_analysis_tab():
             st.info(f"No workouts found for week of {selected_week_start.strftime('%B %d, %Y')}. Try a different week or upload workouts.")
             return
 
-        # Create a selection list - keep only the most recent analysis per workout_date + title
+        # Create a selection list with better workout titles
+        # Use workout title from TrainingPeaks (cleaner than raw FIT filenames)
         # Sort by analyzed_at descending to get most recent first
         week_analyses.sort(key=lambda x: x.get('analyzed_at', ''), reverse=True)
         
-        # Deduplicate - keep first (most recent) of each date+title combo
-        seen_keys = set()
+        # Deduplicate - keep first (most recent) of each workout_id
+        seen_workout_ids = set()
         options = []
         
         for a in week_analyses:
-            date_str = a['workout_date'] if a['workout_date'] != 'Unknown' else a['analyzed_at'][:10]
-            title = a['title']
-            key = f"{date_str}|{title}"
+            workout_id = a.get('workout_id')
+            if workout_id and workout_id in seen_workout_ids:
+                continue  # Skip duplicate
             
-            if key not in seen_keys:
-                seen_keys.add(key)
-                display_key = f"{date_str} - {title}"
-                options.append((display_key, a))
+            if workout_id:
+                seen_workout_ids.add(workout_id)
+            
+            date_str = a['workout_date'] if a['workout_date'] != 'Unknown' else a['analyzed_at'][:10]
+            
+            # Use TrainingPeaks workout title (from workouts table) instead of FIT filename
+            title = a.get('title', 'Unknown Workout')
+            
+            # Clean up the title for better display
+            if title.startswith('Zwift - '):
+                # Remove redundant "Zwift - " prefix and long venue names
+                title_parts = title.replace('Zwift - ', '').split(' on ')
+                title = title_parts[0]  # Just the workout name, not the Zwift world/route
+            
+            display_key = f"{date_str} - {title}"
+            options.append((display_key, a))
         
         # Sort options by date (newest first)
         options.sort(key=lambda x: x[0], reverse=True)

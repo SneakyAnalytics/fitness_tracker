@@ -4,6 +4,7 @@ from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 
 from datetime import datetime
+from pathlib import Path
 from typing import Optional, Dict, Any
 import pandas as pd
 import pytz
@@ -185,10 +186,77 @@ class QualitativeData(BaseModel):
 async def root():
     return {"message": "Fitness Tracker API is running"}
 
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for monitoring and troubleshooting"""
+    import os
+    from pathlib import Path
+    
+    db_path = Path("data/fitness_data.db")
+    db_exists = db_path.exists()
+    
+    # Try to connect to database
+    db_accessible = False
+    try:
+        db = WorkoutDatabase()
+        db.conn.execute("SELECT 1").fetchone()
+        db_accessible = True
+    except Exception as e:
+        db_error = str(e)
+    
+    return {
+        "status": "healthy" if db_accessible else "degraded",
+        "database": {
+            "exists": db_exists,
+            "accessible": db_accessible,
+            "path": str(db_path)
+        },
+        "environment": {
+            "has_anthropic_key": bool(os.getenv("ANTHROPIC_API_KEY")),
+            "has_google_key": bool(os.getenv("GOOGLE_API_KEY")),
+            "has_tp_username": bool(os.getenv("TP_USERNAME"))
+        },
+        "message": "Fitness Tracker API is running"
+    }
+
 @app.get("/workouts")
 async def get_workouts():
     db = WorkoutDatabase()
     return db.get_all_workouts()
+
+@app.get("/workouts/with-analyses")
+async def get_workouts_with_analyses():
+    """Get all workouts with their analyses and interval data"""
+    import sqlite3
+    import json
+    
+    db_path = "data/fitness_data.db"
+    conn = sqlite3.connect(db_path)
+    
+    query = """
+    SELECT 
+        w.id,
+        w.workout_day,
+        w.workout_title,
+        w.workout_data,
+        wa.analysis_text,
+        wa.analysis_data
+    FROM workouts w
+    LEFT JOIN workout_analyses wa ON w.id = wa.workout_id
+    WHERE wa.id IS NOT NULL
+    ORDER BY w.workout_day DESC
+    """
+    
+    cursor = conn.execute(query)
+    columns = [desc[0] for desc in cursor.description]
+    results = []
+    
+    for row in cursor.fetchall():
+        workout = dict(zip(columns, row))
+        results.append(workout)
+    
+    conn.close()
+    return results
 
 @app.get("/summaries")
 async def get_summaries():
@@ -244,24 +312,44 @@ async def upload_workouts(file: UploadFile = File(...)):
         # Initialize database connection
         db = WorkoutDatabase()
         
-        # DELETE existing workouts in this date range (prevents duplicates on re-upload)
+        # Delete existing workouts in date range (will be re-inserted with merged FIT data)
         conn = sqlite3.connect(db.db_path)
         c = conn.cursor()
         try:
-            c.execute('''
-                DELETE FROM workouts 
-                WHERE workout_day >= ? AND workout_day <= ?
-            ''', (min_date, max_date))
+            c.execute('DELETE FROM workouts WHERE workout_day >= ? AND workout_day <= ?', (min_date, max_date))
             deleted_count = c.rowcount
             conn.commit()
-            print(f"Deleted {deleted_count} existing workouts from {min_date} to {max_date}")
+            print(f"Deleted {deleted_count} existing workouts in date range")
         except Exception as e:
             print(f"Error deleting existing workouts: {e}")
-            conn.rollback()
+        
+        # Build a map of existing FIT files to merge with CSV workouts
+        # Match by date only (since FIT filenames != CSV workout titles)
+        existing_fit_data_by_date = {}  # date -> parsed_fit_data
+        try:
+            c.execute('''
+                SELECT workout_day, fit_data 
+                FROM fit_files 
+                WHERE workout_day >= ? AND workout_day <= ?
+            ''', (min_date, max_date))
+            
+            for day, fit_data_str in c.fetchall():
+                try:
+                    fit_data = json.loads(fit_data_str)
+                    # Check if this FIT file has power_series (cycling workout)
+                    if fit_data.get('power_metrics', {}).get('power_series'):
+                        # Store by date for matching with CSV workouts
+                        existing_fit_data_by_date[day] = fit_data
+                        ps_len = len(fit_data['power_metrics']['power_series'])
+                        print(f"Found FIT data for {day} with {ps_len} power points")
+                except Exception as e:
+                    print(f"Error parsing FIT data: {e}")
+        except Exception as e:
+            print(f"Error querying FIT files: {e}")
         finally:
             conn.close()
         
-        # Now insert all workouts
+        # Now insert all workouts from CSV, merging with FIT data where available
         workouts = []
         for _, row in df.iterrows():
             print(f"Processing workout: {row['Title']} on {row['WorkoutDay']}")
@@ -311,6 +399,35 @@ async def upload_workouts(file: UploadFile = File(...)):
                 } if pd.notna(row.get('HeartRateAverage')) else None,
                 'athlete_comments': str(row.get('AthleteComments')) if pd.notna(row.get('AthleteComments')) else None
             }
+            
+            # Check if there's FIT data for this date (match by date only, not title)
+            if workout['workout_day'] in existing_fit_data_by_date and workout['type'] in ['Bike', 'Cycling', 'Biking']:
+                fit_data = existing_fit_data_by_date[workout['workout_day']]
+                print(f"  Merging FIT data for {workout['workout_day']} cycling workout")
+                
+                # Transform power_metrics (FIT format) to power_data (workout format)
+                if 'power_metrics' in fit_data and 'power_series' in fit_data['power_metrics']:
+                    if workout['power_data'] is None:
+                        workout['power_data'] = {}
+                    
+                    # Add power_series and time_series from FIT
+                    workout['power_data']['power_series'] = fit_data['power_metrics']['power_series']
+                    if 'time_series' in fit_data:
+                        workout['power_data']['time_series'] = fit_data['time_series']
+                    
+                    print(f"    Added power_series: {len(workout['power_data']['power_series'])} points")
+                
+                # Transform hr_metrics to heart_rate_data format
+                if 'hr_metrics' in fit_data and 'hr_series' in fit_data['hr_metrics']:
+                    if workout['heart_rate_data'] is None:
+                        workout['heart_rate_data'] = {}
+                    workout['heart_rate_data']['hr_series'] = fit_data['hr_metrics']['hr_series']
+                    print(f"    Added hr_series: {len(workout['heart_rate_data']['hr_series'])} points")
+                
+                # Preserve sport classification from FIT file
+                if 'sport' in fit_data:
+                    workout['sport'] = fit_data['sport']
+                    print(f"    Set sport: {workout['sport']}")
             
             # Clean workout data
             cleaned_workout = clean_workout_data(workout)
@@ -932,6 +1049,24 @@ async def upload_fit(file: UploadFile = File(...)):
         
         if not saved:
             raise ValueError(f"Failed to save FIT data to database for {filename}")
+        
+        # Also save FIT file to disk so AI analysis can find it later
+        try:
+            extract_dir = Path("data/trainingpeaks_extracted")
+            extract_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Prefix filename with date so find_todays_fit_files can find it
+            safe_filename = filename if filename else f"{title.replace(' ', '_')}.fit"
+            date_prefixed_filename = f"{date}-{safe_filename}"
+            fit_file_path = extract_dir / date_prefixed_filename
+            
+            with open(fit_file_path, 'wb') as f:
+                f.write(contents)
+            
+            print(f"✓ Saved FIT file to disk: {fit_file_path}")
+        except Exception as save_err:
+            print(f"⚠️  Warning: Could not save FIT file to disk: {save_err}")
+            # Don't fail the upload if disk save fails - database save is sufficient
         
         print(f"✓ Successfully saved to database: {title} on {date}")
         print(f"{'='*80}\n")

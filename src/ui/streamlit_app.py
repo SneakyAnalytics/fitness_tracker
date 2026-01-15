@@ -2,8 +2,53 @@
 import sys
 sys.path.append(".")
 
+import os
 import streamlit as st
 import pandas as pd
+
+# ===== PASSWORD PROTECTION =====
+# Check authentication before loading anything else
+def check_password():
+    """Returns True if user has entered the correct password."""
+    
+    # Password from environment variable
+    correct_password = os.getenv("STREAMLIT_PASSWORD", "fitness2026")
+    
+    # Initialize session state for authentication
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+    
+    # If already authenticated, return True
+    if st.session_state.authenticated:
+        return True
+    
+    # Show login form
+    st.markdown("""
+        <div style="text-align: center; padding: 50px;">
+            <h1>🏃 Fitness Tracker</h1>
+            <p>Please enter the password to continue</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # Password input
+    password = st.text_input("Password", type="password", key="password_input")
+    
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        if st.button("Login", use_container_width=True):
+            if password == correct_password:
+                st.session_state.authenticated = True
+                st.rerun()
+            else:
+                st.error("❌ Incorrect password")
+    
+    return False
+
+# Check password before loading the rest of the app
+if not check_password():
+    st.stop()
+# ===== END PASSWORD PROTECTION =====
+
 # Some versions of NumPy (e.g. 1.26+) do not expose a top-level `numpy.rec` module
 # which older code (and pandas internals) sometimes expect to import. Ensure a
 # compatible alias exists so downstream `isinstance(..., np.rec.recarray)` checks
@@ -28,6 +73,9 @@ except Exception:
 from datetime import datetime, timedelta, date
 from typing import Any, Optional, cast
 import requests
+
+# API URL configuration - supports both Docker and native environments
+API_URL = os.getenv("API_URL", "http://localhost:8000")
 import json
 import importlib
 import types as _types
@@ -1075,7 +1123,7 @@ def display_workout_calendar():
         try:
             # Fetch current week's workouts
             week_response = requests.get(
-                "http://localhost:8000/proposed_workouts/week",
+                f"{API_URL}/proposed_workouts/week",
                 params={
                     "start_date": start_of_week.strftime('%Y-%m-%d'),
                     "end_date": end_of_week.strftime('%Y-%m-%d')
@@ -1270,18 +1318,18 @@ def display_workout_calendar():
     # Check if API is available
     try:
         # Simple check to see if API is up
-        test_response = requests.get("http://localhost:8000/")
+        test_response = requests.get(f"{API_URL}/")
         if test_response.status_code != 200:
             st.error("Cannot connect to API server. Please ensure it's running.")
             return
     except requests.exceptions.ConnectionError:
-        st.error("Cannot connect to API server. Please ensure it's running at http://localhost:8000/")
+        st.error("Cannot connect to API server. Please ensure it's running at {API_URL}/")
         return
     
     # Fetch proposed workouts for the selected week
     try:
         response = requests.get(
-            "http://localhost:8000/proposed_workouts/week",
+            f"{API_URL}/proposed_workouts/week",
             params={
                 "start_date": selected_week_start.strftime('%Y-%m-%d') if selected_week_start else None,
                 "end_date": selected_week_end.strftime('%Y-%m-%d') if selected_week_end else None
@@ -1386,7 +1434,7 @@ def display_workout_calendar():
                         # Check if we already have performance data for this workout
                         try:
                             perf_response = requests.get(
-                                "http://localhost:8000/workout/performance",
+                                f"{API_URL}/workout/performance",
                                 params={
                                     "workout_id": workout_id,
                                     "workout_date": workout.get('date', '')
@@ -2847,6 +2895,163 @@ def display_ai_coach():
                 </div>
                 """, unsafe_allow_html=True)
 
+def display_session_comparison_page():
+    """Session Comparison page - compare similar workouts to track progress"""
+    from src.utils.workout_comparator import WorkoutComparator
+    from src.ui.components.session_comparison import (
+        display_session_comparison,
+        display_similar_workouts_list,
+        display_find_similar_ui
+    )
+    
+    create_section_header("Session Comparison - Track Your Progress", "🔄")
+    
+    st.markdown("""
+    <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                padding: 1.5rem; border-radius: 10px; margin-bottom: 1.5rem; color: white;'>
+        <h3 style='margin: 0 0 0.5rem 0; color: white;'>🔍 Compare Similar Workouts</h3>
+        <p style='margin: 0; opacity: 0.9;'>
+            Find similar workouts from your training history and compare them side-by-side to track
+            progress, identify improvements, and understand how your fitness is developing over time.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Fetch cycling workouts with analyses
+    try:
+        response = requests.get(f"{API_URL}/workouts/with-analyses")
+        if response.status_code != 200:
+            st.error("Error fetching workout data")
+            return
+        
+        workouts = response.json()
+        
+        # Filter to cycling workouts only (have TSS/power data)
+        cycling_workouts = [
+            w for w in workouts 
+            if 'Zwift' in w.get('workout_title', '') or 'Bike' in w.get('workout_title', '')
+        ]
+        
+        if not cycling_workouts:
+            st.warning("No cycling workouts with analyses found. Please run batch sync to analyze your workouts first.")
+            st.info("💡 Go to **Import Data** → **Batch Sync & Analysis** to analyze your cycling workouts.")
+            return
+        
+        # Create DataFrame for easier manipulation
+        workouts_df = pd.DataFrame(cycling_workouts)
+        
+        st.success(f"✅ Found {len(cycling_workouts)} analyzed cycling workouts")
+        
+        # Show comparison mode selector
+        mode = st.radio(
+            "Comparison Mode:",
+            ["🔍 Find Similar Workouts", "⚖️ Compare Two Specific Workouts"],
+            horizontal=True
+        )
+        
+        st.markdown("---")
+        
+        if mode == "🔍 Find Similar Workouts":
+            # Find similar workouts mode
+            selected_idx, min_similarity, max_results = display_find_similar_ui(workouts_df)
+            
+            if st.button("🔎 Find Similar Workouts", type="primary"):
+                target_workout = cycling_workouts[selected_idx]
+                
+                # Initialize comparator
+                comparator = WorkoutComparator()
+                
+                # Find similar workouts
+                with st.spinner("Analyzing workout similarities..."):
+                    similar_workouts = comparator.find_similar_workouts(
+                        target_workout,
+                        cycling_workouts,
+                        min_similarity=min_similarity,
+                        max_results=max_results
+                    )
+                
+                if similar_workouts:
+                    display_similar_workouts_list(similar_workouts, target_workout['workout_day'])
+                    
+                    # If we have matches, show detailed comparison for the top match
+                    if similar_workouts:
+                        st.markdown("---")
+                        st.markdown("### 📊 Detailed Comparison (Top Match)")
+                        
+                        top_match_workout, top_similarity = similar_workouts[0]
+                        
+                        # Perform detailed comparison
+                        comparison = comparator.compare_workouts_detailed(
+                            target_workout,
+                            top_match_workout
+                        )
+                        
+                        # Display the comparison
+                        display_session_comparison(
+                            target_workout,
+                            top_match_workout,
+                            comparison
+                        )
+                else:
+                    st.info(f"No workouts found with similarity ≥ {min_similarity}%. Try lowering the threshold.")
+        
+        else:
+            # Compare two specific workouts mode
+            st.markdown("### Select Two Workouts to Compare")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**Workout 1** (Recent)")
+                workout1_options = workouts_df['workout_day'] + ' - ' + workouts_df['workout_title'].str[:40]
+                workout1_idx = st.selectbox(
+                    "Select first workout:",
+                    options=range(len(workout1_options)),
+                    format_func=lambda x: workout1_options.iloc[x],
+                    key="workout1"
+                )
+            
+            with col2:
+                st.markdown("**Workout 2** (Comparison)")
+                workout2_options = workouts_df['workout_day'] + ' - ' + workouts_df['workout_title'].str[:40]
+                workout2_idx = st.selectbox(
+                    "Select second workout:",
+                    options=range(len(workout2_options)),
+                    format_func=lambda x: workout2_options.iloc[x],
+                    key="workout2"
+                )
+            
+            if st.button("⚖️ Compare Workouts", type="primary"):
+                if workout1_idx == workout2_idx:
+                    st.warning("Please select two different workouts to compare.")
+                else:
+                    workout1 = cycling_workouts[workout1_idx]
+                    workout2 = cycling_workouts[workout2_idx]
+                    
+                    # Initialize comparator
+                    comparator = WorkoutComparator()
+                    
+                    # Calculate similarity
+                    similarity = comparator.calculate_similarity_score(workout1, workout2)
+                    
+                    st.info(f"**Similarity Score:** {similarity:.0f}%")
+                    
+                    # Perform detailed comparison
+                    with st.spinner("Analyzing workouts..."):
+                        comparison = comparator.compare_workouts_detailed(workout1, workout2)
+                    
+                    # Display the comparison
+                    display_session_comparison(workout1, workout2, comparison)
+    
+    except requests.exceptions.ConnectionError:
+        st.error("❌ Cannot connect to the API. Please ensure the FastAPI server is running.")
+        st.code("python3 -m uvicorn src.api.app:app --reload", language="bash")
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
+        import traceback
+        with st.expander("Show Error Details"):
+            st.code(traceback.format_exc())
+
 def reset_form_state():
     st.session_state.show_notes_form = False
     st.session_state.notes_saved = False
@@ -2870,6 +3075,7 @@ page = st.sidebar.radio("Go to", [
     '🎯 Achievements & Goals',
     '📅 Workout Calendar', 
     '🤖 AI Coach',
+    # '🔄 Session Comparison',  # Moved to Historical Analysis tab
     '📥 Import Data', 
     '📈 Weekly Summary', 
     '🗂️ View Data', 
@@ -2888,6 +3094,10 @@ elif page == '🎯 Achievements & Goals':
 
 elif page == '🤖 AI Coach':
     display_ai_coach()
+
+# Session Comparison moved to Historical Analysis tab - keeping function for potential future use
+# elif page == '🔄 Session Comparison':
+#     display_session_comparison_page()
 
 elif page == '📊 Dashboard':
     create_section_header("Training Dashboard", "📊")
@@ -2930,25 +3140,30 @@ elif page == '📊 Dashboard':
     
     # Fetch data for selected time period
     try:
-        # Fetch workouts
-        workouts_response = requests.get("http://localhost:8000/workouts")
+        # Fetch workouts for the selected week
+        workouts_response = requests.get(
+            f"{API_URL}/workouts/week",
+            params={
+                "start_date": dashboard_start_date.isoformat(),
+                "end_date": dashboard_end_date.isoformat()
+            }
+        )
         if workouts_response.status_code != 200:
-            st.error("Error fetching workout data")
+            st.error(f"Error fetching workout data: {workouts_response.status_code}")
             workouts_df = pd.DataFrame()
         else:
-            workouts = workouts_response.json()
+            result = workouts_response.json()
+            # The /workouts/week endpoint returns {completed_workouts: [...], proposed_workouts: [...]}
+            workouts = result.get('completed_workouts', []) if isinstance(result, dict) else result
             if workouts:
                 workouts_df = pd.DataFrame(workouts)
                 # Convert dates to datetime
                 workouts_df['workout_day'] = pd.to_datetime(workouts_df['workout_day'])
-                # Filter by date range
-                workouts_df = workouts_df[(workouts_df['workout_day'].dt.date >= dashboard_start_date) & 
-                                         (workouts_df['workout_day'].dt.date <= dashboard_end_date)]
             else:
                 workouts_df = pd.DataFrame()
         
         # Fetch weekly summaries
-        summaries_response = requests.get("http://localhost:8000/summaries")
+        summaries_response = requests.get(f"{API_URL}/summaries")
         if summaries_response.status_code != 200:
             st.error("Error fetching summary data")
             summaries_df = pd.DataFrame()
@@ -2981,7 +3196,13 @@ elif page == '📊 Dashboard':
         if has_workout_data:
             # Extract metrics from workout data
             total_workouts = len(workouts_df)
-            workout_types = workouts_df['type'].value_counts().to_dict() if 'type' in workouts_df.columns else {}
+            
+            # Normalize workout types to lowercase for consistent counting
+            if 'type' in workouts_df.columns:
+                workouts_df['type_lower'] = workouts_df['type'].str.lower()
+                workout_types = workouts_df['type_lower'].value_counts().to_dict()
+            else:
+                workout_types = {}
             
             # Calculate TSS and duration metrics
             total_tss = 0
@@ -2998,7 +3219,7 @@ elif page == '📊 Dashboard':
             avg_tss_per_workout = total_tss / total_workouts if total_workouts > 0 else 0
             training_hours = total_duration / 60  # Convert minutes to hours
             
-            # Count workout types
+            # Count workout types (now using lowercase)
             bike_workouts = workout_types.get('bike', 0)
             strength_workouts = workout_types.get('strength', 0)
             run_workouts = workout_types.get('run', 0)
@@ -3456,7 +3677,7 @@ elif page == '📥 Import Data':
                     try:
                         files = {'file': fit_file}
                         response = requests.post(
-                            "http://localhost:8000/upload/fit",
+                            f"{API_URL}/upload/fit",
                             files=files
                         )
                         
@@ -3476,7 +3697,7 @@ elif page == '📥 Import Data':
         if workouts_file is not None and st.session_state.current_workouts is None:
             files = {'file': workouts_file}
             try:
-                response = requests.post("http://localhost:8000/upload/workouts", files=files)
+                response = requests.post(f"{API_URL}/upload/workouts", files=files)
                 if response.status_code == 200:
                     st.session_state.current_workouts = response.json()['workouts']
                     st.success(f"Successfully processed {len(st.session_state.current_workouts)} workouts!")
@@ -3489,7 +3710,7 @@ elif page == '📥 Import Data':
         if metrics_file is not None:
             files = {'file': metrics_file}
             try:
-                response = requests.post("http://localhost:8000/upload/metrics", files=files)
+                response = requests.post(f"{API_URL}/upload/metrics", files=files)
                 if response.status_code == 200:
                     metrics = response.json()['metrics']
                     st.success(f"Successfully processed {len(metrics)} metrics!")
@@ -3541,7 +3762,7 @@ elif page == '📥 Import Data':
                         if submit_button:
                             try:
                                 response = requests.post(
-                                    "http://localhost:8000/workouts/qualitative",
+                                    f"{API_URL}/workouts/qualitative",
                                     json={
                                         "workout_day": workout['workout_day'],
                                         "workout_title": workout['title'],
@@ -3669,7 +3890,7 @@ elif page == '🗂️ View Data':
     
     with tab1:
         try:
-            response = requests.get("http://localhost:8000/workouts")
+            response = requests.get(f"{API_URL}/workouts")
             if response.status_code == 200:
                 workouts = response.json()
                 if workouts:
@@ -3684,7 +3905,7 @@ elif page == '🗂️ View Data':
     
     with tab2:
         try:
-            response = requests.get("http://localhost:8000/summaries")
+            response = requests.get(f"{API_URL}/summaries")
             if response.status_code == 200:
                 summaries = response.json()
                 if summaries:
@@ -3744,7 +3965,7 @@ elif page == '📋 Proposed Workouts':
                         st.stop()
                     # Call the API to generate the files
                     response = requests.get(
-                        "http://localhost:8000/zwift/generate_workouts",
+                        f"{API_URL}/zwift/generate_workouts",
                         params={
                             "start_date": zwift_start_date.strftime("%Y-%m-%d") if zwift_start_date else None,
                             "end_date": zwift_end_date.strftime("%Y-%m-%d") if zwift_end_date else None,
@@ -3792,7 +4013,7 @@ elif page == '📋 Proposed Workouts':
                         
                         # Send file to API
                         response = requests.post(
-                            "http://localhost:8000/upload/proposed_workouts",
+                            f"{API_URL}/upload/proposed_workouts",
                             files={"file": (uploaded_file.name, uploaded_file, "application/json")}
                         )
 
@@ -3880,7 +4101,7 @@ elif page == '📈 Weekly Summary':
     if st.button("Generate Summary") or st.session_state.show_notes_form:
         try:
             response = requests.get(
-                "http://localhost:8000/summary/generate",
+                f"{API_URL}/summary/generate",
                 params={
                     "start_date": weekly_start_date.strftime('%Y-%m-%d'),
                     "end_date": weekly_end_date.strftime('%Y-%m-%d')
@@ -4124,7 +4345,7 @@ elif page == '📈 Weekly Summary':
 
                         try:
                             save_response = requests.post(
-                                "http://localhost:8000/summary/save",
+                                f"{API_URL}/summary/save",
                                 json=summary_data
                             )
                             if save_response.status_code == 200:
@@ -4154,7 +4375,7 @@ elif page == '📈 Weekly Summary':
                 if st.session_state.notes_saved:
                     try:
                         export_response = requests.get(
-                            "http://localhost:8000/summary/export",
+                            f"{API_URL}/summary/export",
                             params={
                                 "start_date": weekly_start_date.isoformat(),
                                 "end_date": weekly_end_date.isoformat()

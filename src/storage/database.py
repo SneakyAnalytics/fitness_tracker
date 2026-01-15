@@ -685,11 +685,12 @@ class WorkoutDatabase:
         try:
             # Get all workouts for the date range - updated to handle sequence numbers
             query = '''
-                    SELECT w.workout_day, w.workout_title, w.workout_data, w.qualitative_data, w.athlete_comments, w.sequence_number, f.fit_data
+                    SELECT w.workout_day, w.workout_title, w.workout_data, w.qualitative_data, w.athlete_comments, w.sequence_number, f.fit_data, wa.analysis_data
                     FROM workouts w
                     LEFT JOIN fit_files f ON w.workout_day = f.workout_day 
                     AND w.workout_title = f.workout_title 
                     AND w.sequence_number = f.sequence_number
+                    LEFT JOIN workout_analyses wa ON w.id = wa.workout_id
                     WHERE w.workout_day >= ? AND w.workout_day <= ?
                     ORDER BY w.workout_day, w.sequence_number
                     '''
@@ -736,13 +737,21 @@ class WorkoutDatabase:
             # Process workouts
             for row in workout_rows:
                 try:
-                    day, title, workout_data, qual_data, athlete_comments, sequence_number, fit_data = row
+                    day, title, workout_data, qual_data, athlete_comments, sequence_number, fit_data, analysis_data_json = row
                     print(f"\nProcessing workout: {title} on {day} (sequence {sequence_number})")
                     
                     workout = json.loads(workout_data)
                     print(f"Raw workout data: {json.dumps(workout, indent=2)}")
                     
                     qualitative = json.loads(qual_data) if qual_data else {}
+                    
+                    # Parse analysis_data if present
+                    analysis_data = None
+                    if analysis_data_json:
+                        try:
+                            analysis_data = json.loads(analysis_data_json)
+                        except (json.JSONDecodeError, TypeError):
+                            analysis_data = None
                     
                     # Safely load fit_data. If the LEFT JOIN didn't find a matching fit row (sequence mismatch),
                     # try a fallback lookup for any fit_files entry matching day/title (use latest sequence).
@@ -912,6 +921,41 @@ class WorkoutDatabase:
                         'zones': power_data.get('zones', {}),
                         'normalized_power': power_data.get('normalized_power')
                     }
+                    
+                    # For interval-based workouts, override average power with interval-specific power
+                    # This ensures VO2max/Threshold/Tempo workouts show actual work interval power
+                    # rather than whole-workout average (which includes warmup/cooldown)
+                    print(f"DEBUG: Checking interval power extraction - workout_type={workout_type}, has_analysis_data={bool(analysis_data)}, title={title[:50]}")
+                    if workout_type == 'Bike' and analysis_data:
+                        print(f"DEBUG: Entering interval power extraction for {title[:50]}")
+                        try:
+                            from src.utils.workout_type_analyzer import WorkoutTypeAnalyzer
+                            analyzer = WorkoutTypeAnalyzer()
+                            
+                            # Classify workout to determine if it needs interval power extraction
+                            if_val = canonical_power.get('intensity_factor')
+                            try:
+                                if_val = float(if_val) if if_val else None
+                            except (ValueError, TypeError):
+                                if_val = None
+                            
+                            classified_type = analyzer.classify_workout(title, if_val)
+                            print(f"DEBUG: Classified as {classified_type}")
+                            
+                            # Extract interval-specific power for high-intensity interval workouts
+                            # Convert analysis_data dict back to JSON string as expected by the function
+                            analysis_data_json = json.dumps(analysis_data)
+                            print(f"DEBUG: Calling extract_interval_power with classified_type={classified_type}")
+                            interval_power = WorkoutTypeAnalyzer.extract_interval_power(analysis_data_json, classified_type)
+                            print(f"DEBUG: extract_interval_power returned {interval_power}")
+                            if interval_power is not None:
+                                canonical_power['average'] = interval_power
+                                print(f"DEBUG: Overriding power average from {power_data.get('average', power_data.get('average_power'))}W to {interval_power}W for {classified_type} workout")
+                        except Exception as e:
+                            # If extraction fails, keep the whole workout average
+                            print(f"DEBUG: Could not extract interval power: {e}")
+                            import traceback
+                            traceback.print_exc()
 
                     print(f"Power data (canonical): {json.dumps(canonical_power, indent=2)}")
 
@@ -2328,6 +2372,33 @@ class WorkoutDatabase:
         finally:
             conn.close()
     
+    def update_workout_analysis_text(self, analysis_id: int, analysis_text: str) -> None:
+        """
+        Update only the analysis_text field for an existing analysis
+        
+        Args:
+            analysis_id: ID of the analysis to update
+            analysis_text: New analysis text
+        """
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        
+        try:
+            c.execute('''
+                UPDATE workout_analyses
+                SET analysis_text = ?, analyzed_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (analysis_text, analysis_id))
+            
+            conn.commit()
+            
+        except Exception as e:
+            print(f"Error updating workout analysis text: {e}")
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+    
     def get_workout_analysis(self, workout_id: Optional[int] = None, 
                             fit_file_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
         """
@@ -2398,11 +2469,11 @@ class WorkoutDatabase:
             c.execute('''
                 SELECT 
                     w.id as workout_id,
-                    w.workout_date,
-                    w.workout_name,
-                    w.workout_type,
-                    w.duration,
-                    w.tss,
+                    w.workout_day,
+                    w.workout_title,
+                    json_extract(w.workout_data, '$.type') as workout_type,
+                    json_extract(w.workout_data, '$.TimeTotalInHours') as duration_hours,
+                    json_extract(w.workout_data, '$.TSS') as tss,
                     wa.id as analysis_id,
                     wa.analysis_text,
                     wa.analysis_data,
@@ -2411,21 +2482,28 @@ class WorkoutDatabase:
                     wa.model_used
                 FROM workouts w
                 LEFT JOIN workout_analyses wa ON w.id = wa.workout_id
-                WHERE w.workout_date BETWEEN ? AND ?
+                WHERE w.workout_day BETWEEN ? AND ?
                     AND wa.id IS NOT NULL
-                ORDER BY w.workout_date ASC
+                ORDER BY w.workout_day ASC
             ''', (start_date, end_date))
             
             rows = c.fetchall()
             analyses = []
             
             for row in rows:
+                duration = row[4]
+                if duration:
+                    try:
+                        duration = float(duration) * 60  # Convert hours to minutes
+                    except:
+                        duration = 0
+                
                 analysis = {
                     'workout_id': row[0],
                     'workout_date': row[1],
                     'workout_name': row[2],
                     'workout_type': row[3],
-                    'duration': row[4],
+                    'duration': duration,
                     'tss': row[5],
                     'analysis_id': row[6],
                     'analysis_text': row[7],
@@ -2650,25 +2728,48 @@ class WorkoutDatabase:
         c = conn.cursor()
         
         try:
-            # Get all workout_analyses records with their associated data
+            # Get only the most recent analysis per workout/fit_file to avoid duplicates
+            # Use ROW_NUMBER to get the latest analysis for each unique workout
             query = '''
+                WITH ranked_analyses AS (
+                    SELECT 
+                        wa.id as analysis_id,
+                        wa.analyzed_at,
+                        wa.analysis_text,
+                        wa.analysis_data,
+                        wa.peak_efforts,
+                        wa.workout_id,
+                        wa.fit_file_id,
+                        COALESCE(w.workout_day, f.workout_day) as workout_day,
+                        COALESCE(w.workout_title, f.workout_title) as workout_title,
+                        w.workout_data,
+                        f.fit_data,
+                        f.file_name,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY COALESCE(wa.workout_id, wa.fit_file_id)
+                            ORDER BY wa.analyzed_at DESC
+                        ) as rn
+                    FROM workout_analyses wa
+                    LEFT JOIN workouts w ON wa.workout_id = w.id
+                    LEFT JOIN fit_files f ON wa.fit_file_id = f.id
+                    WHERE wa.workout_id IS NOT NULL OR wa.fit_file_id IS NOT NULL
+                )
                 SELECT 
-                    wa.id as analysis_id,
-                    wa.analyzed_at,
-                    wa.analysis_text,
-                    wa.analysis_data,
-                    wa.peak_efforts,
-                    wa.workout_id,
-                    wa.fit_file_id,
-                    COALESCE(w.workout_day, f.workout_day) as workout_day,
-                    COALESCE(w.workout_title, f.workout_title) as workout_title,
-                    w.workout_data,
-                    f.fit_data,
-                    f.file_name
-                FROM workout_analyses wa
-                LEFT JOIN workouts w ON wa.workout_id = w.id
-                LEFT JOIN fit_files f ON wa.fit_file_id = f.id
-                ORDER BY wa.analyzed_at DESC
+                    analysis_id,
+                    analyzed_at,
+                    analysis_text,
+                    analysis_data,
+                    peak_efforts,
+                    workout_id,
+                    fit_file_id,
+                    workout_day,
+                    workout_title,
+                    workout_data,
+                    fit_data,
+                    file_name
+                FROM ranked_analyses
+                WHERE rn = 1
+                ORDER BY analyzed_at DESC
                 LIMIT ?
             '''
             
