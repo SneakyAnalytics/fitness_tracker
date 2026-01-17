@@ -238,24 +238,78 @@ class DailyAutoSyncAndAnalyze:
 
                     # If fit_file_id is missing, try to match a FIT file from the same day
                     if not fit_file_id and workout_day:
-                        c.execute('SELECT id, fit_data FROM fit_files WHERE workout_day = ?', (workout_day,))
+                        # Try exact day first, then +/-1 day to handle timezone drift
+                        workout_day_str = str(workout_day)
+                        candidate_days = [workout_day_str]
+                        # If workout_data has a start_time, derive LA date to avoid UTC/PST mismatch
+                        start_time_str = workout_data.get('start_time') or workout_data.get('start_time_utc')
+                        if start_time_str:
+                            try:
+                                import pytz
+                                start_time = datetime.fromisoformat(start_time_str)
+                                if start_time.tzinfo is None:
+                                    start_time = pytz.UTC.localize(start_time)
+                                la_timezone = pytz.timezone('America/Los_Angeles')
+                                la_time = start_time.astimezone(la_timezone)
+                                la_day = la_time.strftime('%Y-%m-%d')
+                                if la_day not in candidate_days:
+                                    candidate_days.insert(0, la_day)
+                            except Exception:
+                                pass
+                        try:
+                            wd = datetime.fromisoformat(workout_day_str).date()
+                            candidate_days = [
+                                wd.strftime('%Y-%m-%d'),
+                                (wd - timedelta(days=1)).strftime('%Y-%m-%d'),
+                                (wd + timedelta(days=1)).strftime('%Y-%m-%d')
+                            ]
+                        except Exception:
+                            pass
+
+                        placeholders = ','.join('?' for _ in candidate_days)
+                        c.execute(
+                            f'SELECT id, fit_data, workout_title, file_name, workout_day FROM fit_files WHERE workout_day IN ({placeholders})',
+                            tuple(candidate_days)
+                        )
                         candidates = c.fetchall()
+
+                        def _norm(text: str) -> str:
+                            return ''.join(ch.lower() for ch in (text or '') if ch.isalnum() or ch.isspace()).strip()
+
                         if candidates:
                             if len(candidates) == 1:
-                                fit_file_id, fit_data_str = candidates[0]
+                                fit_file_id, fit_data_str, *_ = candidates[0]
                             else:
-                                # Choose closest match by duration/TSS
+                                # Choose closest match by duration/TSS and title similarity
                                 metrics = workout_data.get('metrics', {})
                                 actual_tss = float(metrics.get('actual_tss', 0) or metrics.get('tss', 0) or 0)
                                 actual_dur = float(metrics.get('actual_duration', 0) or metrics.get('duration', 0) or 0)
+                                if not actual_dur:
+                                    actual_dur = float(workout_data.get('duration_minutes', 0) or 0)
+                                if not actual_dur:
+                                    actual_dur = float(workout_data.get('duration_hours', 0) or 0) * 60
+
+                                norm_title = _norm(workout_title)
                                 best_score = 1e9
                                 fit_data_str = None
-                                for cand_id, cand_fit_data in candidates:
+                                for cand_id, cand_fit_data, cand_title, cand_file, cand_day in candidates:
                                     try:
                                         cand = json.loads(cand_fit_data) if isinstance(cand_fit_data, str) else cand_fit_data
                                         cand_tss = float(cand.get('power_metrics', {}).get('tss', 0) or 0)
                                         cand_dur = float(cand.get('duration_seconds', 0) or 0) / 60
-                                        score = abs(actual_tss - cand_tss) + abs(actual_dur - cand_dur)
+                                        score = 0.0
+                                        if actual_tss and cand_tss:
+                                            score += abs(actual_tss - cand_tss)
+                                        if actual_dur and cand_dur:
+                                            score += abs(actual_dur - cand_dur)
+
+                                        cand_title_norm = _norm(cand_title or '')
+                                        cand_file_norm = _norm(cand_file or '')
+                                        if norm_title and norm_title not in cand_title_norm and norm_title not in cand_file_norm:
+                                            score += 30
+                                        if cand_day != workout_day:
+                                            score += 15
+
                                         if score < best_score:
                                             best_score = score
                                             fit_file_id = cand_id
