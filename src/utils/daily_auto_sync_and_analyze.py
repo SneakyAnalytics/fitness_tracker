@@ -232,23 +232,59 @@ class DailyAutoSyncAndAnalyze:
 
                 # Prefer FIT data if available for richer visuals (power/HR/cadence series)
                 fit_data = None
-                if fit_file_id:
-                    try:
-                        conn = sqlite3.connect(self.db.db_path)
-                        c = conn.cursor()
+                try:
+                    conn = sqlite3.connect(self.db.db_path)
+                    c = conn.cursor()
+
+                    # If fit_file_id is missing, try to match a FIT file from the same day
+                    if not fit_file_id and workout_day:
+                        c.execute('SELECT id, fit_data FROM fit_files WHERE workout_day = ?', (workout_day,))
+                        candidates = c.fetchall()
+                        if candidates:
+                            if len(candidates) == 1:
+                                fit_file_id, fit_data_str = candidates[0]
+                            else:
+                                # Choose closest match by duration/TSS
+                                metrics = workout_data.get('metrics', {})
+                                actual_tss = float(metrics.get('actual_tss', 0) or metrics.get('tss', 0) or 0)
+                                actual_dur = float(metrics.get('actual_duration', 0) or metrics.get('duration', 0) or 0)
+                                best_score = 1e9
+                                fit_data_str = None
+                                for cand_id, cand_fit_data in candidates:
+                                    try:
+                                        cand = json.loads(cand_fit_data) if isinstance(cand_fit_data, str) else cand_fit_data
+                                        cand_tss = float(cand.get('power_metrics', {}).get('tss', 0) or 0)
+                                        cand_dur = float(cand.get('duration_seconds', 0) or 0) / 60
+                                        score = abs(actual_tss - cand_tss) + abs(actual_dur - cand_dur)
+                                        if score < best_score:
+                                            best_score = score
+                                            fit_file_id = cand_id
+                                            fit_data_str = cand_fit_data
+                                    except Exception:
+                                        continue
+
+                            # Persist linkage if found
+                            if fit_file_id:
+                                c.execute('UPDATE workouts SET fit_file_id = ? WHERE id = ?', (fit_file_id, workout_id))
+
+                    # Load fit_data by id
+                    if fit_file_id:
                         c.execute('SELECT fit_data FROM fit_files WHERE id = ?', (fit_file_id,))
                         row = c.fetchone()
-                        conn.close()
                         if row and row[0]:
                             fit_data = json.loads(row[0]) if isinstance(row[0], str) else row[0]
-                            # Inject workout title/date/comments for better matching + analysis context
-                            if fit_data is not None:
-                                fit_data['title'] = workout_title
-                                fit_data['workout_day'] = workout_day
-                                if athlete_comments:
-                                    fit_data['athlete_comments'] = athlete_comments
-                    except Exception as e:
-                        logger.warning(f"   ⚠️  Could not load fit_data for fit_file_id={fit_file_id}: {e}")
+
+                    conn.commit()
+                    conn.close()
+
+                    # Inject workout title/date/comments for better matching + analysis context
+                    if fit_data is not None:
+                        fit_data['title'] = workout_title
+                        fit_data['workout_day'] = workout_day
+                        if athlete_comments:
+                            fit_data['athlete_comments'] = athlete_comments
+                except Exception as e:
+                    logger.warning(f"   ⚠️  Could not load fit_data for workout_id={workout_id}: {e}")
                 
                 # Skip non-cycling workouts during DB reanalysis
                 sport = (workout_data.get('sport') or '').lower()
