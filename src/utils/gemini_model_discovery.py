@@ -198,6 +198,10 @@ class GeminiModelDiscovery:
             score += 100
         elif 'pro' in model_lower:
             score += 50
+
+        # De-prioritize lite variants (lower quality)
+        if 'lite' in model_lower:
+            score -= 40
         
         # Prefer stable over experimental
         if 'exp' in model_lower or 'experimental' in model_lower:
