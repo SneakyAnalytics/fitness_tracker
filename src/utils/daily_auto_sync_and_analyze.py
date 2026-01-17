@@ -199,14 +199,14 @@ class DailyAutoSyncAndAnalyze:
 
         if reanalyze_existing:
             c.execute("""
-                SELECT w.id, w.workout_day, w.workout_title, w.workout_data, w.fit_file_id
+                SELECT w.id, w.workout_day, w.workout_title, w.workout_data, w.fit_file_id, w.athlete_comments
                 FROM workouts w
                 WHERE w.workout_day = ?
                 ORDER BY w.id
             """, (str(target_date),))
         else:
             c.execute("""
-                SELECT w.id, w.workout_day, w.workout_title, w.workout_data, w.fit_file_id
+                SELECT w.id, w.workout_day, w.workout_title, w.workout_data, w.fit_file_id, w.athlete_comments
                 FROM workouts w
                 LEFT JOIN workout_analyses wa ON w.id = wa.workout_id
                 WHERE w.workout_day = ? AND wa.id IS NULL
@@ -223,7 +223,7 @@ class DailyAutoSyncAndAnalyze:
         logger.info("STEP 3: AI Analysis (from database)")
         logger.info("-" * 60)
         
-        for i, (workout_id, workout_day, workout_title, workout_data_json, fit_file_id) in enumerate(workouts_to_analyze):
+        for i, (workout_id, workout_day, workout_title, workout_data_json, fit_file_id, athlete_comments) in enumerate(workouts_to_analyze):
             logger.info(f"[{i+1}/{len(workouts_to_analyze)}] {workout_title}")
             
             try:
@@ -241,20 +241,29 @@ class DailyAutoSyncAndAnalyze:
                         conn.close()
                         if row and row[0]:
                             fit_data = json.loads(row[0]) if isinstance(row[0], str) else row[0]
-                            # Inject workout title/date for better proposed workout matching
+                            # Inject workout title/date/comments for better matching + analysis context
                             if fit_data is not None:
                                 fit_data['title'] = workout_title
                                 fit_data['workout_day'] = workout_day
+                                if athlete_comments:
+                                    fit_data['athlete_comments'] = athlete_comments
                     except Exception as e:
                         logger.warning(f"   ⚠️  Could not load fit_data for fit_file_id={fit_file_id}: {e}")
                 
+                # Skip non-cycling workouts during DB reanalysis
+                sport = (workout_data.get('sport') or '').lower()
+                if sport and sport not in ['cycling', 'bike', 'biking']:
+                    logger.info(f"   ⏭️  Skipping non-cycling workout (sport: {sport})")
+                    continue
+
                 # Create analyzer
                 analyzer = FitFileAnalyzer(use_dynamic_models=True)
                 
                 # Run analysis using the workout data
                 analysis = analyzer.analyze_workout_from_parsed_data(
                     parsed_data=fit_data if fit_data else workout_data,
-                    athlete_ftp=float(ftp_watts)
+                    athlete_ftp=float(ftp_watts),
+                    athlete_notes=athlete_comments
                 )
                 
                 if analysis:
