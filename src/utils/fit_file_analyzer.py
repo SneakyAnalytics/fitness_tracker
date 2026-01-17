@@ -580,7 +580,64 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
             
             print(f"Found {len(candidates)} candidate workouts in date range")
             
-            # Score each candidate
+            # Try AI-based matching first for resilience
+            try:
+                from .workout_matcher import WorkoutMatcher
+
+                matcher = WorkoutMatcher()
+                proposed_list = []
+                for row in candidates:
+                    date, name, wtype, planned_dur, tss_min, tss_max, rpe_min, rpe_max, intervals, sections, notes = row
+                    proposed_list.append({
+                        'date': date,
+                        'name': name,
+                        'type': wtype,
+                        'plannedDuration': planned_dur,
+                        'plannedTSS_min': tss_min,
+                        'plannedTSS_max': tss_max,
+                        'notes': notes or ''
+                    })
+
+                actual_list = [{
+                    'id': 1,
+                    'title': parsed_data.get('title', ''),
+                    'tss': float(actual_tss or 0),
+                    'duration_min': float(actual_duration_min or 0),
+                    'athlete_comments': parsed_data.get('athlete_comments', ''),
+                    'sport': parsed_data.get('sport', 'cycling')
+                }]
+
+                matches = matcher.match_workouts_for_day(actual_list, proposed_list, workout_date)
+                matched_name = matches.get(1)
+                if matched_name:
+                    for row in candidates:
+                        date, name, wtype, planned_dur, tss_min, tss_max, rpe_min, rpe_max, intervals, sections, notes = row
+                        if name == matched_name:
+                            best_match = {
+                                'date': date,
+                                'name': name,
+                                'type': wtype,
+                                'plannedDuration': planned_dur,
+                                'plannedTSS': {
+                                    'min': tss_min,
+                                    'max': tss_max
+                                },
+                                'targetRPE': {
+                                    'min': rpe_min,
+                                    'max': rpe_max
+                                },
+                                'intervals': json.loads(intervals) if intervals else [],
+                                'sections': json.loads(sections) if sections else [],
+                                'notes': notes
+                            }
+                            if used_workout_ids is not None:
+                                used_workout_ids.add((date, name))
+                            print(f"✓ AI matched workout to {name} on {date}")
+                            return best_match
+            except Exception as e:
+                print(f"⚠️  AI matcher unavailable or failed: {e}")
+
+            # Score each candidate (fallback)
             best_score = 0
             best_match = None
             
@@ -590,6 +647,8 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
             
             actual_title = (parsed_data.get('title') or '').lower()
             title_keywords = ['race', 'warmup', 'pre', 'recovery', 'zone 2', 'endurance', 'tempo', 'threshold', 'vo2']
+            actual_has_race = 'race' in actual_title and not any(w in actual_title for w in ['pre', 'warmup'])
+            actual_has_warmup = any(w in actual_title for w in ['pre', 'warmup'])
 
             for row in candidates:
                 date, name, wtype, planned_dur, tss_min, tss_max, rpe_min, rpe_max, intervals, sections, notes = row
@@ -626,6 +685,18 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
                         if kw in actual_title and kw in name_lower:
                             score += 15
                             break
+
+                # Strong intent alignment for race vs warmup
+                if actual_has_race:
+                    if any(w in name_lower for w in ['pre', 'warmup', 'activation']):
+                        score -= 25
+                    elif 'race' in name_lower:
+                        score += 25
+                elif actual_has_warmup:
+                    if any(w in name_lower for w in ['pre', 'warmup', 'activation']):
+                        score += 25
+                    elif 'race' in name_lower:
+                        score -= 15
                 
                 # Duration match (40 points max) - CRITICAL for distinguishing workouts
                 if planned_dur:
