@@ -513,7 +513,7 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
             return {}
     
     def _find_best_matching_workout(self, parsed_data: Dict[str, Any], workout_date: str, 
-                                   date_window_days: int = 2, 
+                                   date_window_days: int = 7, 
                                    used_workout_ids: Optional[set] = None) -> Optional[Dict[str, Any]]:
         """
         Find the best matching proposed workout based on TSS, duration, and workout characteristics.
@@ -582,8 +582,12 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
             if used_workout_ids is None:
                 used_workout_ids = set()
             
+            actual_title = (parsed_data.get('title') or '').lower()
+            title_keywords = ['race', 'warmup', 'pre', 'recovery', 'zone 2', 'endurance', 'tempo', 'threshold', 'vo2']
+
             for row in candidates:
                 date, name, wtype, planned_dur, tss_min, tss_max, rpe_min, rpe_max, intervals, sections, notes = row
+                name_lower = (name or '').lower()
                 
                 # Skip if this workout already matched to another file on same day
                 workout_id = (date, name)
@@ -595,14 +599,27 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
                 # Priority: TSS (40 pts) > Duration (40 pts) > Date (20 pts)
                 score = 0
                 
-                # Date proximity (20 points max) - Lower priority for multi-workout days
-                days_diff = abs((datetime.strptime(date, '%Y-%m-%d') - base_date).days)
+                cand_date = datetime.strptime(date, '%Y-%m-%d')
+
+                # Date proximity (20 points max) - keep, but don't force same-day
+                days_diff = abs((cand_date - base_date).days)
                 if days_diff == 0:
                     score += 20  # Same day
                 elif days_diff == 1:
                     score += 10  # 1 day off
                 elif days_diff == 2:
                     score += 5   # 2 days off
+
+                # Same-week bonus (10 points) - prefer workouts from the same training week
+                if cand_date.isocalendar()[:2] == base_date.isocalendar()[:2]:
+                    score += 10
+
+                # Title keyword match (15 points max) - strong signal when available
+                if actual_title:
+                    for kw in title_keywords:
+                        if kw in actual_title and kw in name_lower:
+                            score += 15
+                            break
                 
                 # Duration match (40 points max) - CRITICAL for distinguishing workouts
                 if planned_dur:
