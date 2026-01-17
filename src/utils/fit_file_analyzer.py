@@ -933,10 +933,23 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
             detected_intervals_text = "\n\n🤖 AUTO-DETECTED INTERVAL STRUCTURE:\n"
             detected_intervals_text += f"Workout Structure: {intervals_data.get('description', 'Unknown')}\n\n"
             
+            label_map = {
+                'vo2max': 'VO2',
+                'threshold': 'Threshold',
+                'tempo': 'Tempo',
+                'endurance': 'Zone 2',
+                'recovery': 'Recovery',
+                'rest': 'Recovery',
+                'warmup': 'Warmup',
+                'cooldown': 'Cooldown',
+                'work': 'Work'
+            }
+
             for interval in intervals_data['intervals']:
                 mins = interval['duration_sec'] // 60
                 secs = interval['duration_sec'] % 60
-                interval_type = interval['type'].replace('_', ' ').title()
+                raw_type = interval['type']
+                interval_type = label_map.get(raw_type, raw_type.replace('_', ' ').title())
                 
                 detected_intervals_text += (
                     f"  • {interval_type}: {mins}:{secs:02d} @ "

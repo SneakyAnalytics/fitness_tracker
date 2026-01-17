@@ -32,22 +32,22 @@ def main() -> None:
     conn = sqlite3.connect(args.db)
     cur = conn.cursor()
 
-    cur.execute(
-        """
-        SELECT w.id, w.workout_day, w.workout_title, w.fit_file_id
-        FROM workouts w
-        WHERE w.workout_day BETWEEN ? AND ?
-          AND w.fit_file_id IS NOT NULL
-        ORDER BY w.workout_day, w.id
-        """,
-        (args.start, args.end),
-    )
+        cur.execute(
+                """
+                SELECT w.id, w.workout_day, w.workout_title, w.fit_file_id, w.athlete_comments
+                FROM workouts w
+                WHERE w.workout_day BETWEEN ? AND ?
+                    AND w.fit_file_id IS NOT NULL
+                ORDER BY w.workout_day, w.id
+                """,
+                (args.start, args.end),
+        )
     workouts = cur.fetchall()
 
     analyzer = FitFileAnalyzer(use_dynamic_models=True)
     updated = 0
 
-    for workout_id, workout_day, workout_title, fit_file_id in workouts:
+    for workout_id, workout_day, workout_title, fit_file_id, athlete_comments in workouts:
         cur.execute("SELECT fit_data FROM fit_files WHERE id = ?", (fit_file_id,))
         row = cur.fetchone()
         if not row or not row[0]:
@@ -58,7 +58,12 @@ def main() -> None:
         if fit_data is not None:
             fit_data['title'] = workout_title
             fit_data['workout_day'] = workout_day
-        analysis = analyzer.analyze_workout_from_parsed_data(parsed_data=fit_data)
+            if athlete_comments:
+                fit_data['athlete_comments'] = athlete_comments
+        analysis = analyzer.analyze_workout_from_parsed_data(
+            parsed_data=fit_data,
+            athlete_notes=athlete_comments
+        )
         if not analysis:
             print(f"⚠️  Analysis failed for {workout_title}")
             continue
