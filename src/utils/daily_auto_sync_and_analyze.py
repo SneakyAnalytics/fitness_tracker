@@ -241,6 +241,10 @@ class DailyAutoSyncAndAnalyze:
                         conn.close()
                         if row and row[0]:
                             fit_data = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+                            # Inject workout title/date for better proposed workout matching
+                            if fit_data is not None:
+                                fit_data['title'] = workout_title
+                                fit_data['workout_day'] = workout_day
                     except Exception as e:
                         logger.warning(f"   ⚠️  Could not load fit_data for fit_file_id={fit_file_id}: {e}")
                 
