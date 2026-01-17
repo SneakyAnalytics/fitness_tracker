@@ -733,6 +733,20 @@ class WorkoutDatabase:
             daily_workouts = []
             daily_energy: Dict[str, float] = {}
             daily_sleep_quality: Dict[str, Dict[str, Optional[float]]] = {}
+
+            # Aggregate power zone stats across the week
+            zone_names = [
+                'Zone 1 (Recovery)',
+                'Zone 2 (Endurance)',
+                'Zone 3 (Tempo)',
+                'Zone 4 (Threshold)',
+                'Zone 5 (VO2 Max)'
+            ]
+            weekly_zone_totals = {
+                name: {'seconds': 0, 'sum_power': 0.0}
+                for name in zone_names
+            }
+            weekly_power_samples = 0
             
             # Process workouts
             for row in workout_rows:
@@ -973,12 +987,10 @@ class WorkoutDatabase:
 
                         # Determine FTP to use for zone cutoffs: persisted athlete setting preferred,
                         # otherwise fall back to FTP recorded by the FIT parser if present
-                        ftp_for_zones = None
-                        if athlete_ftp_setting:
-                            ftp_for_zones = athlete_ftp_setting
-                        else:
-                            # Defensive: fit_power may not always be a dict (could be a list, string, etc.)
-                            # Normalize to dict when possible and safely extract ftp
+                        ftp_for_zones = athlete_ftp_setting
+                        # Defensive: fit_power may not always be a dict (could be a list, string, etc.)
+                        # Normalize to dict when possible and safely extract ftp
+                        if ftp_for_zones is None:
                             if not isinstance(fit_power, dict):
                                 try:
                                     if isinstance(fit_power, str):
@@ -989,7 +1001,6 @@ class WorkoutDatabase:
                                 except Exception:
                                     fit_power = {}
 
-                            ftp_for_zones = None
                             # Try common places for FTP: fit_power dict, then top-level fit_metrics
                             ftp_candidate = None
                             if isinstance(fit_power, dict):
@@ -997,12 +1008,7 @@ class WorkoutDatabase:
                             if ftp_candidate is None and isinstance(fit_metrics, dict):
                                 ftp_candidate = fit_metrics.get('ftp') or (fit_metrics.get('metrics') or {}).get('ftp')
 
-                            # Use helper to defensively convert ftp_candidate to a numeric value.
-                            # _get_numeric_value returns the provided default (None) when conversion
-                            # isn't possible (e.g. dicts or malformed strings).
-                            # Defensive numeric conversion for FTP candidate: only attempt to
-                            # cast if it's a numeric or numeric string. Otherwise leave as None.
-                            ftp_for_zones = None
+                            # Defensive numeric conversion for FTP candidate
                             if isinstance(ftp_candidate, (int, float)):
                                 ftp_for_zones = float(ftp_candidate)
                             elif isinstance(ftp_candidate, str):
@@ -1106,6 +1112,37 @@ class WorkoutDatabase:
                             canonical_power['zones'] = zones_override
                     except Exception as e:
                         print(f"DEBUG: Could not override power zones: {e}")
+
+                    # Aggregate weekly power zone stats (time distribution + avg watts)
+                    try:
+                        if power_series and (athlete_power_zone_bounds or ftp_for_zones):
+                            # Build thresholds for zones
+                            thresholds = None
+                            if athlete_power_zone_bounds and isinstance(athlete_power_zone_bounds, list) and len(athlete_power_zone_bounds) >= 5:
+                                thresholds = [float(b) for b in athlete_power_zone_bounds[:5]]
+                            elif ftp_for_zones:
+                                cutoffs = [0.55, 0.75, 0.90, 1.05, 1.5]
+                                thresholds = [ftp_for_zones * c for c in cutoffs]
+
+                            if thresholds:
+                                for sample in power_series:
+                                    try:
+                                        p = float(sample)
+                                    except Exception:
+                                        continue
+                                    zone_index = None
+                                    for i, upper in enumerate(thresholds):
+                                        if p <= upper:
+                                            zone_index = i
+                                            break
+                                    if zone_index is None:
+                                        zone_index = len(zone_names) - 1
+                                    zone_name = zone_names[min(zone_index, len(zone_names) - 1)]
+                                    weekly_zone_totals[zone_name]['seconds'] += 1
+                                    weekly_zone_totals[zone_name]['sum_power'] += p
+                                    weekly_power_samples += 1
+                    except Exception as e:
+                        print(f"DEBUG: Could not aggregate weekly power zones: {e}")
                     
                     # Helper function to standardize heart rate zone format
                     def standardize_hr_zones(zones_data):
@@ -1455,6 +1492,23 @@ class WorkoutDatabase:
                 'daily_sleep_quality': daily_sleep_quality,
                 'avg_sleep_quality': avg_sleep_quality
             }
+
+            # Add weekly power zone aggregates if available
+            if weekly_power_samples > 0:
+                power_zone_distribution = {}
+                power_zone_avg_watts = {}
+                for name in zone_names:
+                    seconds = weekly_zone_totals[name]['seconds']
+                    sum_power = weekly_zone_totals[name]['sum_power']
+                    if seconds > 0:
+                        power_zone_distribution[name] = round((seconds / weekly_power_samples) * 100.0, 1)
+                        power_zone_avg_watts[name] = round(sum_power / seconds, 1)
+                    else:
+                        power_zone_distribution[name] = 0.0
+                        power_zone_avg_watts[name] = None
+
+                summary['power_zone_distribution'] = power_zone_distribution
+                summary['power_zone_avg_watts'] = power_zone_avg_watts
             
             print("\nFinal Summary Stats:")
             print(f"Total TSS: {summary['total_tss']}")

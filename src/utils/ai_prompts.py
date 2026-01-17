@@ -259,6 +259,18 @@ You are an expert cycling coach specializing in endurance training and gravel ra
             sections.append(f"- **Total TSS:** {ws.get('total_tss', 0):.1f}")
             sections.append(f"- **Training Hours:** {ws.get('total_training_hours', 0):.1f}")
             sections.append(f"- **Sessions Completed:** {ws.get('sessions_completed', 0)}")
+
+            # Power zone distribution + average watts
+            zone_dist = ws.get('power_zone_distribution') or {}
+            zone_avg = ws.get('power_zone_avg_watts') or {}
+            if zone_dist:
+                sections.append("- **Power Zone Distribution (time %):**")
+                for zone, pct in zone_dist.items():
+                    avg_watts = zone_avg.get(zone)
+                    if avg_watts is not None:
+                        sections.append(f"  - {zone}: {pct:.1f}% (avg {avg_watts:.0f}W)")
+                    else:
+                        sections.append(f"  - {zone}: {pct:.1f}%")
             
             # Workout type distribution for the week
             if ws.get('qualitative_feedback'):
@@ -566,6 +578,10 @@ Consider these aspects (think step-by-step):
    - Which workout types to prioritize?
    - Any specific focus areas?
 
+7. **Training Phase Check**
+    - Does the current phase still fit the data?
+    - If not, suggest the updated phase (Base, Build, Peak, Recovery, Maintenance)
+
 ## Output Format
 
 Provide your analysis in this structure:
@@ -588,6 +604,9 @@ Provide your analysis in this structure:
 ## Recommendations for Next Week
 - [Specific, actionable recommendations]
 - [Include rationale based on data]
+
+## Suggested Training Phase
+[Base Building | Build | Peak | Recovery | Maintenance]
 
 ## Coaching Note
 [What should be remembered for future weeks?]
