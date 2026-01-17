@@ -32,16 +32,16 @@ def main() -> None:
     conn = sqlite3.connect(args.db)
     cur = conn.cursor()
 
-        cur.execute(
-                """
-                SELECT w.id, w.workout_day, w.workout_title, w.fit_file_id, w.athlete_comments
-                FROM workouts w
-                WHERE w.workout_day BETWEEN ? AND ?
-                    AND w.fit_file_id IS NOT NULL
-                ORDER BY w.workout_day, w.id
-                """,
-                (args.start, args.end),
-        )
+    cur.execute(
+        """
+        SELECT w.id, w.workout_day, w.workout_title, w.fit_file_id, w.athlete_comments
+        FROM workouts w
+        WHERE w.workout_day BETWEEN ? AND ?
+          AND w.fit_file_id IS NOT NULL
+        ORDER BY w.workout_day, w.id
+        """,
+        (args.start, args.end),
+    )
     workouts = cur.fetchall()
 
     analyzer = FitFileAnalyzer(use_dynamic_models=True)
