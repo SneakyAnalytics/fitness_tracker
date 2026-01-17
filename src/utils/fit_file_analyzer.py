@@ -932,6 +932,11 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
                     cadence_target = interval.get('cadenceTarget', {})
                     cadence_str = ""
                     if cadence_target:
+                        cad_min = cadence_target.get('min', 0)
+                        cad_max = cadence_target.get('max', 0)
+                        if cad_min and cad_max:
+                            cadence_str = f", Cadence: {cad_min}-{cad_max} rpm"
+
                     interval_lower = interval_name.lower()
                     if any(x in interval_lower for x in ['warmup', 'warm up', 'warm-up']):
                         interval_type = "WARMUP"
@@ -940,6 +945,9 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
                     elif any(x in interval_lower for x in ['recovery', 'rest', 'easy']):
                         interval_type = "RECOVERY"
                         total_recovery_intervals += 1
+                    else:
+                        interval_type = "WORK"
+                        total_work_intervals += 1
                         # Determine workout type from work intervals
                         if 'threshold' in interval_lower or 'sweetspot' in interval_lower:
                             workout_type = "THRESHOLD/SWEETSPOT"
