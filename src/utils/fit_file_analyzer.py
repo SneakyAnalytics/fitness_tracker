@@ -970,6 +970,11 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
                 intervals_text = "\n📊 WORKOUT TYPE: STEADY STATE / ENDURANCE (No specific intervals prescribed)\n"
             
             # Format coaching notes
+            notes_text = ""
+            notes = proposed_workout.get('notes')
+            if notes:
+                if isinstance(notes, list):
+                    notes_text = "\n🎯 COACHING POINTS:\n" + "\n".join([f"  • {note}" for note in notes])
                 else:
                     notes_text = f"\n🎯 COACHING POINTS:\n  {notes}\n"
             
