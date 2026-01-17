@@ -282,8 +282,14 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
         # Detect intervals automatically
         intervals_data = self._detect_intervals(parsed_data, athlete_ftp)
         
-        # Generate AI analysis (pass intervals for context)
-        ai_analysis = self._generate_ai_analysis(parsed_data, peak_efforts, athlete_notes, intervals_data)
+        # Generate AI analysis (pass intervals and matched proposed workout for context)
+        ai_analysis = self._generate_ai_analysis(
+            parsed_data,
+            peak_efforts,
+            athlete_notes,
+            intervals_data,
+            proposed_workout=proposed_workout
+        )
         
         return {
             'parsed_data': parsed_data,
@@ -798,7 +804,8 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
     def _generate_ai_analysis(self, parsed_data: Dict[str, Any], 
                              peak_efforts: Dict[str, Dict[str, float]],
                              athlete_notes: Optional[str] = None,
-                             intervals_data: Optional[Dict] = None) -> str:
+                             intervals_data: Optional[Dict] = None,
+                             proposed_workout: Optional[Dict[str, Any]] = None) -> str:
         """
         Generate AI-powered workout analysis using Gemini
         
@@ -807,9 +814,7 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
             peak_efforts: Detected peak efforts
             athlete_notes: Optional notes from athlete
             intervals_data: Optional detected intervals data
-            
-        Returns:
-            AI-generated workout analysis text
+            proposed_workout: Optional matched proposed workout to use in prompt
         """
         power_metrics = parsed_data.get('power_metrics', {})
         hr_metrics = parsed_data.get('hr_metrics', {})
@@ -881,12 +886,11 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
         # ENHANCED: Analyze trends throughout the workout
         trend_analysis = self._analyze_workout_trends(parsed_data)
         
-        # Load proposed workout for context
+        # Load proposed workout for context (use matched workout if provided)
         workout_date = parsed_data.get('start_time', '')[:10] if parsed_data.get('start_time') else None
-        proposed_workout = None
         proposed_workout_text = ""
         
-        if workout_date:
+        if proposed_workout is None and workout_date:
             proposed_workout = self._load_proposed_workout(workout_date)
         if proposed_workout:
             # Format the intervals from the proposed workout with detailed targets
@@ -928,12 +932,6 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
                     cadence_target = interval.get('cadenceTarget', {})
                     cadence_str = ""
                     if cadence_target:
-                        cad_min = cadence_target.get('min', 0)
-                        cad_max = cadence_target.get('max', 0)
-                        if cad_min and cad_max:
-                            cadence_str = f", Cadence: {cad_min}-{cad_max} rpm"
-                    
-                    # Categorize interval type
                     interval_lower = interval_name.lower()
                     if any(x in interval_lower for x in ['warmup', 'warm up', 'warm-up']):
                         interval_type = "WARMUP"
@@ -942,9 +940,6 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
                     elif any(x in interval_lower for x in ['recovery', 'rest', 'easy']):
                         interval_type = "RECOVERY"
                         total_recovery_intervals += 1
-                    else:
-                        interval_type = "WORK"
-                        total_work_intervals += 1
                         # Determine workout type from work intervals
                         if 'threshold' in interval_lower or 'sweetspot' in interval_lower:
                             workout_type = "THRESHOLD/SWEETSPOT"
@@ -967,11 +962,6 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
                 intervals_text = "\n📊 WORKOUT TYPE: STEADY STATE / ENDURANCE (No specific intervals prescribed)\n"
             
             # Format coaching notes
-            notes_text = ""
-            notes = proposed_workout.get('notes')
-            if notes:
-                if isinstance(notes, list):
-                    notes_text = "\n🎯 COACHING POINTS:\n" + "\n".join([f"  • {note}" for note in notes])
                 else:
                     notes_text = f"\n🎯 COACHING POINTS:\n  {notes}\n"
             
