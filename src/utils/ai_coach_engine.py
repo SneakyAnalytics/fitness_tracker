@@ -391,8 +391,52 @@ Athlete responding well to current training load. Continue progressive approach.
         
         print(f"  Response: ~{metadata.get('completion_tokens', 0):,} tokens")
         print(f"  Cost: ${metadata.get('cost', 0):.4f}")
+
+        # Auto-update training phase based on recent distribution
+        suggested_phase = self._infer_training_phase(comprehensive_context)
+        if suggested_phase:
+            metadata['suggested_training_phase'] = suggested_phase
+            if suggested_phase != self.coaching_notes.current_training_phase:
+                self.coaching_notes.update_training_phase(suggested_phase)
+                metadata['training_phase_updated'] = True
+            else:
+                metadata['training_phase_updated'] = False
         
         return analysis, metadata
+
+    def _infer_training_phase(self, comprehensive_context: Dict) -> Optional[str]:
+        """Infer training phase from recent workout type distribution."""
+        try:
+            dist = (comprehensive_context or {}).get('workout_type_distribution', {}).get('distribution_pct', {})
+            if not dist:
+                return None
+
+            def pct(name: str) -> float:
+                try:
+                    return float(dist.get(name, 0) or 0)
+                except Exception:
+                    return 0.0
+
+            recovery = pct('Recovery')
+            endurance = pct('Endurance')
+            tempo = pct('Tempo')
+            threshold = pct('Threshold')
+            vo2 = pct('VO2max')
+            high_intensity = threshold + vo2
+
+            if recovery >= 40:
+                return 'Recovery'
+            if endurance >= 45 and high_intensity <= 25:
+                return 'Base Building'
+            if high_intensity >= 40 and endurance < 30:
+                return 'Peak'
+            if high_intensity >= 25:
+                return 'Build'
+            if tempo >= 30 and high_intensity < 25:
+                return 'Maintenance'
+            return 'Maintenance'
+        except Exception:
+            return None
     
     def extract_coaching_continuity(self, analysis: str, weekly_summary: Dict) -> Optional[Dict]:
         """
