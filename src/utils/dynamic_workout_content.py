@@ -20,6 +20,28 @@ class DynamicWorkoutContent:
         self.api_timeout = 3  # seconds
         self.gemini_api_key = os.getenv('GEMINI_API_KEY')
         self.news_api_key = os.getenv('NEWS_API_KEY')  # Free from newsapi.org
+        self.team_news_sources = [
+            {
+                'label': 'Mets',
+                'emoji': '⚾',
+                'rss': 'https://news.google.com/rss/search?q=New%20York%20Mets&hl=en-US&gl=US&ceid=US:en'
+            },
+            {
+                'label': 'Oregon Ducks Football',
+                'emoji': '🏈',
+                'rss': 'https://news.google.com/rss/search?q=Oregon%20Ducks%20football&hl=en-US&gl=US&ceid=US:en'
+            },
+            {
+                'label': 'Portland Timbers',
+                'emoji': '⚽',
+                'rss': 'https://news.google.com/rss/search?q=Portland%20Timbers&hl=en-US&gl=US&ceid=US:en'
+            },
+            {
+                'label': 'Kansas City Chiefs',
+                'emoji': '🏈',
+                'rss': 'https://news.google.com/rss/search?q=Kansas%20City%20Chiefs&hl=en-US&gl=US&ceid=US:en'
+            }
+        ]
         
     def get_fresh_content(self, context: str = "general", workout_type: str = "", 
                          interval_name: str = "", duration: int = 0) -> str:
@@ -54,8 +76,6 @@ class DynamicWorkoutContent:
             ('number', self._get_number_fact),
             ('advice', self._get_advice_slip),
             ('affirmation', self._get_affirmation),
-            ('chuck_norris', self._get_chuck_norris_fact),
-            ('kanye', self._get_kanye_quote),
             ('science', self._get_science_news),
             ('research', self._get_arxiv_paper),
             ('wikipedia', self._get_wikipedia_today),
@@ -196,51 +216,57 @@ class DynamicWorkoutContent:
             print(f"Trivia API failed: {e}")
         return None
     
-    def get_story_with_summary(self) -> Optional[tuple[str, str]]:
+    def get_story_with_summary(self) -> Optional[tuple[str, List[str]]]:
         """Get a news/science story headline + AI-generated summary as a pair.
         
         This tries multiple sources:
-        1. Current events from News API (if API key available)
-        2. Science headlines from Hacker News
-        3. Research papers from arXiv
+        1. Team news (priority order)
+        2. Current events from News API (if API key available)
+        3. Science headlines from Hacker News
+        4. Research papers from arXiv
         
-        Returns: (headline_text, summary_text) or None
+        Returns: (headline_text, summary_messages) or None
         """
         # Try to get a story from various sources
         story_data = None
+
+        # Priority 1: Team news (sports)
+        story_data = self._get_team_news_story()
         
-        # Priority 1: News API for current events (most interesting/relevant)
-        if self.news_api_key:
+        # Priority 2: News API for current events (most interesting/relevant)
+        if not story_data and self.news_api_key:
             story_data = self._get_news_api_story()
         
-        # Priority 2: Science headlines from Hacker News
+        # Priority 3: Science headlines from Hacker News
         if not story_data:
             story_data = self._get_science_headline_full()
         
-        # Priority 3: Research paper from arXiv
+        # Priority 4: Research paper from arXiv
         if not story_data:
             story_data = self._get_arxiv_story_full()
         
         # If we got a story, generate AI summary (with fallback)
         if story_data:
-            headline, description = story_data
+            headline, story_text = story_data
             
             # Check if already used
             if headline in self.used_stories:
                 return None
             
             # Try AI summary first
-            summary = self._generate_story_summary(headline, description)
+            summary = self._generate_story_summary(headline, story_text)
             
             # Fallback: Create simple summary from description if AI unavailable
             if not summary:
-                summary = self._create_simple_summary(description)
+                summary = self._create_simple_summary(story_text)
             
             if summary:
+                summary_messages = self._split_summary_messages(summary)
                 self.used_stories.add(headline)
                 self.used_messages.add(headline)
-                self.used_messages.add(summary)
-                return (headline, summary)
+                for msg in summary_messages:
+                    self.used_messages.add(msg)
+                return (headline, summary_messages)
         
         return None
     
@@ -310,37 +336,26 @@ class DynamicWorkoutContent:
             pass
         return None
     
-    def _get_chuck_norris_fact(self) -> Optional[str]:
-        """Get Chuck Norris fact (usually funny/absurd)"""
-        try:
-            response = requests.get(
-                'https://api.chucknorris.io/jokes/random',
-                timeout=self.api_timeout
-            )
-            if response.status_code == 200:
-                data = response.json()
-                fact = data['value']
-                # Keep it short and appropriate
-                if len(fact) < 150:
-                    return f'💥 {fact}'
-        except:
-            pass
-        return None
-    
-    def _get_kanye_quote(self) -> Optional[str]:
-        """Get Kanye West quote (often motivational/entertaining)"""
-        try:
-            response = requests.get(
-                'https://api.kanye.rest/',
-                timeout=self.api_timeout
-            )
-            if response.status_code == 200:
-                data = response.json()
-                quote = data['quote']
-                return f'🎤 Kanye: "{quote}"'
-        except:
-            pass
-        return None
+    def _is_job_listing(self, text: str) -> bool:
+        """Return True if the text looks like a job listing."""
+        if not text:
+            return False
+        lower = text.lower()
+        keywords = [
+            'hiring', 'job', 'jobs', 'career', 'careers', 'apply', 'position',
+            'recruiting', 'opening', 'openings', 'resume', 'cv', 'compensation',
+            'salary', 'intern', 'internship'
+        ]
+        return any(kw in lower for kw in keywords)
+
+    def _strip_html(self, text: str) -> str:
+        """Remove basic HTML tags/entities for RSS descriptions."""
+        if not text:
+            return ""
+        import re
+        text = re.sub(r'<[^>]+>', ' ', text)
+        text = text.replace('&nbsp;', ' ').replace('&amp;', '&')
+        return ' '.join(text.split()).strip()
     
     def _get_science_news(self) -> Optional[str]:
         """Get tech/science/innovation headlines from Hacker News"""
@@ -400,7 +415,7 @@ class DynamicWorkoutContent:
     def _get_news_api_story(self) -> Optional[tuple[str, str]]:
         """Get trending news story from News API with description.
         
-        Returns: (headline, description) tuple or None
+        Returns: (headline, story_text) tuple or None
         Get free API key from: https://newsapi.org/
         """
         if not self.news_api_key:
@@ -424,21 +439,79 @@ class DynamicWorkoutContent:
                 articles = data.get('articles', [])
                 
                 if articles:
-                    # Pick random article from top 20
-                    article = random.choice(articles)
-                    title = article.get('title', '')
-                    description = article.get('description', '')
-                    
-                    # Clean title (remove source suffix like " - CNN")
-                    if ' - ' in title:
-                        title = title.split(' - ')[0]
-                    
-                    if title and description and len(title) < 120:
-                        headline = f'📰 News: {title}'
-                        return (headline, description)
+                    random.shuffle(articles)
+                    for article in articles:
+                        title = article.get('title', '')
+                        description = article.get('description', '')
+                        content = article.get('content', '')
+
+                        # Clean title (remove source suffix like " - CNN")
+                        if ' - ' in title:
+                            title = title.split(' - ')[0]
+
+                        # Skip job listings
+                        if self._is_job_listing(title) or self._is_job_listing(description):
+                            continue
+
+                        story_text = ' '.join(filter(None, [description, content]))
+                        story_text = story_text.replace('[+', '').replace('chars]', '')
+
+                        if title and story_text and len(title) < 120:
+                            headline = f'📰 News: {title}'
+                            return (headline, story_text)
         except Exception as e:
             print(f"News API failed: {e}")
         
+        return None
+
+    def _parse_rss_items(self, url: str, max_items: int = 10) -> List[Dict[str, str]]:
+        """Parse RSS feed items into a list of dicts with title/description/link."""
+        try:
+            response = requests.get(url, timeout=self.api_timeout)
+            if response.status_code != 200:
+                return []
+            import xml.etree.ElementTree as ET
+            root = ET.fromstring(response.content)
+            items = root.findall('.//item')
+            results = []
+            for item in items[:max_items]:
+                title = item.findtext('title', default='').strip()
+                description = item.findtext('description', default='').strip()
+                link = item.findtext('link', default='').strip()
+                results.append({
+                    'title': title,
+                    'description': self._strip_html(description),
+                    'link': link
+                })
+            return results
+        except Exception as e:
+            print(f"RSS parse failed: {e}")
+            return []
+
+    def _get_team_news_story(self) -> Optional[tuple[str, str]]:
+        """Get team-specific news in priority order from RSS feeds.
+
+        Returns: (headline, story_text) or None
+        """
+        for source in self.team_news_sources:
+            items = self._parse_rss_items(source['rss'], max_items=12)
+            random.shuffle(items)
+            for item in items:
+                title = item.get('title', '')
+                description = item.get('description', '')
+
+                if not title:
+                    continue
+                if self._is_job_listing(title) or self._is_job_listing(description):
+                    continue
+
+                headline = f"{source['emoji']} {source['label']}: {title}"
+                if headline in self.used_stories:
+                    continue
+
+                story_text = description or title
+                return (headline, story_text)
+
         return None
     
     def _get_science_headline_full(self) -> Optional[tuple[str, str]]:
@@ -513,12 +586,12 @@ class DynamicWorkoutContent:
             pass
         return None
     
-    def _generate_story_summary(self, headline: str, description: str) -> Optional[str]:
+    def _generate_story_summary(self, headline: str, story_text: str) -> Optional[str]:
         """Use AI to generate a simple, understandable summary of a story.
         
         Args:
             headline: The story headline
-            description: Story description or abstract
+            story_text: Story description or abstract
             
         Returns:
             Short summary text or None
@@ -534,9 +607,9 @@ class DynamicWorkoutContent:
             prompt = f"""Explain this story in simple, clear language that someone exercising can understand:
 
 Headline: {headline}
-Description: {description[:500]}
+Story text: {story_text[:1200]}
 
-Provide a 1-2 sentence summary (max 150 characters) explaining what this story means in simple terms. Make it conversational and easy to understand while riding a bike.
+Provide a 2-4 sentence summary (max 420 characters) explaining what the story is about in simple terms. Make it conversational and easy to understand while riding a bike. Do NOT say 'go read the article' or repeat the headline.
 
 Just return the summary, nothing else."""
             
@@ -544,11 +617,11 @@ Just return the summary, nothing else."""
             summary = response.text.strip().strip('"\'')
             
             # Keep it concise
-            if len(summary) > 200:
-                summary = summary[:197] + '...'
+            if len(summary) > 420:
+                summary = summary[:417] + '...'
             
             if summary:
-                return f'💡 {summary}'
+                return summary
         except Exception as e:
             error_msg = str(e)
             if 'quota' in error_msg.lower() or 'resource_exhausted' in error_msg.lower():
@@ -595,13 +668,58 @@ Just return the summary, nothing else."""
                     summary += '. ' + sentences[1]
             
             # Truncate if still too long
-            if len(summary) > 180:
-                summary = summary[:177] + '...'
+            if len(summary) > 240:
+                summary = summary[:237] + '...'
             
-            return f'💡 {summary}'
+            return summary
         except Exception as e:
             print(f"Simple summary creation failed: {e}")
             return None
+
+    def _split_summary_messages(self, summary: str, max_len: int = 120) -> List[str]:
+        """Split a summary into multiple short messages for text events."""
+        if not summary:
+            return []
+
+        text = summary.strip().strip('"\'')
+        # Try to split by sentences first
+        sentences = []
+        for delimiter in ['. ', '! ', '? ']:
+            parts = text.split(delimiter)
+            if len(parts) > 1:
+                sentences = parts
+                break
+
+        chunks = []
+        if sentences:
+            buffer = ""
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if not sentence:
+                    continue
+                candidate = f"{buffer} {sentence}".strip() if buffer else sentence
+                if len(candidate) <= max_len:
+                    buffer = candidate
+                else:
+                    if buffer:
+                        chunks.append(buffer)
+                        buffer = sentence
+                    else:
+                        chunks.append(sentence[:max_len])
+                        buffer = ""
+            if buffer:
+                chunks.append(buffer)
+        else:
+            # Fallback: hard wrap
+            for i in range(0, len(text), max_len):
+                chunks.append(text[i:i+max_len])
+
+        messages = []
+        for idx, chunk in enumerate(chunks):
+            prefix = "📰 Summary: " if idx == 0 else "📰 (cont.) "
+            messages.append(f"{prefix}{chunk}")
+
+        return messages
     
     def _get_arxiv_paper(self) -> Optional[str]:
         """Get recent research paper title from arXiv"""

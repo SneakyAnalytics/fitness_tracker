@@ -214,12 +214,19 @@ def generate_zwift_workout(workout_date: str, workout_name: str, intervals: List
             if i % 6 == 0:
                 story_pair = dynamic_content.get_story_with_summary()
                 if story_pair:
-                    headline, summary = story_pair
+                    headline, summary_messages = story_pair
                     # Add headline
                     text_events.append((offset, clean_zwift_text(headline)))
-                    # Add summary 60 seconds later (gives time to read/process headline)
-                    if offset + 60 < total_duration:
-                        text_events.append((offset + 60, clean_zwift_text(summary)))
+                    # Add summary parts after the headline
+                    if isinstance(summary_messages, list):
+                        for idx, summary_msg in enumerate(summary_messages):
+                            msg_offset = offset + 45 + (idx * 30)
+                            if msg_offset < total_duration:
+                                text_events.append((msg_offset, clean_zwift_text(summary_msg)))
+                    else:
+                        # Backwards-compatible fallback
+                        if offset + 60 < total_duration:
+                            text_events.append((offset + 60, clean_zwift_text(summary_messages)))
                     continue
             
             # Regular varied content (quotes, jokes, fun facts, AI encouragement)
