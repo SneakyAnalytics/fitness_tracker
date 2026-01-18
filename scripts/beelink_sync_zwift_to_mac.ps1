@@ -5,6 +5,21 @@ param(
     [string]$SourceDir = $env:ZWIFT_WORKOUTS_DIR
 )
 
+$envPath = "C:\\Users\\rakej\\fitness_tracker\\.env"
+if (Test-Path $envPath) {
+    Get-Content $envPath | ForEach-Object {
+        if ($_ -match '^\s*#' -or $_ -match '^\s*$') { return }
+        $parts = $_ -split '=', 2
+        if ($parts.Length -eq 2) {
+            $key = $parts[0].Trim()
+            $value = $parts[1].Trim().Trim('"').Trim("'")
+            if ($key -and $value) {
+                $env:$key = $value
+            }
+        }
+    }
+}
+
 if (-not $MacHost) { throw "MAC_TAILSCALE_IP is required" }
 if (-not $MacUser) { throw "MAC_USER is required" }
 if (-not $MacZwiftDir) { throw "MAC_ZWIFT_DIR is required" }

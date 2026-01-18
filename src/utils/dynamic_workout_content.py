@@ -42,6 +42,7 @@ class DynamicWorkoutContent:
                 'rss': 'https://news.google.com/rss/search?q=Kansas%20City%20Chiefs&hl=en-US&gl=US&ceid=US:en'
             }
         ]
+        self.team_news_sources = self._load_team_news_sources(self.team_news_sources)
         
     def get_fresh_content(self, context: str = "general", workout_type: str = "", 
                          interval_name: str = "", duration: int = 0) -> str:
@@ -348,6 +349,24 @@ class DynamicWorkoutContent:
         ]
         return any(kw in lower for kw in keywords)
 
+    def _load_team_news_sources(self, defaults: List[Dict[str, str]]) -> List[Dict[str, str]]:
+        """Allow overrides via TEAM_NEWS_SOURCES env (JSON array)."""
+        raw = os.getenv('TEAM_NEWS_SOURCES')
+        if not raw:
+            return defaults
+        try:
+            data = json.loads(raw)
+            if isinstance(data, list) and all(isinstance(item, dict) for item in data):
+                # Ensure required keys exist
+                normalized = []
+                for item in data:
+                    if all(k in item for k in ['label', 'emoji', 'rss']):
+                        normalized.append(item)
+                return normalized or defaults
+        except Exception:
+            pass
+        return defaults
+
     def _strip_html(self, text: str) -> str:
         """Remove basic HTML tags/entities for RSS descriptions."""
         if not text:
@@ -356,6 +375,33 @@ class DynamicWorkoutContent:
         text = re.sub(r'<[^>]+>', ' ', text)
         text = text.replace('&nbsp;', ' ').replace('&amp;', '&')
         return ' '.join(text.split()).strip()
+
+    def _fetch_article_text(self, url: str, max_chars: int = 3000) -> str:
+        """Fetch and extract plain text from an article URL (best-effort)."""
+        if not url:
+            return ""
+        try:
+            response = requests.get(
+                url,
+                headers={'User-Agent': 'FitnessTracker/1.0'},
+                timeout=self.api_timeout
+            )
+            if response.status_code != 200:
+                return ""
+            html = response.text
+            # Remove script/style blocks
+            import re
+            html = re.sub(r'<script.*?>.*?</script>', ' ', html, flags=re.DOTALL | re.IGNORECASE)
+            html = re.sub(r'<style.*?>.*?</style>', ' ', html, flags=re.DOTALL | re.IGNORECASE)
+            text = re.sub(r'<[^>]+>', ' ', html)
+            text = text.replace('&nbsp;', ' ').replace('&amp;', '&')
+            text = ' '.join(text.split()).strip()
+            if len(text) > max_chars:
+                text = text[:max_chars]
+            return text
+        except Exception as e:
+            print(f"Article fetch failed: {e}")
+            return ""
     
     def _get_science_news(self) -> Optional[str]:
         """Get tech/science/innovation headlines from Hacker News"""
@@ -444,6 +490,7 @@ class DynamicWorkoutContent:
                         title = article.get('title', '')
                         description = article.get('description', '')
                         content = article.get('content', '')
+                        url = article.get('url', '')
 
                         # Clean title (remove source suffix like " - CNN")
                         if ' - ' in title:
@@ -453,7 +500,8 @@ class DynamicWorkoutContent:
                         if self._is_job_listing(title) or self._is_job_listing(description):
                             continue
 
-                        story_text = ' '.join(filter(None, [description, content]))
+                        fetched = self._fetch_article_text(url)
+                        story_text = ' '.join(filter(None, [description, content, fetched]))
                         story_text = story_text.replace('[+', '').replace('chars]', '')
 
                         if title and story_text and len(title) < 120:
@@ -499,6 +547,7 @@ class DynamicWorkoutContent:
             for item in items:
                 title = item.get('title', '')
                 description = item.get('description', '')
+                link = item.get('link', '')
 
                 if not title:
                     continue
@@ -509,7 +558,8 @@ class DynamicWorkoutContent:
                 if headline in self.used_stories:
                     continue
 
-                story_text = description or title
+                fetched = self._fetch_article_text(link)
+                story_text = ' '.join(filter(None, [description, fetched, title]))
                 return (headline, story_text)
 
         return None
@@ -543,10 +593,9 @@ class DynamicWorkoutContent:
                         if any(keyword.lower() in title.lower() for keyword in science_keywords):
                             if len(title) < 120 and url:
                                 headline = f'🔬 Science: {title}'
-                                # For Hacker News, we don't have full description
-                                # Provide a helpful note for the fallback summary
-                                description = f"A trending tech/science story: {title}. Check it out after your workout!"
-                                return (headline, description)
+                                fetched = self._fetch_article_text(url)
+                                story_text = fetched or f"A trending tech/science story: {title}."
+                                return (headline, story_text)
         except:
             pass
         return None
