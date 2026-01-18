@@ -625,10 +625,10 @@ class DynamicWorkoutContent:
                     summary_elem = entry.find('{http://www.w3.org/2005/Atom}summary')
                     
                     if title_elem is not None and summary_elem is not None:
-                        title = title_elem.text.strip().replace('\n', ' ')
-                        abstract = summary_elem.text.strip().replace('\n', ' ')
+                        title = (title_elem.text or '').strip().replace('\n', ' ')
+                        abstract = (summary_elem.text or '').strip().replace('\n', ' ')
                         
-                        if len(title) < 120:
+                        if title and abstract and len(title) < 120:
                             headline = f'📚 Research: {title}'
                             return (headline, abstract)
         except:
@@ -650,8 +650,12 @@ class DynamicWorkoutContent:
         
         try:
             import google.generativeai as genai
-            genai.configure(api_key=self.gemini_api_key)
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            configure = getattr(genai, 'configure', None)
+            model_cls = getattr(genai, 'GenerativeModel', None)
+            if not configure or not model_cls:
+                return None
+            configure(api_key=self.gemini_api_key)
+            model = model_cls('gemini-1.5-flash')
             
             prompt = f"""Explain this story in simple, clear language that someone exercising can understand:
 
@@ -791,8 +795,8 @@ Just return the summary, nothing else."""
                     entry = random.choice(entries)
                     title = entry.find('{http://www.w3.org/2005/Atom}title')
                     if title is not None:
-                        title_text = title.text.strip().replace('\n', ' ')
-                        if len(title_text) < 120:
+                        title_text = (title.text or '').strip().replace('\n', ' ')
+                        if title_text and len(title_text) < 120:
                             return f'📚 Research: {title_text}'
         except:
             pass
@@ -857,8 +861,12 @@ Just return the summary, nothing else."""
         
         try:
             import google.generativeai as genai
-            genai.configure(api_key=self.gemini_api_key)
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            configure = getattr(genai, 'configure', None)
+            model_cls = getattr(genai, 'GenerativeModel', None)
+            if not configure or not model_cls:
+                return None
+            configure(api_key=self.gemini_api_key)
+            model = model_cls('gemini-1.5-flash')
             
             prompt = """Generate ONE short, motivational message for a cyclist during an indoor training workout.
             
@@ -895,8 +903,12 @@ Just return the summary, nothing else."""
         try:
             if self.gemini_api_key:
                 import google.generativeai as genai
-                genai.configure(api_key=self.gemini_api_key)
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                configure = getattr(genai, 'configure', None)
+                model_cls = getattr(genai, 'GenerativeModel', None)
+                if not configure or not model_cls:
+                    raise RuntimeError('Gemini API unavailable')
+                configure(api_key=self.gemini_api_key)
+                model = model_cls('gemini-1.5-flash')
                 
                 prompt = "Generate a short (max 80 chars), energizing welcome message for starting a cycling workout. No quotes, no emojis."
                 response = model.generate_content(prompt)
