@@ -3603,8 +3603,258 @@ elif page == '� Workout Data Ingestion':
     
     st.info("💡 **New Manual Matching Workflow**: Sync data from TrainingPeaks, then manually match workouts to ensure 100% accuracy before AI analysis.")
     
-    # TODO: Build the three sections
-    st.warning("🚧 Under construction - Implementation in progress")
+    # Import helper functions
+    import sys
+    import os
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if parent_dir not in sys.path:
+        sys.path.insert(0, parent_dir)
+    
+    from storage.workout_matching import (
+        get_unmatched_workouts,
+        get_proposed_workouts_for_week,
+        match_workout_to_proposed,
+        get_week_start_date
+    )
+    from utils.trainingpeaks_sync import TrainingPeaksSync
+    
+    # ========== SECTION A: SYNC & MATCH NEW WORKOUTS ==========
+    with st.expander("📥 Sync & Match New Workouts", expanded=True):
+        st.markdown("### Step 1: Sync from TrainingPeaks")
+        
+        # Check for credentials
+        load_dotenv()
+        tp_username = os.getenv("TRAININGPEAKS_USERNAME")
+        tp_password = os.getenv("TRAININGPEAKS_PASSWORD")
+        
+        if not tp_username or not tp_password:
+            st.warning("⚠️ TrainingPeaks credentials not configured!")
+            st.markdown("""
+            **Setup Instructions:**
+            1. Create a `.env` file in your project root
+            2. Add your credentials:
+            ```
+            TRAININGPEAKS_USERNAME=your_username
+            TRAININGPEAKS_PASSWORD=your_password
+            ```
+            3. Reload this page
+            """)
+        else:
+            st.success(f"✅ Logged in as: {tp_username}")
+            
+            # Date range selection (defaults to current week)
+            col1, col2, col3 = st.columns([2, 2, 1])
+            
+            with col1:
+                today = datetime.now().date()
+                days_since_monday = today.weekday()
+                this_monday = today - timedelta(days=days_since_monday)
+                
+                sync_start_date = st.date_input(
+                    "Start Date",
+                    value=this_monday,
+                    key="sync_start_date"
+                )
+            
+            with col2:
+                this_sunday = this_monday + timedelta(days=6)
+                sync_end_date = st.date_input(
+                    "End Date",
+                    value=this_sunday,
+                    key="sync_end_date"
+                )
+            
+            with col3:
+                st.markdown("<br>", unsafe_allow_html=True)  # Spacing
+                sync_button = st.button("🚀 Sync Data", type="primary", use_container_width=True)
+            
+            if isinstance(sync_start_date, date) and isinstance(sync_end_date, date):
+                st.info(f"📊 Will sync from **{sync_start_date.strftime('%a, %b %d')}** to **{sync_end_date.strftime('%a, %b %d')}**")
+            
+            # Handle sync button click
+            if sync_button:
+                if not isinstance(sync_start_date, date) or not isinstance(sync_end_date, date):
+                    st.error("Please select valid start and end dates")
+                else:
+                    st.markdown("---")
+                    st.info("🔐 **Note:** You may need to solve a captcha if one appears in the browser")
+                    
+                    try:
+                        with st.spinner("🌐 Syncing data from TrainingPeaks..."):
+                            sync = TrainingPeaksSync()
+                            results = sync.run_sync(sync_start_date, sync_end_date)
+                        
+                        if results:
+                            st.success(f"""
+                            ✅ **Sync Complete!**
+                            
+                            - FIT Files Uploaded: **{results['fit_files']}**
+                            - Workouts CSV: **{'✅ Success' if results['workouts'] else '❌ Failed'}**
+                            - Metrics CSV: **{'✅ Success' if results['metrics'] else '❌ Failed'}**
+                            """)
+                            
+                            if results['errors']:
+                                st.warning(f"⚠️ {len(results['errors'])} errors occurred:")
+                                for error in results['errors']:
+                                    st.text(f"  • {error}")
+                            
+                            # Set flag to load matching interface
+                            st.session_state.sync_completed = True
+                            st.session_state.sync_date_range = (sync_start_date, sync_end_date)
+                            st.rerun()
+                        else:
+                            st.error("❌ Sync failed. Check the console output for details.")
+                    
+                    except Exception as e:
+                        st.error(f"❌ Error: {str(e)}")
+                        import traceback
+                        with st.expander("Show error details"):
+                            st.code(traceback.format_exc())
+        
+        # Step 2: Match workouts (only show if sync completed)
+        if st.session_state.get('sync_completed', False):
+            st.markdown("---")
+            st.markdown("### Step 2: Match Workouts")
+            
+            # Get date range from session state
+            date_range = st.session_state.get('sync_date_range')
+            if date_range:
+                start_date, end_date = date_range
+                
+                # Get unmatched workouts
+                db_path = os.path.join(parent_dir, 'data', 'fitness_data.db')
+                unmatched = get_unmatched_workouts(db_path, start_date.isoformat(), end_date.isoformat())
+                
+                if not unmatched:
+                    st.success("🎉 All workouts in this date range are already matched!")
+                    if st.button("Start New Sync"):
+                        st.session_state.sync_completed = False
+                        st.rerun()
+                else:
+                    st.info(f"📋 Found **{len(unmatched)}** unmatched workouts")
+                    
+                    # Initialize current workout index
+                    if 'current_workout_idx' not in st.session_state:
+                        st.session_state.current_workout_idx = 0
+                    
+                    # Get current workout
+                    idx = st.session_state.current_workout_idx
+                    if idx < len(unmatched):
+                        workout = unmatched[idx]
+                        
+                        # Progress indicator
+                        st.progress((idx + 1) / len(unmatched), text=f"Workout {idx + 1} of {len(unmatched)}")
+                        
+                        # Display workout details
+                        col1, col2 = st.columns([1, 1])
+                        
+                        with col1:
+                            st.markdown("#### 📊 Workout Details")
+                            st.markdown(f"**Date:** {workout['workout_date']} (PST)")
+                            st.markdown(f"**Title:** {workout['title']}")
+                            if workout['tss']:
+                                st.markdown(f"**TSS:** {workout['tss']}")
+                            if workout['duration_minutes']:
+                                st.markdown(f"**Duration:** {workout['duration_minutes']:.0f} min")
+                            if workout['intensity_factor']:
+                                st.markdown(f"**IF:** {workout['intensity_factor']:.2f}")
+                            if workout['comments']:
+                                st.markdown(f"**Comments:** {workout['comments']}")
+                            if workout['fit_filename']:
+                                st.markdown(f"**FIT File:** {workout['fit_filename']}")
+                        
+                        with col2:
+                            st.markdown("#### 🎯 Match to Proposed Workout")
+                            
+                            # Get proposed workouts for the week
+                            workout_date = datetime.strptime(workout['workout_date'], '%Y-%m-%d %H:%M:%S').date()
+                            week_start = get_week_start_date(workout_date.isoformat())
+                            proposed_workouts = get_proposed_workouts_for_week(db_path, week_start)
+                            
+                            # Create dropdown options
+                            options = []
+                            for pw in proposed_workouts:
+                                label = f"{pw['workout_day']} - {pw['name']}"
+                                if pw['tss']:
+                                    label += f" (TSS: {pw['tss']})"
+                                options.append((label, pw['name']))
+                            
+                            # Add "Other (Custom)" option
+                            options.append(("Other (Custom workout/warm-up/cool-down)", "OTHER"))
+                            
+                            # Dropdown
+                            selected_option = st.selectbox(
+                                "Select proposed workout:",
+                                options=[opt[0] for opt in options],
+                                key=f"workout_select_{workout['id']}"
+                            )
+                            
+                            # Get the actual name from the selected option
+                            selected_name = next((opt[1] for opt in options if opt[0] == selected_option), None)
+                            
+                            # If "Other" selected, show text input
+                            if selected_name == "OTHER":
+                                custom_name = st.text_input(
+                                    "Enter workout name:",
+                                    placeholder="e.g., Warm-up, Cool-down, Hike",
+                                    key=f"custom_name_{workout['id']}"
+                                )
+                                if custom_name:
+                                    selected_name = custom_name
+                                else:
+                                    selected_name = None
+                            
+                            # Match & Analyze button
+                            col_btn1, col_btn2 = st.columns(2)
+                            with col_btn1:
+                                if st.button("✅ Match & Analyze", type="primary", use_container_width=True, disabled=(selected_name is None)):
+                                    if selected_name:
+                                        with st.spinner("Matching and analyzing..."):
+                                            try:
+                                                # Save match to database
+                                                match_workout_to_proposed(
+                                                    db_path,
+                                                    workout['id'],
+                                                    selected_name,
+                                                    'manual'
+                                                )
+                                                
+                                                # TODO: Trigger AI analysis here
+                                                # analyze_and_store_workout(...)
+                                                
+                                                st.success(f"✅ Matched to: {selected_name}")
+                                                
+                                                # Move to next workout
+                                                st.session_state.current_workout_idx += 1
+                                                if st.session_state.current_workout_idx >= len(unmatched):
+                                                    st.balloons()
+                                                    st.success("🎉 All workouts matched!")
+                                                    st.session_state.sync_completed = False
+                                                    st.session_state.current_workout_idx = 0
+                                                
+                                                st.rerun()
+                                            
+                                            except Exception as e:
+                                                st.error(f"Error: {str(e)}")
+                            
+                            with col_btn2:
+                                if st.button("⏭️ Skip", use_container_width=True):
+                                    st.session_state.current_workout_idx += 1
+                                    if st.session_state.current_workout_idx >= len(unmatched):
+                                        st.info("End of workout list")
+                                        st.session_state.sync_completed = False
+                                        st.session_state.current_workout_idx = 0
+                                    st.rerun()
+    
+    # ========== SECTION B: RE-MATCH EXISTING WORKOUTS ==========
+    with st.expander("🔄 Re-match Existing Workouts", expanded=False):
+        st.markdown("### Re-match Previously Matched Workouts")
+        st.warning("🚧 Coming soon - Ability to change matches and re-analyze")
+    
+    # ========== SECTION C: MANAGE WORKOUTS (DANGER ZONE) ==========
+    with st.expander("⚠️ Manage Workouts (Danger Zone)", expanded=False):
+        st.markdown("### Delete Workouts")
+        st.warning("🚧 Coming soon - Delete junk workouts and their analyses")
 
 
 # REMOVED: Old tabs (Import Data, View Data, Proposed Workouts, Weekly Summary)
