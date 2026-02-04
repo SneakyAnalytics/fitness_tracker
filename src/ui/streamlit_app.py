@@ -3614,6 +3614,7 @@ elif page == '� Workout Data Ingestion':
         get_unmatched_workouts,
         get_proposed_workouts_for_week,
         match_workout_to_proposed,
+        get_matched_workouts,
         get_week_start_date
     )
     from utils.trainingpeaks_sync import TrainingPeaksSync
@@ -3946,7 +3947,173 @@ elif page == '� Workout Data Ingestion':
     # ========== SECTION B: RE-MATCH EXISTING WORKOUTS ==========
     with st.expander("🔄 Re-match Existing Workouts", expanded=False):
         st.markdown("### Re-match Previously Matched Workouts")
-        st.warning("🚧 Coming soon - Ability to change matches and re-analyze")
+        st.info("💡 Change incorrect matches and trigger re-analysis")
+        
+        # Date range selector
+        col1, col2 = st.columns(2)
+        with col1:
+            today = datetime.now().date()
+            rematch_start = st.date_input(
+                "Start Date",
+                value=today - timedelta(days=30),
+                key="rematch_start_date"
+            )
+        with col2:
+            rematch_end = st.date_input(
+                "End Date",
+                value=today,
+                key="rematch_end_date"
+            )
+        
+        if st.button("🔍 Load Matched Workouts", key="load_rematches"):
+            st.session_state.rematch_date_range = (rematch_start, rematch_end)
+            st.rerun()
+        
+        # Show matched workouts if date range selected
+        if st.session_state.get('rematch_date_range'):
+            start_date, end_date = st.session_state.rematch_date_range
+            
+            # Get matched workouts
+            matched = get_matched_workouts(db_path, start_date.isoformat(), end_date.isoformat())
+            
+            if not matched:
+                st.info("No matched workouts found in this date range")
+            else:
+                st.success(f"📋 Found **{len(matched)}** matched workouts")
+                
+                # Create a table view
+                for workout in matched:
+                    with st.container():
+                        col1, col2, col3 = st.columns([2, 2, 1])
+                        
+                        with col1:
+                            st.markdown(f"**{workout['workout_date'][:10]}**")
+                            st.text(f"{workout['title']}")
+                            if workout['tss']:
+                                st.caption(f"TSS: {workout['tss']} | Duration: {workout['duration_minutes']:.0f}min")
+                        
+                        with col2:
+                            st.markdown("**Current Match:**")
+                            match_source_icon = "🤖" if workout['match_source'] == 'ai' else "👤"
+                            st.text(f"{match_source_icon} {workout['proposed_workout_name']}")
+                            if workout['matched_at']:
+                                st.caption(f"Matched: {workout['matched_at'][:16]}")
+                        
+                        with col3:
+                            if st.button("🔄 Re-match", key=f"rematch_{workout['id']}", use_container_width=True):
+                                st.session_state.rematch_workout_id = workout['id']
+                                st.session_state.rematch_current_name = workout['proposed_workout_name']
+                                st.rerun()
+                        
+                        st.divider()
+        
+        # Show re-match dialog if workout selected
+        if st.session_state.get('rematch_workout_id'):
+            workout_id = st.session_state.rematch_workout_id
+            current_name = st.session_state.rematch_current_name
+            
+            st.markdown("---")
+            st.markdown(f"#### Re-matching Workout ID: {workout_id}")
+            st.warning(f"⚠️ Current match: **{current_name}**")
+            st.info("Select new proposed workout below:")
+            
+            # Get the workout to find its week
+            matched = get_matched_workouts(db_path, 
+                                          (datetime.now() - timedelta(days=365)).date().isoformat(),
+                                          datetime.now().date().isoformat())
+            workout = next((w for w in matched if w['id'] == workout_id), None)
+            
+            if workout:
+                # Get proposed workouts for the week
+                workout_date = datetime.strptime(workout['workout_date'], '%Y-%m-%d %H:%M:%S').date()
+                week_start = get_week_start_date(workout_date.isoformat())
+                proposed_workouts = get_proposed_workouts_for_week(db_path, week_start)
+                
+                # Create dropdown options
+                options = []
+                for pw in proposed_workouts:
+                    label = f"{pw['workout_day']} - {pw['name']}"
+                    if pw['tss']:
+                        label += f" (TSS: {pw['tss']})"
+                    options.append((label, pw['name']))
+                
+                options.append(("Other (Custom workout/warm-up/cool-down)", "OTHER"))
+                
+                # Dropdown
+                selected_option = st.selectbox(
+                    "Select new proposed workout:",
+                    options=[opt[0] for opt in options],
+                    key=f"rematch_select_{workout_id}"
+                )
+                
+                selected_name = next((opt[1] for opt in options if opt[0] == selected_option), None)
+                
+                # If "Other" selected, show text input
+                if selected_name == "OTHER":
+                    custom_name = st.text_input(
+                        "Enter workout name:",
+                        placeholder="e.g., Warm-up, Cool-down, Hike",
+                        key=f"rematch_custom_{workout_id}"
+                    )
+                    if custom_name:
+                        selected_name = custom_name
+                    else:
+                        selected_name = None
+                
+                # Re-match button
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("✅ Save & Re-analyze", type="primary", use_container_width=True, disabled=(selected_name is None or selected_name == current_name)):
+                        if selected_name and selected_name != current_name:
+                            with st.spinner("Re-matching and re-analyzing..."):
+                                try:
+                                    # Update match
+                                    match_workout_to_proposed(db_path, workout_id, selected_name, 'manual')
+                                    st.success(f"✅ Re-matched to: {selected_name}")
+                                    
+                                    # Re-run analysis if FIT file exists
+                                    if workout['fit_file_id']:
+                                        with st.spinner("🤖 Running AI re-analysis..."):
+                                            try:
+                                                db = WorkoutDatabase(db_path)
+                                                fit_file_data = db.get_fit_file_by_id(workout['fit_file_id'])
+                                                
+                                                if fit_file_data and fit_file_data['file_content']:
+                                                    settings = db.get_athlete_settings()
+                                                    ftp = settings.get('ftp', 300)
+                                                    
+                                                    analyzer = FitFileAnalyzer(use_dynamic_models=True)
+                                                    analysis = analyzer.analyze_workout(
+                                                        fit_file_content=fit_file_data['file_content'],
+                                                        athlete_ftp=float(ftp),
+                                                        proposed_workout_name=selected_name
+                                                    )
+                                                    
+                                                    if analysis:
+                                                        # Update existing analysis
+                                                        analysis_id = db.store_workout_analysis(
+                                                            workout_id=workout_id,
+                                                            fit_file_id=workout['fit_file_id'],
+                                                            analysis_text=analysis.get('ai_analysis', ''),
+                                                            model_used=analysis.get('model_used', 'gemini-2.0-flash-exp')
+                                                        )
+                                                        st.success(f"✅ Re-analysis complete! (ID: {analysis_id})")
+                                            except Exception as e:
+                                                st.warning(f"⚠️ Re-analysis failed: {str(e)}")
+                                    
+                                    # Clear selection
+                                    st.session_state.rematch_workout_id = None
+                                    st.session_state.rematch_current_name = None
+                                    st.rerun()
+                                
+                                except Exception as e:
+                                    st.error(f"Error: {str(e)}")
+                
+                with col2:
+                    if st.button("❌ Cancel", use_container_width=True):
+                        st.session_state.rematch_workout_id = None
+                        st.session_state.rematch_current_name = None
+                        st.rerun()
     
     # ========== SECTION C: MANAGE WORKOUTS (DANGER ZONE) ==========
     with st.expander("⚠️ Manage Workouts (Danger Zone)", expanded=False):
