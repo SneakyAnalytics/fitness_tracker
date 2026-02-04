@@ -30,6 +30,7 @@ except Exception:
 from datetime import datetime, timedelta, date
 from typing import Any, Optional, cast
 import requests
+import time
 
 # API URL configuration - supports both Docker and native environments
 API_URL = os.getenv("API_URL", "http://localhost:8000")
@@ -3615,6 +3616,7 @@ elif page == '� Workout Data Ingestion':
         get_proposed_workouts_for_week,
         match_workout_to_proposed,
         get_matched_workouts,
+        delete_workout,
         get_week_start_date
     )
     from utils.trainingpeaks_sync import TrainingPeaksSync
@@ -4118,7 +4120,142 @@ elif page == '� Workout Data Ingestion':
     # ========== SECTION C: MANAGE WORKOUTS (DANGER ZONE) ==========
     with st.expander("⚠️ Manage Workouts (Danger Zone)", expanded=False):
         st.markdown("### Delete Workouts")
-        st.warning("🚧 Coming soon - Delete junk workouts and their analyses")
+        st.error("⚠️ **WARNING:** Deleting a workout will also delete its analysis. This cannot be undone!")
+        st.info("💡 Use this to remove duplicate uploads, junk data, or test workouts")
+        
+        # Date range selector
+        col1, col2 = st.columns(2)
+        with col1:
+            today = datetime.now().date()
+            delete_start = st.date_input(
+                "Start Date",
+                value=today - timedelta(days=30),
+                key="delete_start_date"
+            )
+        with col2:
+            delete_end = st.date_input(
+                "End Date",
+                value=today,
+                key="delete_end_date"
+            )
+        
+        # Search/filter options
+        col1, col2 = st.columns(2)
+        with col1:
+            search_text = st.text_input(
+                "🔍 Filter by title:",
+                placeholder="e.g., 'test', 'duplicate'",
+                key="delete_search"
+            )
+        with col2:
+            show_matched = st.checkbox("Show matched only", value=False, key="delete_matched_only")
+        
+        if st.button("🔍 Load Workouts", key="load_deletable"):
+            st.session_state.delete_date_range = (delete_start, delete_end)
+            st.session_state.delete_search = search_text
+            st.session_state.delete_show_matched = show_matched
+            st.rerun()
+        
+        # Show workouts if loaded
+        if st.session_state.get('delete_date_range'):
+            start_date, end_date = st.session_state.delete_date_range
+            search_filter = st.session_state.get('delete_search', '')
+            show_matched_only = st.session_state.get('delete_show_matched', False)
+            
+            # Get all workouts in range
+            if show_matched_only:
+                workouts = get_matched_workouts(db_path, start_date.isoformat(), end_date.isoformat())
+            else:
+                # Get both matched and unmatched
+                matched = get_matched_workouts(db_path, start_date.isoformat(), end_date.isoformat())
+                unmatched = get_unmatched_workouts(db_path, start_date.isoformat(), end_date.isoformat())
+                workouts = matched + unmatched
+            
+            # Filter by search text
+            if search_filter:
+                workouts = [w for w in workouts if search_filter.lower() in w['title'].lower()]
+            
+            if not workouts:
+                st.info("No workouts found matching criteria")
+            else:
+                st.warning(f"⚠️ Found **{len(workouts)}** workouts")
+                
+                # Create table view
+                st.markdown("---")
+                for workout in workouts:
+                    with st.container():
+                        col1, col2, col3 = st.columns([2, 2, 1])
+                        
+                        with col1:
+                            st.markdown(f"**{workout['workout_date'][:10]}** - ID: {workout['id']}")
+                            st.text(f"{workout['title']}")
+                            if workout['tss']:
+                                st.caption(f"TSS: {workout['tss']} | Duration: {workout['duration_minutes']:.0f}min")
+                        
+                        with col2:
+                            if workout.get('proposed_workout_name'):
+                                match_source = workout.get('match_source', 'unknown')
+                                match_icon = "🤖" if match_source == 'ai' else "👤"
+                                st.text(f"Matched: {match_icon} {workout['proposed_workout_name']}")
+                            else:
+                                st.text("Status: ❌ Unmatched")
+                            
+                            if workout.get('fit_filename'):
+                                st.caption(f"FIT: {workout['fit_filename'][:30]}...")
+                        
+                        with col3:
+                            if st.button("🗑️ Delete", key=f"delete_{workout['id']}", type="secondary", use_container_width=True):
+                                st.session_state.delete_confirm_id = workout['id']
+                                st.session_state.delete_confirm_title = workout['title']
+                                st.rerun()
+                        
+                        st.divider()
+        
+        # Show confirmation dialog if workout selected for deletion
+        if st.session_state.get('delete_confirm_id'):
+            workout_id = st.session_state.delete_confirm_id
+            workout_title = st.session_state.delete_confirm_title
+            
+            st.markdown("---")
+            st.error(f"### ⚠️ CONFIRM DELETION")
+            st.markdown(f"**Workout ID:** {workout_id}")
+            st.markdown(f"**Title:** {workout_title}")
+            st.markdown("")
+            st.markdown("**This will delete:**")
+            st.markdown("- The workout record")
+            st.markdown("- All associated analyses")
+            st.markdown("- Personal bests (if any)")
+            st.markdown("")
+            st.error("**This action CANNOT be undone!**")
+            
+            # Confirmation checkbox
+            confirm = st.checkbox(
+                "✅ I understand this will permanently delete the workout and its analysis",
+                key=f"delete_confirm_check_{workout_id}"
+            )
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🗑️ DELETE PERMANENTLY", type="primary", use_container_width=True, disabled=not confirm):
+                    if confirm:
+                        try:
+                            delete_workout(db_path, workout_id)
+                            st.success(f"✅ Workout {workout_id} deleted successfully")
+                            
+                            # Clear state and reload
+                            st.session_state.delete_confirm_id = None
+                            st.session_state.delete_confirm_title = None
+                            time.sleep(1)
+                            st.rerun()
+                        
+                        except Exception as e:
+                            st.error(f"Error deleting workout: {str(e)}")
+            
+            with col2:
+                if st.button("❌ Cancel", use_container_width=True):
+                    st.session_state.delete_confirm_id = None
+                    st.session_state.delete_confirm_title = None
+                    st.rerun()
 
 
 # REMOVED: Old tabs (Import Data, View Data, Proposed Workouts, Weekly Summary)
