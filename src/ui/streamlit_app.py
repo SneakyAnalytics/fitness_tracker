@@ -3617,6 +3617,8 @@ elif page == '� Workout Data Ingestion':
         get_week_start_date
     )
     from utils.trainingpeaks_sync import TrainingPeaksSync
+    from storage.database import WorkoutDatabase
+    from utils.fit_file_analyzer import FitFileAnalyzer
     
     # ========== SECTION A: SYNC & MATCH NEW WORKOUTS ==========
     with st.expander("📥 Sync & Match New Workouts", expanded=True):
@@ -3811,18 +3813,77 @@ elif page == '� Workout Data Ingestion':
                                     if selected_name:
                                         with st.spinner("Matching and analyzing..."):
                                             try:
-                                                # Save match to database
+                                                # Step 1: Save match to database
                                                 match_workout_to_proposed(
                                                     db_path,
                                                     workout['id'],
                                                     selected_name,
                                                     'manual'
                                                 )
-                                                
-                                                # TODO: Trigger AI analysis here
-                                                # analyze_and_store_workout(...)
-                                                
                                                 st.success(f"✅ Matched to: {selected_name}")
+                                                
+                                                # Step 2: Run AI analysis if FIT file exists
+                                                if workout['fit_file_id']:
+                                                    with st.spinner("🤖 Running AI analysis..."):
+                                                        try:
+                                                            # Get FIT file content from database
+                                                            db = WorkoutDatabase(db_path)
+                                                            fit_file_data = db.get_fit_file_by_id(workout['fit_file_id'])
+                                                            
+                                                            if fit_file_data and fit_file_data['file_content']:
+                                                                # Get athlete FTP
+                                                                settings = db.get_athlete_settings()
+                                                                ftp = settings.get('ftp', 300)
+                                                                
+                                                                # Run analysis
+                                                                analyzer = FitFileAnalyzer(use_dynamic_models=True)
+                                                                analysis = analyzer.analyze_workout(
+                                                                    fit_file_content=fit_file_data['file_content'],
+                                                                    athlete_ftp=float(ftp),
+                                                                    proposed_workout_name=selected_name
+                                                                )
+                                                                
+                                                                if analysis:
+                                                                    # Get AI analysis text
+                                                                    ai_analysis = analysis.get('ai_analysis', '')
+                                                                    
+                                                                    # Store analysis in database
+                                                                    analysis_id = db.store_workout_analysis(
+                                                                        workout_id=workout['id'],
+                                                                        fit_file_id=workout['fit_file_id'],
+                                                                        analysis_text=ai_analysis,
+                                                                        model_used=analysis.get('model_used', 'gemini-2.0-flash-exp')
+                                                                    )
+                                                                    
+                                                                    # Store personal bests
+                                                                    peak_efforts = analysis.get('peak_efforts', {})
+                                                                    workout_date = workout['workout_date'][:10]
+                                                                    pb_count = 0
+                                                                    
+                                                                    for effort_name, effort_data in peak_efforts.items():
+                                                                        if isinstance(effort_data, dict) and 'power' in effort_data:
+                                                                            pb_id = db.store_personal_best(
+                                                                                effort_type=effort_name,
+                                                                                effort_value=effort_data['power'],
+                                                                                achieved_date=workout_date,
+                                                                                athlete_id='default'
+                                                                            )
+                                                                            if pb_id:
+                                                                                pb_count += 1
+                                                                    
+                                                                    st.success(f"✅ AI analysis complete! (ID: {analysis_id})")
+                                                                    if pb_count > 0:
+                                                                        st.success(f"🏆 {pb_count} personal best(s) recorded!")
+                                                                else:
+                                                                    st.warning("⚠️ Analysis returned no results")
+                                                            else:
+                                                                st.warning("⚠️ No FIT file content available for analysis")
+                                                        
+                                                        except Exception as analysis_error:
+                                                            st.warning(f"⚠️ Could not analyze workout: {str(analysis_error)}")
+                                                            # Continue anyway - matching is saved
+                                                else:
+                                                    st.info("ℹ️ No FIT file linked - skipping analysis")
                                                 
                                                 # Move to next workout
                                                 st.session_state.current_workout_idx += 1
@@ -3836,6 +3897,9 @@ elif page == '� Workout Data Ingestion':
                                             
                                             except Exception as e:
                                                 st.error(f"Error: {str(e)}")
+                                                import traceback
+                                                with st.expander("Show error details"):
+                                                    st.code(traceback.format_exc())
                             
                             with col_btn2:
                                 if st.button("⏭️ Skip", use_container_width=True):
