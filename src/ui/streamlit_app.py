@@ -3619,6 +3619,8 @@ elif page == '� Workout Data Ingestion':
     from utils.trainingpeaks_sync import TrainingPeaksSync
     from storage.database import WorkoutDatabase
     from utils.fit_file_analyzer import FitFileAnalyzer
+    from utils.workout_visualizer import WorkoutVisualizer
+    from utils.fit_parser import FitParser
     
     # ========== SECTION A: SYNC & MATCH NEW WORKOUTS ==========
     with st.expander("📥 Sync & Match New Workouts", expanded=True):
@@ -3764,6 +3766,37 @@ elif page == '� Workout Data Ingestion':
                                 st.markdown(f"**Comments:** {workout['comments']}")
                             if workout['fit_filename']:
                                 st.markdown(f"**FIT File:** {workout['fit_filename']}")
+                            
+                            # Display power/HR chart if FIT file exists
+                            if workout['fit_file_id']:
+                                try:
+                                    db = WorkoutDatabase(db_path)
+                                    fit_file_data = db.get_fit_file_by_id(workout['fit_file_id'])
+                                    
+                                    if fit_file_data and fit_file_data['file_content']:
+                                        with st.spinner("Loading workout chart..."):
+                                            # Parse FIT file
+                                            parser = FitParser()
+                                            parsed_data = parser.parse_fit_file(fit_file_data['file_content'])
+                                            
+                                            if parsed_data and parsed_data.get('records'):
+                                                # Create simple power/HR chart
+                                                visualizer = WorkoutVisualizer()
+                                                
+                                                # Get peak efforts for the chart
+                                                from utils.fit_file_analyzer import FitFileAnalyzer
+                                                temp_analyzer = FitFileAnalyzer()
+                                                peak_efforts = temp_analyzer._calculate_peak_efforts(parsed_data)
+                                                
+                                                # Create dashboard
+                                                fig = visualizer.create_workout_dashboard(parsed_data, peak_efforts)
+                                                st.plotly_chart(fig, use_container_width=True, key=f"chart_{workout['id']}")
+                                            else:
+                                                st.info("📊 Chart unavailable (no data records)")
+                                except Exception as chart_error:
+                                    st.info(f"📊 Chart unavailable: {str(chart_error)[:50]}")
+                            else:
+                                st.info("📊 No FIT file linked - chart unavailable")
                         
                         with col2:
                             st.markdown("#### 🎯 Match to Proposed Workout")
