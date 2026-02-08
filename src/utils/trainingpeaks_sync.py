@@ -280,11 +280,13 @@ class TrainingPeaksSync:
         
         print(f"✅ Downloaded and saved {len(saved_files)} files!")
     
-    def process_and_upload_files(self, cleanup_fit_files: bool = True):
+    def process_and_upload_files(self, cleanup_fit_files: bool = True, start_date=None, end_date=None):
         """Process downloaded files and upload to database
         
         Args:
             cleanup_fit_files: If False, FIT files are kept after upload for further processing
+            start_date: Start date for workout matching
+            end_date: End date for workout matching
         """
         print("\n📦 Processing downloaded files...")
         
@@ -465,20 +467,22 @@ class TrainingPeaksSync:
             print(f"   ⚠️  Cleanup warning: {e}")
         
         # Link workouts to fit_files by matching TSS and duration
-        if results['workouts'] and results['fit_files'] > 0:
+        if results['workouts'] and results['fit_files'] > 0 and start_date and end_date:
             print("\n🔗 Linking workouts to FIT files...")
             try:
-                self._match_workouts_to_fit_files(start_date, end_date)
+                # Convert date strings to expected format if needed
+                if isinstance(start_date, str):
+                    start_str = start_date
+                    end_str = end_date
+                else:
+                    start_str = start_date.strftime('%Y-%m-%d')
+                    end_str = end_date.strftime('%Y-%m-%d')
+                self._match_workouts_to_fit_files(start_str, end_str)
             except Exception as e:
                 print(f"   ⚠️  Matching warning: {e}")
         
-        # Use AI to match workouts to proposed workouts for multi-workout days
-        if results['workouts']:
-            print("\n🤖 AI matching workouts to proposed workouts...")
-            try:
-                self._ai_match_to_proposed_workouts(start_date, end_date)
-            except Exception as e:
-                print(f"   ⚠️  AI matching warning: {e}")
+        # Note: Workout matching to proposed workouts is now done manually in UI
+        print("\n✓ Sync complete. Use 'Workout Data Ingestion' tab to match workouts to proposed workouts.")
         
         return results
     
@@ -539,33 +543,89 @@ class TrainingPeaksSync:
                     'duration_min': float(metrics.get('duration', 0) or 0)
                 })
             
-            # Match by day + closest TSS + duration
+            # Match by day + title keywords (then TSS/duration for scoring)
+            # Title-based filtering prevents same-day workout mismatches (e.g., strength vs Zwift)
             matched_count = 0
             for workout in workouts:
-                candidates = [f for f in fit_files if f['day'] == workout['day']]
+                # Get all FIT files from same day
+                same_day_fits = [f for f in fit_files if f['day'] == workout['day']]
                 
-                if not candidates:
+                if not same_day_fits:
                     continue
                 
+                # Analyze workout title for keywords
+                workout_title_lower = workout['title'].lower()
+                
+                # Skip FIT assignment for strength workouts (no power/HR data expected)
+                if 'strength' in workout_title_lower or 'weight' in workout_title_lower:
+                    print(f"   ⏭️  Skipping FIT match for strength workout: {workout['title']}")
+                    continue
+                
+                # Filter candidates by title matching before scoring
+                candidates = []
+                for fit in same_day_fits:
+                    fit_filename_lower = fit['file_name'].lower()
+                    
+                    # If workout is clearly Zwift, only use Zwift FIT files
+                    if 'zwift' in workout_title_lower:
+                        if 'zwift' in fit_filename_lower:
+                            candidates.append(fit)
+                        else:
+                            print(f"   ⏭️  Skipping non-Zwift FIT '{fit['file_name']}' for Zwift workout")
+                        continue
+                    
+                    # If FIT is clearly Zwift, only match to Zwift workouts
+                    if 'zwift' in fit_filename_lower:
+                        if 'zwift' in workout_title_lower:
+                            candidates.append(fit)
+                        else:
+                            print(f"   ⏭️  Skipping Zwift FIT '{fit['file_name']}' for non-Zwift workout")
+                        continue
+                    
+                    # For other workouts (Garmin, generic bike/run), allow all non-Zwift FITs
+                    candidates.append(fit)
+                
+                if not candidates:
+                    print(f"   ⚠️  No suitable FIT files found for workout: {workout['title']}")
+                    continue
+                
+                # Now score the filtered candidates
                 best_match = None
                 best_score = 999999
                 
                 for fit in candidates:
-                    tss_diff = abs(workout['tss'] - fit['tss'])
-                    dur_diff = abs(workout['duration_min'] - fit['duration_min'])
-                    score = tss_diff + dur_diff
+                    # Check if this is a Garmin file (TrainingPeaks export or contains GarminPing)
+                    is_garmin = 'tp-' in fit['file_name'].lower() or 'garmin' in fit['file_name'].lower()
+                    
+                    if is_garmin:
+                        # Garmin: Only match on duration (TSS calculations differ significantly)
+                        dur_diff = abs(workout['duration_min'] - fit['duration_min'])
+                        score = dur_diff
+                    else:
+                        # Zwift: Match on both TSS and duration
+                        tss_diff = abs(workout['tss'] - fit['tss'])
+                        dur_diff = abs(workout['duration_min'] - fit['duration_min'])
+                        score = tss_diff + dur_diff
                     
                     if score < best_score:
                         best_score = score
                         best_match = fit
                 
-                # Match if score is reasonable (within 5 units total difference)
-                if best_match and best_score < 5:
+                # More lenient threshold for Garmin (50 min duration diff), stricter for Zwift (100 total)
+                is_garmin_match = best_match and ('tp-' in best_match['file_name'].lower() or 'garmin' in best_match['file_name'].lower())
+                threshold = 50 if is_garmin_match else 100
+                
+                if best_match and best_score < threshold:
+                    print(f"   ✅ Matched '{workout['title']}' → '{best_match['file_name']}' (score: {best_score:.1f})")
                     c.execute('UPDATE workouts SET fit_file_id = ? WHERE id = ?', 
                              (best_match['id'], workout['id']))
                     matched_count += 1
                     # Remove from candidates to avoid duplicate matching
                     fit_files.remove(best_match)
+                elif best_match:
+                    print(f"   ⚠️  Low confidence match skipped for '{workout['title']}' (score: {best_score:.1f} > threshold {threshold})")
+                else:
+                    print(f"   ⚠️  No suitable match found for '{workout['title']}'")
             
             conn.commit()
             if matched_count > 0:
@@ -573,121 +633,6 @@ class TrainingPeaksSync:
             else:
                 print("   ℹ️  No new workout-FIT file matches needed")
                 
-        finally:
-            conn.close()
-    
-    def _ai_match_to_proposed_workouts(self, start_date, end_date):
-        """
-        Use AI to match workouts to proposed workouts on days with multiple workouts.
-        Stores the proposed_workout_name in the workouts table for use during analysis.
-        """
-        import sqlite3
-        import json
-        from pathlib import Path
-        from .workout_matcher import WorkoutMatcher
-        
-        project_root = Path(__file__).parent.parent.parent
-        db_path = project_root / "data" / "fitness_data.db"
-        
-        conn = sqlite3.connect(str(db_path))
-        c = conn.cursor()
-        
-        try:
-            matcher = WorkoutMatcher()
-            
-            # Find days with multiple workouts in the date range
-            c.execute('''
-                SELECT workout_day, COUNT(*) as workout_count
-                FROM workouts
-                WHERE workout_day BETWEEN ? AND ?
-                  AND (workout_data IS NOT NULL OR fit_file_id IS NOT NULL)
-                GROUP BY workout_day
-                HAVING workout_count > 1
-            ''', (start_date, end_date))
-            
-            multi_workout_days = [row[0] for row in c.fetchall()]
-            
-            if not multi_workout_days:
-                print("   ℹ️  No multi-workout days found")
-                return
-            
-            matched_count = 0
-            
-            for day in multi_workout_days:
-                # Get actual workouts for this day
-                c.execute('''
-                    SELECT id, workout_title, workout_data, athlete_comments
-                    FROM workouts
-                    WHERE workout_day = ?
-                    ORDER BY id
-                ''', (day,))
-                
-                actual_workouts = []
-                for row in c.fetchall():
-                    workout_id, title, data_json, comments = row
-                    data = json.loads(data_json) if data_json else {}
-                    metrics = data.get('metrics', {})
-                    
-                    actual_workouts.append({
-                        'id': workout_id,
-                        'title': title,
-                        'tss': float(metrics.get('actual_tss', 0) or 0),
-                        'duration_min': float(metrics.get('actual_duration', 0) or 0),
-                        'athlete_comments': comments or '',
-                        'sport': data.get('sport', 'cycling')
-                    })
-                
-                # Get proposed workouts for this day and nearby days (±1) to allow reschedules
-                c.execute('''
-                    SELECT dp.date, pw.name, pw.type, pw.plannedDuration,
-                           pw.plannedTSS_min, pw.plannedTSS_max, pw.notes
-                    FROM proposed_workouts pw
-                    JOIN daily_plans dp ON pw.dailyPlanId = dp.id
-                    WHERE dp.date BETWEEN date(?, '-1 day') AND date(?, '+1 day')
-                    ORDER BY dp.date ASC
-                ''', (day, day))
-                
-                proposed_workouts = []
-                for row in c.fetchall():
-                    proposed_workouts.append({
-                        'date': row[0],
-                        'name': row[1],
-                        'type': row[2],
-                        'plannedDuration': row[3],
-                        'plannedTSS_min': row[4],
-                        'plannedTSS_max': row[5],
-                        'notes': row[6]
-                    })
-                
-                if not proposed_workouts:
-                    continue
-                
-                # Use AI to match
-                matches = matcher.match_workouts_for_day(
-                    actual_workouts,
-                    proposed_workouts,
-                    day
-                )
-                
-                # Store matches in database
-                for workout_id, proposed_name in matches.items():
-                    if proposed_name:
-                        c.execute('''
-                            UPDATE workouts
-                            SET proposed_workout_name = ?
-                            WHERE id = ?
-                        ''', (proposed_name, workout_id))
-                        matched_count += 1
-                        print(f"   ✓ Matched workout {workout_id} to '{proposed_name}'")
-            
-            conn.commit()
-            if matched_count > 0:
-                print(f"   ✅ AI matched {matched_count} workouts to proposed workouts")
-            
-        except Exception as e:
-            print(f"   ⚠️  AI matching error: {e}")
-            import traceback
-            traceback.print_exc()
         finally:
             conn.close()
     
@@ -736,7 +681,11 @@ class TrainingPeaksSync:
                 browser.close()
             
             # Process and upload files
-            results = self.process_and_upload_files(cleanup_fit_files=cleanup_fit_files)
+            results = self.process_and_upload_files(
+                cleanup_fit_files=cleanup_fit_files,
+                start_date=start_date,
+                end_date=end_date
+            )
             
             print("\n" + "=" * 60)
             print("✅ SYNC COMPLETE!")
