@@ -5,6 +5,7 @@ sys.path.append(".")
 import os
 import streamlit as st
 import pandas as pd
+from src.storage.database import WorkoutDatabase
 
 # Some versions of NumPy (e.g. 1.26+) do not expose a top-level `numpy.rec` module
 # which older code (and pandas internals) sometimes expect to import. Ensure a
@@ -3043,6 +3044,7 @@ page = st.sidebar.radio("Go to", [
     '📅 Workout Calendar', 
     '🤖 AI Coach',
     '📦 Workout Data Ingestion',  # NEW: Manual matching workflow
+    '⚙️ Athlete Settings',  # NEW: FTP and zones configuration
 ], index=0)
 
 if page == '📅 Workout Calendar':
@@ -3057,6 +3059,87 @@ elif page == '🎯 Achievements & Goals':
 
 elif page == '🤖 AI Coach':
     display_ai_coach()
+
+elif page == '⚙️ Athlete Settings':
+    create_section_header("Athlete Settings", "⚙️")
+    
+    st.markdown("""
+    Configure your athlete profile settings including FTP and training zones. 
+    **Important:** Update your FTP here when Zwift's FTP estimate changes to ensure accurate power targets in workouts.
+    """)
+    
+    # Load current settings
+    db = WorkoutDatabase('data/fitness_data.db')
+    current_settings = db.get_athlete_settings('default')
+    
+    st.markdown("---")
+    
+    # FTP Setting
+    st.subheader("🚴 Functional Threshold Power (FTP)")
+    st.markdown("Your FTP is used to calculate power zones and convert watt-based workout intervals.")
+    
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        new_ftp = st.number_input(
+            "FTP (watts)",
+            min_value=100,
+            max_value=500,
+            value=current_settings.get('ftp', 302),
+            step=1,
+            help="Update this to match Zwift's FTP estimate for accurate workout power targets"
+        )
+    with col2:
+        st.metric("Current FTP", f"{current_settings.get('ftp', 302)}W")
+    
+    # Heart Rate Zones
+    st.markdown("---")
+    st.subheader("❤️ Heart Rate Zones")
+    st.markdown("Enter your HR zone thresholds as comma-separated values (Z1/Z2, Z2/Z3, Z3/Z4, Z4/Z5, Max HR)")
+    
+    current_hr = current_settings.get('hr_zones', '138,156,165,173,200')
+    new_hr_zones = st.text_input(
+        "HR Zones (comma-separated)",
+        value=current_hr,
+        help="Example: 138,156,165,173,200 for zones 1-5"
+    )
+    
+    # Power Zones
+    st.markdown("---")
+    st.subheader("⚡ Power Zones")
+    st.markdown("Enter your power zone thresholds in watts (Z1/Z2, Z2/Z3, Z3/Z4, Z4/Z5, Z5/Z6)")
+    
+    current_power = current_settings.get('power_zones', [165, 225, 270, 315, 9999])
+    power_zones_str = ','.join(map(str, current_power))
+    new_power_zones = st.text_input(
+        "Power Zones (comma-separated watts)",
+        value=power_zones_str,
+        help="Example: 165,225,270,315,9999 for zones based on FTP"
+    )
+    
+    # Save button
+    st.markdown("---")
+    if st.button("💾 Save Settings", type="primary", use_container_width=True):
+        try:
+            # Parse power zones
+            power_zones_list = [int(z.strip()) for z in new_power_zones.split(',')]
+            
+            # Save settings
+            settings_dict = {
+                'ftp': int(new_ftp),
+                'hr_zones': new_hr_zones.strip(),
+                'power_zones': power_zones_list
+            }
+            
+            if db.save_athlete_settings('default', settings_dict):
+                st.success(f"✅ Settings saved! FTP updated to {new_ftp}W")
+                st.info("💡 Tip: Regenerate your Zwift workouts to apply the new FTP values")
+                st.balloons()
+            else:
+                st.error("❌ Failed to save settings. Please try again.")
+        except ValueError as e:
+            st.error(f"❌ Invalid input format: {e}")
+        except Exception as e:
+            st.error(f"❌ Error saving settings: {e}")
 
 # Session Comparison moved to Historical Analysis tab - keeping function for potential future use
 # elif page == '🔄 Session Comparison':
@@ -3599,7 +3682,7 @@ elif page == '📊 Dashboard':
         st.error(f"Error loading dashboard data: {str(e)}")
         st.exception(e)
 
-elif page == '� Workout Data Ingestion':
+elif page == '📦 Workout Data Ingestion':
     create_section_header("Workout Data Ingestion", "📦")
     
     st.info("💡 **New Manual Matching Workflow**: Sync data from TrainingPeaks, then manually match workouts to ensure 100% accuracy before AI analysis.")
@@ -3617,13 +3700,20 @@ elif page == '� Workout Data Ingestion':
         match_workout_to_proposed,
         get_matched_workouts,
         delete_workout,
-        get_week_start_date
+        get_week_start_date,
+        get_workouts_with_fit_files,
+        get_available_fit_files,
+        reassign_fit_file,
+        unassign_fit_file
     )
     from utils.trainingpeaks_sync import TrainingPeaksSync
     from storage.database import WorkoutDatabase
     from utils.fit_file_analyzer import FitFileAnalyzer
     from utils.workout_visualizer import WorkoutVisualizer
     from utils.fit_parser import FitParser
+    
+    # Define database path for all sections
+    db_path = 'data/fitness_data.db'
     
     # ========== SECTION A: SYNC & MATCH NEW WORKOUTS ==========
     with st.expander("📥 Sync & Match New Workouts", expanded=True):
@@ -3718,6 +3808,33 @@ elif page == '� Workout Data Ingestion':
                         with st.expander("Show error details"):
                             st.code(traceback.format_exc())
         
+        # Alternative: Load unmatched workouts without full sync
+        st.markdown("---")
+        st.markdown("### Or: Load Unmatched Workouts")
+        st.info("💡 Skip the full sync and just load workouts that need matching")
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            quick_start = st.date_input(
+                "Start Date",
+                value=datetime.now().date() - timedelta(days=7),
+                key="quick_start_date"
+            )
+        with col2:
+            quick_end = st.date_input(
+                "End Date", 
+                value=datetime.now().date(),
+                key="quick_end_date"
+            )
+        with col3:
+            st.write("")  # Spacing
+            st.write("")  # Spacing
+            if st.button("📋 Load Unmatched Workouts", type="primary", use_container_width=True):
+                st.session_state.sync_completed = True
+                st.session_state.sync_date_range = (quick_start, quick_end)
+                st.session_state.current_workout_idx = 0
+                st.rerun()
+        
         # Step 2: Match workouts (only show if sync completed)
         if st.session_state.get('sync_completed', False):
             st.markdown("---")
@@ -3728,14 +3845,14 @@ elif page == '� Workout Data Ingestion':
             if date_range:
                 start_date, end_date = date_range
                 
-                # Get unmatched workouts
-                db_path = os.path.join(parent_dir, 'data', 'fitness_data.db')
+                # Get unmatched workouts (db_path defined at top of page handler)
                 unmatched = get_unmatched_workouts(db_path, start_date.isoformat(), end_date.isoformat())
                 
                 if not unmatched:
                     st.success("🎉 All workouts in this date range are already matched!")
-                    if st.button("Start New Sync"):
+                    if st.button("Start New Date Range"):
                         st.session_state.sync_completed = False
+                        st.session_state.current_workout_idx = 0
                         st.rerun()
                 else:
                     st.info(f"📋 Found **{len(unmatched)}** unmatched workouts")
@@ -3770,42 +3887,39 @@ elif page == '� Workout Data Ingestion':
                             if workout['fit_filename']:
                                 st.markdown(f"**FIT File:** {workout['fit_filename']}")
                             
-                            # Display power/HR chart if FIT file exists
-                            if workout['fit_file_id']:
+                            # Display power/HR chart if FIT file exists and has data
+                            # FIT data might have 'records' or 'time_series' depending on how it was parsed
+                            if workout.get('fit_data') and (workout['fit_data'].get('records') or workout['fit_data'].get('time_series')):
                                 try:
-                                    db = WorkoutDatabase(db_path)
-                                    fit_file_data = db.get_fit_file_by_id(workout['fit_file_id'])
-                                    
-                                    if fit_file_data and fit_file_data['file_content']:
-                                        with st.spinner("Loading workout chart..."):
-                                            # Parse FIT file
-                                            parser = FitParser()
-                                            parsed_data = parser.parse_fit_file(fit_file_data['file_content'])
-                                            
-                                            if parsed_data and parsed_data.get('records'):
-                                                # Create simple power/HR chart
-                                                visualizer = WorkoutVisualizer()
-                                                
-                                                # Get peak efforts for the chart
-                                                from utils.fit_file_analyzer import FitFileAnalyzer
-                                                temp_analyzer = FitFileAnalyzer()
-                                                peak_efforts = temp_analyzer._calculate_peak_efforts(parsed_data)
-                                                
-                                                # Create dashboard
-                                                fig = visualizer.create_workout_dashboard(parsed_data, peak_efforts)
-                                                st.plotly_chart(fig, use_container_width=True, key=f"chart_{workout['id']}")
-                                            else:
-                                                st.info("📊 Chart unavailable (no data records)")
+                                    with st.spinner("Loading workout chart..."):
+                                        # Create simple power/HR chart using already-parsed data
+                                        visualizer = WorkoutVisualizer()
+                                        
+                                        # Get peak efforts for the chart
+                                        from utils.fit_file_analyzer import FitFileAnalyzer
+                                        temp_analyzer = FitFileAnalyzer()
+                                        peak_efforts = temp_analyzer._detect_peak_efforts(workout['fit_data'])
+                                        
+                                        # Create dashboard
+                                        fig = visualizer.create_workout_dashboard(workout['fit_data'], peak_efforts)
+                                        st.plotly_chart(fig, use_container_width=True, key=f"chart_{workout['id']}")
                                 except Exception as chart_error:
-                                    st.info(f"📊 Chart unavailable: {str(chart_error)[:50]}")
+                                    st.info(f"📊 Chart unavailable: {str(chart_error)[:100]}")
                             else:
-                                st.info("📊 No FIT file linked - chart unavailable")
+                                st.info("📊 No FIT file data available for charting")
                         
                         with col2:
                             st.markdown("#### 🎯 Match to Proposed Workout")
                             
                             # Get proposed workouts for the week
-                            workout_date = datetime.strptime(workout['workout_date'], '%Y-%m-%d %H:%M:%S').date()
+                            # Handle both date-only and datetime formats
+                            workout_date_str = workout['workout_date']
+                            if ' ' in workout_date_str:
+                                # Has time component
+                                workout_date = datetime.strptime(workout_date_str, '%Y-%m-%d %H:%M:%S').date()
+                            else:
+                                # Date only
+                                workout_date = datetime.strptime(workout_date_str, '%Y-%m-%d').date()
                             week_start = get_week_start_date(workout_date.isoformat())
                             proposed_workouts = get_proposed_workouts_for_week(db_path, week_start)
                             
@@ -3858,78 +3972,93 @@ elif page == '� Workout Data Ingestion':
                                                 )
                                                 st.success(f"✅ Matched to: {selected_name}")
                                                 
-                                                # Step 2: Run AI analysis if FIT file exists
-                                                if workout['fit_file_id']:
+                                                # Step 2: Run AI analysis if FIT data exists
+                                                if workout.get('fit_data'):
                                                     with st.spinner("🤖 Running AI analysis..."):
                                                         try:
-                                                            # Get FIT file content from database
+                                                            # Get athlete FTP
                                                             db = WorkoutDatabase(db_path)
-                                                            fit_file_data = db.get_fit_file_by_id(workout['fit_file_id'])
+                                                            settings = db.get_athlete_settings()
+                                                            ftp = settings.get('ftp', 300)
                                                             
-                                                            if fit_file_data and fit_file_data['file_content']:
-                                                                # Get athlete FTP
-                                                                settings = db.get_athlete_settings()
-                                                                ftp = settings.get('ftp', 300)
+                                                            # Get athlete comments
+                                                            comments = workout.get('comments', '')
+                                                            
+                                                            # Run analysis using already-parsed FIT data
+                                                            analyzer = FitFileAnalyzer(use_dynamic_models=True)
+                                                            analysis = analyzer.analyze_workout_from_parsed_data(
+                                                                parsed_data=workout['fit_data'],
+                                                                athlete_ftp=float(ftp),
+                                                                athlete_notes=comments
+                                                            )
+                                                            
+                                                            if analysis:
+                                                                # Get AI analysis text
+                                                                ai_analysis = analysis.get('ai_analysis', '')
                                                                 
-                                                                # Run analysis
-                                                                analyzer = FitFileAnalyzer(use_dynamic_models=True)
-                                                                analysis = analyzer.analyze_workout(
-                                                                    fit_file_content=fit_file_data['file_content'],
-                                                                    athlete_ftp=float(ftp),
-                                                                    proposed_workout_name=selected_name
+                                                                # Store analysis in database
+                                                                analysis_id = db.store_workout_analysis(
+                                                                    workout_id=workout['id'],
+                                                                    fit_file_id=workout['fit_file_id'],
+                                                                    analysis_text=ai_analysis,
+                                                                    model_used=analysis.get('model_used', 'gemini-2.0-flash-exp')
                                                                 )
                                                                 
-                                                                if analysis:
-                                                                    # Get AI analysis text
-                                                                    ai_analysis = analysis.get('ai_analysis', '')
-                                                                    
-                                                                    # Store analysis in database
-                                                                    analysis_id = db.store_workout_analysis(
-                                                                        workout_id=workout['id'],
-                                                                        fit_file_id=workout['fit_file_id'],
-                                                                        analysis_text=ai_analysis,
-                                                                        model_used=analysis.get('model_used', 'gemini-2.0-flash-exp')
-                                                                    )
-                                                                    
-                                                                    # Store personal bests
-                                                                    peak_efforts = analysis.get('peak_efforts', {})
-                                                                    workout_date = workout['workout_date'][:10]
-                                                                    pb_count = 0
-                                                                    
-                                                                    for effort_name, effort_data in peak_efforts.items():
-                                                                        if isinstance(effort_data, dict) and 'power' in effort_data:
-                                                                            pb_id = db.store_personal_best(
-                                                                                effort_type=effort_name,
-                                                                                effort_value=effort_data['power'],
-                                                                                achieved_date=workout_date,
-                                                                                athlete_id='default'
-                                                                            )
-                                                                            if pb_id:
-                                                                                pb_count += 1
-                                                                    
-                                                                    st.success(f"✅ AI analysis complete! (ID: {analysis_id})")
-                                                                    if pb_count > 0:
-                                                                        st.success(f"🏆 {pb_count} personal best(s) recorded!")
-                                                                else:
-                                                                    st.warning("⚠️ Analysis returned no results")
+                                                                # Store personal bests
+                                                                peak_efforts = analysis.get('peak_efforts', {})
+                                                                workout_date = workout['workout_date'][:10] if ' ' in workout['workout_date'] else workout['workout_date']
+                                                                pb_count = 0
+                                                                
+                                                                for effort_name, effort_data in peak_efforts.items():
+                                                                    if isinstance(effort_data, dict) and 'power' in effort_data:
+                                                                        pb_id = db.store_personal_best(
+                                                                            effort_type=effort_name,
+                                                                            effort_value=effort_data['power'],
+                                                                            achieved_date=workout_date,
+                                                                            athlete_id='default'
+                                                                        )
+                                                                        if pb_id:
+                                                                            pb_count += 1
+                                                                
+                                                                # Store analysis in session state to display
+                                                                st.session_state.last_analysis = ai_analysis
+                                                                st.session_state.last_analysis_pbs = pb_count
+                                                                st.session_state.show_analysis_result = True
+                                                                
+                                                                st.success(f"✅ AI analysis complete! (ID: {analysis_id})")
+                                                                if pb_count > 0:
+                                                                    st.success(f"🏆 {pb_count} personal best(s) recorded!")
+                                                                
+                                                                # Show the AI analysis
+                                                                st.markdown("---")
+                                                                st.markdown("### 🤖 AI Analysis Result")
+                                                                st.markdown(ai_analysis)
+                                                                st.markdown("---")
+                                                                
                                                             else:
-                                                                st.warning("⚠️ No FIT file content available for analysis")
+                                                                st.warning("⚠️ Analysis returned no results")
                                                         
                                                         except Exception as analysis_error:
                                                             st.warning(f"⚠️ Could not analyze workout: {str(analysis_error)}")
                                                             # Continue anyway - matching is saved
                                                 else:
-                                                    st.info("ℹ️ No FIT file linked - skipping analysis")
+                                                    st.info("ℹ️ No FIT file data - skipping analysis")
                                                 
-                                                # Move to next workout
-                                                st.session_state.current_workout_idx += 1
-                                                if st.session_state.current_workout_idx >= len(unmatched):
+                                                # Check if there are more workouts
+                                                next_idx = st.session_state.current_workout_idx + 1
+                                                if next_idx >= len(unmatched):
                                                     st.balloons()
                                                     st.success("🎉 All workouts matched!")
-                                                    st.session_state.sync_completed = False
-                                                    st.session_state.current_workout_idx = 0
-                                                
-                                                st.rerun()
+                                                    if st.button("🏁 Finish", type="primary", use_container_width=True):
+                                                        st.session_state.sync_completed = False
+                                                        st.session_state.current_workout_idx = 0
+                                                        st.rerun()
+                                                else:
+                                                    # Show "Next Workout" button
+                                                    st.markdown("---")
+                                                    if st.button("➡️ Continue to Next Workout", type="primary", use_container_width=True):
+                                                        st.session_state.current_workout_idx = next_idx
+                                                        st.rerun()
                                             
                                             except Exception as e:
                                                 st.error(f"Error: {str(e)}")
@@ -4027,7 +4156,14 @@ elif page == '� Workout Data Ingestion':
             
             if workout:
                 # Get proposed workouts for the week
-                workout_date = datetime.strptime(workout['workout_date'], '%Y-%m-%d %H:%M:%S').date()
+                # Handle both date-only and datetime formats
+                workout_date_str = workout['workout_date']
+                if ' ' in workout_date_str:
+                    # Has time component
+                    workout_date = datetime.strptime(workout_date_str, '%Y-%m-%d %H:%M:%S').date()
+                else:
+                    # Date only
+                    workout_date = datetime.strptime(workout_date_str, '%Y-%m-%d').date()
                 week_start = get_week_start_date(workout_date.isoformat())
                 proposed_workouts = get_proposed_workouts_for_week(db_path, week_start)
                 
@@ -4073,35 +4209,9 @@ elif page == '� Workout Data Ingestion':
                                     match_workout_to_proposed(db_path, workout_id, selected_name, 'manual')
                                     st.success(f"✅ Re-matched to: {selected_name}")
                                     
-                                    # Re-run analysis if FIT file exists
-                                    if workout['fit_file_id']:
-                                        with st.spinner("🤖 Running AI re-analysis..."):
-                                            try:
-                                                db = WorkoutDatabase(db_path)
-                                                fit_file_data = db.get_fit_file_by_id(workout['fit_file_id'])
-                                                
-                                                if fit_file_data and fit_file_data['file_content']:
-                                                    settings = db.get_athlete_settings()
-                                                    ftp = settings.get('ftp', 300)
-                                                    
-                                                    analyzer = FitFileAnalyzer(use_dynamic_models=True)
-                                                    analysis = analyzer.analyze_workout(
-                                                        fit_file_content=fit_file_data['file_content'],
-                                                        athlete_ftp=float(ftp),
-                                                        proposed_workout_name=selected_name
-                                                    )
-                                                    
-                                                    if analysis:
-                                                        # Update existing analysis
-                                                        analysis_id = db.store_workout_analysis(
-                                                            workout_id=workout_id,
-                                                            fit_file_id=workout['fit_file_id'],
-                                                            analysis_text=analysis.get('ai_analysis', ''),
-                                                            model_used=analysis.get('model_used', 'gemini-2.0-flash-exp')
-                                                        )
-                                                        st.success(f"✅ Re-analysis complete! (ID: {analysis_id})")
-                                            except Exception as e:
-                                                st.warning(f"⚠️ Re-analysis failed: {str(e)}")
+                                    # Note: Re-analysis not yet implemented for re-match workflow
+                                    # TODO: Load FIT data and run analyze_workout_from_parsed_data()
+                                    st.info("ℹ️ Re-match saved. Use 'Sync & Match' workflow for full AI analysis.")
                                     
                                     # Clear selection
                                     st.session_state.rematch_workout_id = None
@@ -4256,6 +4366,175 @@ elif page == '� Workout Data Ingestion':
                     st.session_state.delete_confirm_id = None
                     st.session_state.delete_confirm_title = None
                     st.rerun()
+    
+    # ========== SECTION D: FIX INCORRECT FIT FILE ASSIGNMENTS ==========
+    with st.expander("🔧 Fix Incorrect FIT File Assignments", expanded=False):
+        st.markdown("### Fix FIT File Mismatches")
+        st.warning("⚠️ Use this if a workout is showing power/HR data from the wrong FIT file (e.g., strength workout showing Zwift data)")
+        st.info("💡 This commonly happens when multiple workouts occur on the same day (e.g., strength + Zwift ride)")
+        
+        # Date range selector
+        col1, col2 = st.columns(2)
+        with col1:
+            today = datetime.now().date()
+            fix_start = st.date_input(
+                "Start Date",
+                value=today - timedelta(days=14),
+                key="fix_fit_start_date"
+            )
+        with col2:
+            fix_end = st.date_input(
+                "End Date",
+                value=today,
+                key="fix_fit_end_date"
+            )
+        
+        if st.button("🔍 Load Workouts with FIT Files", key="load_fit_assignments"):
+            st.session_state.fix_fit_date_range = (fix_start, fix_end)
+            st.rerun()
+        
+        # Show workouts if date range selected
+        if st.session_state.get('fix_fit_date_range'):
+            start_date, end_date = st.session_state.fix_fit_date_range
+            
+            # Get workouts with FIT files
+            workouts = get_workouts_with_fit_files(db_path, start_date.isoformat(), end_date.isoformat())
+            
+            if not workouts:
+                st.info("No workouts found in this date range")
+            else:
+                st.success(f"📊 Found **{len(workouts)}** workouts")
+                
+                # Create table view
+                st.markdown("---")
+                for workout in workouts:
+                    with st.container():
+                        col1, col2, col3 = st.columns([2, 2, 1])
+                        
+                        with col1:
+                            st.markdown(f"**{workout['workout_date']}** - ID: {workout['id']}")
+                            st.text(f"Title: {workout['title']}")
+                            if workout['workout_tss']:
+                                st.caption(f"Workout TSS: {workout['workout_tss']:.1f} | Duration: {workout['workout_duration']:.0f}min")
+                        
+                        with col2:
+                            if workout['fit_file_id']:
+                                st.text(f"✅ FIT: {workout['fit_filename'][:40]}")
+                                if workout['fit_tss']:
+                                    st.caption(f"FIT TSS: {workout['fit_tss']:.1f} | Duration: {workout['fit_duration']:.0f}min")
+                                    
+                                    # Show warning if TSS differs significantly
+                                    if workout['workout_tss'] and workout['fit_tss']:
+                                        tss_diff = abs(workout['workout_tss'] - workout['fit_tss'])
+                                        if tss_diff > 50:
+                                            st.error(f"⚠️ TSS mismatch: {tss_diff:.0f} difference!")
+                            else:
+                                st.text("❌ No FIT file assigned")
+                        
+                        with col3:
+                            if st.button("🔧 Change", key=f"fix_fit_{workout['id']}", type="secondary", use_container_width=True):
+                                st.session_state.fix_fit_workout_id = workout['id']
+                                st.session_state.fix_fit_workout_date = workout['workout_date']
+                                st.session_state.fix_fit_workout_title = workout['title']
+                                st.session_state.fix_fit_current_id = workout['fit_file_id']
+                                st.rerun()
+                        
+                        st.divider()
+        
+        # Show reassignment dialog if workout selected
+        if st.session_state.get('fix_fit_workout_id'):
+            workout_id = st.session_state.fix_fit_workout_id
+            workout_date = st.session_state.fix_fit_workout_date
+            workout_title = st.session_state.fix_fit_workout_title
+            current_fit_id = st.session_state.fix_fit_current_id
+            
+            st.markdown("---")
+            st.info(f"### 🔧 Reassign FIT File")
+            st.markdown(f"**Workout:** {workout_title}")
+            st.markdown(f"**Date:** {workout_date}")
+            st.markdown("")
+            
+            # Get available FIT files for this date
+            available_fits = get_available_fit_files(db_path, workout_date)
+            
+            if not available_fits:
+                st.warning("⚠️ No FIT files available for this date")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("Remove FIT Assignment", type="primary", use_container_width=True):
+                        try:
+                            unassign_fit_file(db_path, workout_id)
+                            st.success("✅ FIT file assignment removed")
+                            st.session_state.fix_fit_workout_id = None
+                            time.sleep(1)
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error: {str(e)}")
+                with col2:
+                    if st.button("❌ Cancel", use_container_width=True):
+                        st.session_state.fix_fit_workout_id = None
+                        st.rerun()
+            else:
+                st.markdown("**Available FIT files from this date:**")
+                
+                # Create dropdown options
+                options = [("(Remove FIT file assignment)", None)]
+                for fit in available_fits:
+                    label = fit['filename']
+                    if fit['tss']:
+                        label += f" - TSS: {fit['tss']:.1f}, Duration: {fit['duration']:.0f}min"
+                    
+                    # Mark current assignment
+                    if fit['id'] == current_fit_id:
+                        label += " ✅ (Currently assigned)"
+                    
+                    options.append((label, fit['id']))
+                
+                # Dropdown
+                selected_label = st.selectbox(
+                    "Select FIT file:",
+                    options=[opt[0] for opt in options],
+                    key=f"fit_select_{workout_id}"
+                )
+                
+                # Get selected FIT ID
+                selected_fit_id = next((opt[1] for opt in options if opt[0] == selected_label), None)
+                
+                # Show preview of selected FIT
+                if selected_fit_id:
+                    selected_fit = next((f for f in available_fits if f['id'] == selected_fit_id), None)
+                    if selected_fit:
+                        st.info(f"📊 **Preview:** {selected_fit['filename']} - TSS: {selected_fit['tss']:.1f}, Duration: {selected_fit['duration']:.0f}min")
+                
+                # Save button
+                col1, col2 = st.columns(2)
+                with col1:
+                    # Disable if selecting current assignment
+                    is_same = selected_fit_id == current_fit_id
+                    if st.button("💾 Save & Update", type="primary", use_container_width=True, disabled=is_same):
+                        try:
+                            reassign_fit_file(db_path, workout_id, selected_fit_id)
+                            
+                            if selected_fit_id is None:
+                                st.success("✅ FIT file assignment removed")
+                            else:
+                                st.success(f"✅ FIT file reassigned successfully")
+                            
+                            st.info("💡 You may want to re-analyze this workout to update the AI analysis with the correct FIT data (use Section B: Re-match Existing Workouts)")
+                            
+                            # Clear state and reload
+                            st.session_state.fix_fit_workout_id = None
+                            time.sleep(2)
+                            st.rerun()
+                        
+                        except Exception as e:
+                            st.error(f"Error reassigning FIT file: {str(e)}")
+                
+                with col2:
+                    if st.button("❌ Cancel", use_container_width=True):
+                        st.session_state.fix_fit_workout_id = None
+                        st.rerun()
 
 
 # REMOVED: Old tabs (Import Data, View Data, Proposed Workouts, Weekly Summary)
