@@ -4482,8 +4482,12 @@ elif page == '📦 Workout Data Ingestion':
                 options = [("(Remove FIT file assignment)", None)]
                 for fit in available_fits:
                     label = fit['filename']
-                    if fit['tss']:
+                    if fit['tss'] is not None and fit['duration'] is not None:
                         label += f" - TSS: {fit['tss']:.1f}, Duration: {fit['duration']:.0f}min"
+                    elif fit['duration'] is not None:
+                        label += f" - Duration: {fit['duration']:.0f}min"
+                    elif fit['tss'] is not None:
+                        label += f" - TSS: {fit['tss']:.1f}"
                     
                     # Mark current assignment
                     if fit['id'] == current_fit_id:
@@ -4505,7 +4509,12 @@ elif page == '📦 Workout Data Ingestion':
                 if selected_fit_id:
                     selected_fit = next((f for f in available_fits if f['id'] == selected_fit_id), None)
                     if selected_fit:
-                        st.info(f"📊 **Preview:** {selected_fit['filename']} - TSS: {selected_fit['tss']:.1f}, Duration: {selected_fit['duration']:.0f}min")
+                        preview_parts = [f"📊 **Preview:** {selected_fit['filename']}"]
+                        if selected_fit['tss'] is not None:
+                            preview_parts.append(f"TSS: {selected_fit['tss']:.1f}")
+                        if selected_fit['duration'] is not None:
+                            preview_parts.append(f"Duration: {selected_fit['duration']:.0f}min")
+                        st.info(" - ".join(preview_parts) if len(preview_parts) > 1 else preview_parts[0])
                 
                 # Save button
                 col1, col2 = st.columns(2)
