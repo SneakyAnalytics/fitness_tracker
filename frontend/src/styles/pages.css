@@ -1,0 +1,47 @@
+/* Page-specific styles */
+
+.page-container {
+  width: 100%;
+}
+
+.page-header {
+  margin-bottom: var(--spacing-xl);
+}
+
+.page-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+.page-title h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.page-subtitle {
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+  margin-left: 44px; /* Align with title after icon */
+}
+
+/* List styling */
+ul {
+  list-style-position: inside;
+  margin: var(--spacing-md) 0;
+  padding-left: var(--spacing-md);
+  line-height: 1.8;
+}
+
+ul li {
+  margin-bottom: var(--spacing-sm);
+  color: var(--color-text-secondary);
+}
+
+ul li strong {
+  color: var(--color-text-primary);
+}
