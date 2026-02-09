@@ -1,0 +1,145 @@
+/* Pacific Northwest Fitness Tracker - Global Styles */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
+:root {
+  /* Pacific Northwest Color Palette */
+  --color-forest: #2c5f2d;
+  --color-forest-light: #3a7a3c;
+  --color-forest-dark: #1e4620;
+
+  --color-mountain: #4a7c7e;
+  --color-mountain-light: #5c9698;
+  --color-mountain-dark: #386264;
+
+  --color-gravel: #b8956a;
+  --color-gravel-light: #d4b088;
+  --color-gravel-dark: #9a7a54;
+
+  --color-cream: #f5f5f0;
+  --color-cream-dark: #e8e8dd;
+
+  /* Semantic Colors */
+  --color-background: #fafaf7;
+  --color-surface: #ffffff;
+  --color-text-primary: #2a2a2a;
+  --color-text-secondary: #666666;
+  --color-text-tertiary: #999999;
+
+  /* Workout Type Colors */
+  --color-cycling: #ff8c42;
+  --color-running: #56c596;
+  --color-strength: #8b6fb0;
+  --color-other: #7db3d5;
+
+  /* Status Colors */
+  --color-success: #4caf50;
+  --color-warning: #ffa726;
+  --color-error: #ef5350;
+  --color-info: #42a5f5;
+
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "Roboto",
+    "Oxygen",
+    "Ubuntu",
+    "Cantarell",
+    "Fira Sans",
+    "Droid Sans",
+    "Helvetica Neue",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+}
+
+code {
+  font-family:
+    source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Utility Classes */
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 var(--spacing-lg);
+}
+
+.gradient-forest {
+  background: linear-gradient(
+    135deg,
+    var(--color-forest) 0%,
+    var(--color-mountain) 100%
+  );
+}
+
+.gradient-mountain {
+  background: linear-gradient(
+    135deg,
+    var(--color-mountain) 0%,
+    var(--color-forest-light) 100%
+  );
+}
+
+.gradient-gravel {
+  background: linear-gradient(
+    135deg,
+    var(--color-gravel) 0%,
+    var(--color-gravel-dark) 100%
+  );
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-cream);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-mountain);
+  border-radius: var(--radius-md);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-mountain-dark);
+}
