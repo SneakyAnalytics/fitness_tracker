@@ -1,0 +1,114 @@
+.exercise-detail {
+  background: var(--color-cream);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  border-left: 4px solid var(--color-strength);
+}
+
+.exercise-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--spacing-sm);
+}
+
+.exercise-info {
+  flex: 1;
+}
+
+.exercise-name {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.exercise-target {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin-top: var(--spacing-xs);
+}
+
+.exercise-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: white;
+  color: var(--color-forest);
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border: 1px solid var(--color-cream-dark);
+}
+
+.exercise-link:hover {
+  background: var(--color-forest);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.exercise-description {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin: var(--spacing-sm) 0;
+}
+
+.exercise-cues {
+  background: white;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-sm);
+  margin: var(--spacing-sm) 0;
+  font-size: 0.9rem;
+}
+
+.exercise-cues strong {
+  color: var(--color-forest);
+  display: block;
+  margin-bottom: var(--spacing-xs);
+}
+
+.exercise-cues ul {
+  margin: 0;
+  padding-left: var(--spacing-lg);
+}
+
+.exercise-cues li {
+  margin-bottom: var(--spacing-xs);
+  color: var(--color-text-secondary);
+}
+
+.exercise-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+  margin: var(--spacing-md) 0;
+}
+
+.input-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.input-group label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.btn-sm {
+  padding: var(--spacing-xs) var(--spacing-md);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 640px) {
+  .exercise-inputs {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,123 @@
+.timer-container {
+  background: white;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-md);
+  border: 3px solid var(--color-cream-dark);
+  transition: all 0.3s ease;
+}
+
+.timer-container.work-phase {
+  border-color: var(--color-forest);
+  background: linear-gradient(to bottom, white 0%, rgba(44, 95, 45, 0.05) 100%);
+}
+
+.timer-container.rest-phase {
+  border-color: var(--color-mountain);
+  background: linear-gradient(to bottom, white 0%, rgba(74, 124, 126, 0.05) 100%);
+}
+
+.timer-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+  color: var(--color-text-primary);
+}
+
+.timer-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.timer-display {
+  text-align: center;
+  margin-bottom: var(--spacing-lg);
+}
+
+.timer-phase {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-sm);
+  color: var(--color-text-secondary);
+}
+
+.work-phase .timer-phase {
+  color: var(--color-forest);
+}
+
+.rest-phase .timer-phase {
+  color: var(--color-mountain);
+}
+
+.timer-time {
+  font-size: 3.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+  line-height: 1;
+  margin-bottom: var(--spacing-sm);
+}
+
+.timer-round {
+  font-size: 0.95rem;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.timer-progress {
+  width: 100%;
+  height: 8px;
+  background-color: var(--color-cream);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: var(--spacing-lg);
+}
+
+.timer-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-forest) 0%, var(--color-mountain) 100%);
+  transition: width 1s linear;
+  border-radius: 999px;
+}
+
+.rest-phase .timer-progress-bar {
+  background: linear-gradient(90deg, var(--color-mountain) 0%, var(--color-gravel) 100%);
+}
+
+.timer-controls {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.timer-btn {
+  flex: 1;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+.timer-config {
+  display: flex;
+  justify-content: space-around;
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-cream-dark);
+}
+
+.config-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: 0.9rem;
+}
+
+.config-item span {
+  color: var(--color-text-tertiary);
+}
+
+.config-item strong {
+  color: var(--color-text-primary);
+  font-size: 1.1rem;
+}
