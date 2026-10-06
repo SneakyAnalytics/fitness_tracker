@@ -33,13 +33,18 @@ def record_event(level: str, source: str, message: str, details: Optional[Any] =
         logger.error("could not record app event: %s", exc)
 
 
-def unacknowledged_events(limit: int = 50, db_path: Optional[str] = None):
+def unacknowledged_events(limit: int = 50, db_path: Optional[str] = None, levels=None):
+    """Unread events, newest first; `levels` e.g. ("warning", "error") for problems only."""
     conn = sqlite3.connect(db_path or get_db_path())
     conn.row_factory = sqlite3.Row
     try:
+        where, params = "acknowledged = 0", []
+        if levels:
+            where += f" AND level IN ({','.join('?' * len(levels))})"
+            params += list(levels)
         rows = conn.execute(
-            "SELECT id, level, source, message, details, created_at FROM app_events "
-            "WHERE acknowledged = 0 ORDER BY id DESC LIMIT ?", (limit,)
+            f"SELECT id, level, source, message, details, created_at FROM app_events "
+            f"WHERE {where} ORDER BY id DESC LIMIT ?", (*params, limit)
         ).fetchall()
         return [dict(r) for r in rows]
     except sqlite3.OperationalError:

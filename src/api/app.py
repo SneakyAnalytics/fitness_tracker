@@ -233,7 +233,7 @@ async def health_check():
             "has_gemini_key": bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")),
             "has_tp_username": bool(os.getenv("TRAININGPEAKS_USERNAME")),
         },
-        "open_problems": len(unacknowledged_events(limit=100)) if db_accessible else None,
+        "open_problems": len(unacknowledged_events(limit=100, levels=("warning", "error"))) if db_accessible else None,
         "message": "Fitness Tracker API is running",
     }
 

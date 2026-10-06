@@ -87,7 +87,7 @@ services:
       fastapi:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]  # nginx listens on IPv4
       interval: 30s
       timeout: 10s
       retries: 3
