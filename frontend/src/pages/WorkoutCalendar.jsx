@@ -26,7 +26,6 @@ import {
   parseJSONField,
   resolvePowerTarget,
 } from "../lib/workouts";
-import Timer from "../components/Timer";
 import IntervalVisualizer from "../components/IntervalVisualizer";
 import ExerciseDetail from "../components/ExerciseDetail";
 import AskCoach from "../components/AskCoach";
@@ -88,7 +87,6 @@ function tssLabel(w) {
 function WorkoutCalendar() {
   const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [selectedKey, setSelectedKey] = useState(null);
-  const [showTimer, setShowTimer] = useState(false);
   const { data, isLoading, error } = useWeek(weekStart);
   const { ftp } = useAthleteSettings();
 
@@ -106,7 +104,6 @@ function WorkoutCalendar() {
 
   const selectWorkout = (w) => {
     setSelectedKey(w.key === selectedKey ? null : w.key);
-    setShowTimer(false);
   };
 
   return (
@@ -217,12 +214,6 @@ function WorkoutCalendar() {
               </div>
             </div>
             <div className="workout-detail-actions">
-              {isRoutineType(selected.type) && (
-                <button className="btn btn-primary" onClick={() => setShowTimer(!showTimer)}>
-                  <Clock size={18} />
-                  {showTimer ? "Hide Timer" : "Start Workout"}
-                </button>
-              )}
               <button className="btn btn-outline icon-btn" onClick={() => setSelectedKey(null)}>
                 <X size={20} />
               </button>
@@ -230,7 +221,7 @@ function WorkoutCalendar() {
           </div>
 
           <div className="workout-detail-content">
-            <WorkoutDetailView workout={selected} ftp={ftp} showTimer={showTimer} />
+            <WorkoutDetailView workout={selected} ftp={ftp} />
           </div>
         </div>
       )}
@@ -347,7 +338,7 @@ function IntervalSection({ workout, ftp }) {
   );
 }
 
-function WorkoutDetailView({ workout, ftp, showTimer }) {
+function WorkoutDetailView({ workout, ftp }) {
   const routine = isRoutineType(workout.type) || flattenExercises(workout).length > 0;
   const cardio = isCardioType(workout.type);
   const notes = workout.plan?.notes ?? workout.notes;
@@ -401,12 +392,6 @@ function WorkoutDetailView({ workout, ftp, showTimer }) {
           </div>
         )}
       </div>
-
-      {showTimer && (
-        <div className="timer-section">
-          <Timer workDuration={45} restDuration={15} rounds={3} />
-        </div>
-      )}
 
       {routine && <ExerciseList workout={workout} />}
       {cardio && <IntervalSection workout={workout} ftp={ftp} />}

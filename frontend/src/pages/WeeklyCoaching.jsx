@@ -4,6 +4,8 @@ import { addDays, format, startOfWeek, subWeeks, addWeeks } from "date-fns";
 import { Brain, ChevronLeft, ChevronRight, Save, Send, Zap } from "lucide-react";
 import { coachAPI, streamSSE } from "../api/client";
 import Markdown from "../components/Markdown";
+import WeekReview from "../components/WeekReview";
+import apiClient from "../api/client";
 import "../styles/pages.css";
 import "./WeeklyCoaching.css";
 
@@ -58,6 +60,7 @@ function WeeklyCoaching() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [step, setStep] = useState(null); // "review" | "coach"; null = pick automatically
   const bottomRef = useRef(null);
   const queryClient = useQueryClient();
   const weekStr = format(weekStart, "yyyy-MM-dd");
@@ -68,9 +71,19 @@ function WeeklyCoaching() {
     queryFn: async () => (await coachAPI.getSession(weekStr, model)).data,
   });
 
+  const { data: review } = useQuery({
+    queryKey: ["review", weekStr],
+    queryFn: async () => (await apiClient.get("/review/week", { params: { week_start: weekStr } })).data,
+  });
+  const toConfirm = review?.workouts?.filter((w) => w.status === "suggested").length ?? 0;
+
+  // Scroll the chat box itself (not the page) to the newest message.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const box = bottomRef.current?.parentElement;
+    if (box) box.scrollTop = box.scrollHeight;
   }, [session?.messages?.length, streaming]);
+
+  useEffect(() => setStep(null), [weekStr]);
 
   const run = async (path, extra = {}) => {
     setBusy(true);
@@ -132,6 +145,8 @@ function WeeklyCoaching() {
   const phase = session?.phase || "ANALYSIS";
   const latestRecap = lastCompletedWeek();
   const weekFinished = weekStart <= latestRecap;
+  // Start on the review step until the conversation has begun.
+  const activeStep = step || (messages.length === 0 ? "review" : "coach");
 
   return (
     <div className="page-container coaching-page">
@@ -162,6 +177,26 @@ function WeeklyCoaching() {
         </div>
       </div>
 
+      <div className="coaching-steps" role="tablist">
+        <button role="tab" aria-selected={activeStep === "review"}
+                className={`step-tab ${activeStep === "review" ? "active" : ""}`} onClick={() => setStep("review")}>
+          ① Review week{toConfirm > 0 && <span className="step-badge">{toConfirm} to confirm</span>}
+        </button>
+        <button role="tab" aria-selected={activeStep === "coach"}
+                className={`step-tab ${activeStep === "coach" ? "active" : ""}`} onClick={() => setStep("coach")}>
+          ② Coach &amp; plan
+        </button>
+      </div>
+
+      {activeStep === "review" && <WeekReview weekStart={weekStr} onDone={() => setStep("coach")} />}
+
+      {activeStep === "coach" && (
+      <>
+      {toConfirm > 0 && messages.length === 0 && (
+        <div className="notice">
+          {toConfirm} workout(s) aren't confirmed yet — the coach works best when the week is reviewed first.
+        </div>
+      )}
       <div className="chat card">
         {isLoading && <div className="spinner">Loading session…</div>}
         {!isLoading && messages.length === 0 && !busy && (
@@ -228,6 +263,8 @@ function WeeklyCoaching() {
       </div>
 
       <PlanPreview plan={session?.current_plan} />
+      </>
+      )}
     </div>
   );
 }

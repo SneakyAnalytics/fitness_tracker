@@ -286,3 +286,7 @@
   grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
   gap: 8px;
 }
+
+.exercise-timed-icon {
+  color: var(--color-mountain);
+}

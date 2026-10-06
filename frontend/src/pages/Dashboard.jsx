@@ -152,7 +152,7 @@ function Dashboard() {
   if (isLoading) return <div className="page-container spinner">Loading trends…</div>;
   if (error) return <div className="page-container error-message">Could not load trends: {error.message}</div>;
 
-  const { load, weekly, power_curve: curve, ftp, readiness, progression } = data;
+  const { load, weekly, power_curve: curve, zwift_ftp: zftp, readiness, progression } = data;
   const m = readiness?.metrics || {};
 
   return (
@@ -169,19 +169,22 @@ function Dashboard() {
         <Tile label="Fatigue (ATL)" value={Math.round(load.atl)} />
         <Tile label="Form (TSB)" value={signed(Math.round(load.tsb))} />
         <Tile label="CTL ramp" value={`${signed(load.ctl_ramp_28d_per_week)}/wk`} sub="last 4 weeks" />
+        <Tile label="Zwift FTP" value={zftp?.ftp ? `${zftp.ftp}W` : "—"}
+              sub={zftp?.test_due ? `test due · ${zftp.weeks_since_change} wks` : zftp?.changed_on ? `since ${fmtWeek(zftp.changed_on)}` : null} />
         <Tile label="HRV (7d)" value={m.hrv?.last7 ?? "—"}
               sub={m.hrv ? `${signed(m.hrv.change_pct)}% vs baseline` : null} />
         <Tile label="Sleep (7d)" value={m.sleep_hours ? `${m.sleep_hours.last7}h` : "—"} />
       </div>
 
-      {(readiness?.flags?.length > 0 || ftp?.flag) && (
+      {(readiness?.flags?.length > 0 || zftp?.test_due) && (
         <div className="card flags">
           {readiness.flags.map((f) => (
             <p key={f}>⚠️ {f}</p>
           ))}
-          {ftp?.flag && (
+          {zftp?.test_due && (
             <p>
-              ⚠️ FTP: setting {ftp.current_ftp}W, recent efforts imply ≥{ftp.estimate}W ({ftp.basis}) — {ftp.flag}
+              ⏱️ Zwift FTP hasn't changed in {zftp.weeks_since_change} weeks — the coach will schedule a Zwift Ramp
+              Test (or a race) on a fresh day so Zwift can update it.
             </p>
           )}
         </div>

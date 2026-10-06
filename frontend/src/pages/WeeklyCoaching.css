@@ -112,3 +112,37 @@
 .plan-workout span {
   opacity: 0.75;
 }
+
+.coaching-steps {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--color-cream-dark);
+}
+
+.step-tab {
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 10px 14px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.step-tab.active {
+  color: var(--color-forest);
+  border-bottom-color: var(--color-forest);
+}
+
+.step-badge {
+  font-size: 0.75rem;
+  background: var(--color-gravel);
+  color: white;
+  border-radius: 999px;
+  padding: 2px 8px;
+}

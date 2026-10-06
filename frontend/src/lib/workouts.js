@@ -95,3 +95,26 @@ export function flattenExercises(workout) {
   }
   return Array.isArray(exercises) ? exercises : [];
 }
+
+// Seconds to time for one movement/side, or null for rep-based work.
+// Uses structured fields first, then text like "30-40 seconds each side" or "1 min".
+export function movementTiming(exercise) {
+  const sets = Array.isArray(exercise.sets) ? exercise.sets : [];
+  const first = sets.find((s) => s.duration || s.workTime || s.reps || s.targetReps) || {};
+  const text = [first.reps, first.targetReps, exercise.name]
+    .filter((v) => typeof v === "string")
+    .join(" ")
+    .toLowerCase();
+  const perSide = Boolean(first.perSide) || /each (side|leg|arm)|per (side|leg|arm)/.test(text);
+
+  let seconds = Number(first.duration) || Number(first.workTime) || null;
+  if (!seconds) {
+    const m = text.match(/(\d+)(?:\s*-\s*(\d+))?\s*(seconds?|secs?|s\b|minutes?|mins?|min\b)/);
+    if (m) {
+      const value = Number(m[2] || m[1]); // use the top of a range, e.g. 30-40s -> 40s
+      seconds = /^m/.test(m[3]) ? value * 60 : value;
+    }
+  }
+  if (!seconds || seconds < 5 || seconds > 1800) return null;
+  return { seconds, perSide };
+}
