@@ -27,9 +27,25 @@ The Beelink builds nothing and runs no source tree. It needs only
 deploy method. It is lost on the next pull, and before October 2026 it made production
 silently diverge from git.
 
+## Fallback: the old app
+
+The images that ran before the October 2026 overhaul are kept as
+`fitness-tracker-legacy-{api,ui}:2026-10-05`. To use the old Streamlit app (same data):
+
+```powershell
+cd C:\Users\rakej\fitness_tracker
+docker compose -f docker-compose.legacy.yml -p fitness-legacy up -d     # http://100.117.194.8:8601
+docker compose -f docker-compose.legacy.yml -p fitness-legacy down      # when done
+```
+
+It runs alongside the new app (different ports). Matches made in it are picked up by
+the new app. Don't delete the `.py` files in the data volume: the legacy containers copy
+them over their source at startup, exactly as before.
+
 ## Common tasks
 
 ```bash
+./deploy_to_beelink.sh --first-run                    # first overhaul deploy: + backfill and goals
 ./deploy_to_beelink.sh                                # deploy what origin/main points at
 ./deploy_to_beelink.sh --version <sha>                # roll back / pin a specific commit
 ./deploy_to_beelink.sh --env TRAININGPEAKS_PASSWORD   # also push one key from the Mac .env
@@ -54,6 +70,12 @@ Restore a backup: stop the stack (`docker compose stop`), then
 then `docker compose up -d`.
 
 ## Keeping Docker stable on Windows
+
+The 05:00 `ZwiftSyncToMac` task runs `scripts\beelink_sync_zwift_to_mac.ps1` (shipped by every
+deploy). It regenerates today's workout with fresh news inside the container, copies that plan
+week's `Week_<n>` folder out of the volume and scp's it to the Mac. Log:
+`C:\Users\rakej\fitness_tracker\logs\zwift_sync.log`. Run it by hand with
+`schtasks /run /tn ZwiftSyncToMac`.
 
 Already in place: Docker Desktop auto-start tasks, `restart: unless-stopped`, health checks
 (Streamlit and the web app wait for a healthy API), container log rotation (10 MB × 3),

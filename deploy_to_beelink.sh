@@ -11,6 +11,7 @@
 #                                          # ...and copy just these keys from your Mac .env
 #                                          # (the Beelink .env has extra keys; never overwrite it whole)
 #   ./deploy_to_beelink.sh --version <sha> # deploy (or roll back to) a specific commit
+#   ./deploy_to_beelink.sh --first-run     # first deploy of the Oct 2026 overhaul: also backfill + goals
 #
 # Run between training weeks: a broken deploy mid-week costs real workouts.
 
@@ -21,11 +22,13 @@ REMOTE_DIR='C:\Users\rakej\fitness_tracker'
 REMOTE_DIR_FWD="C:/Users/rakej/fitness_tracker"
 ENV_KEYS=()
 VERSION=""
+FIRST_RUN=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --env) ENV_KEYS+=("$2"); shift 2 ;;
     --version) VERSION="$2"; shift 2 ;;
+    --first-run) FIRST_RUN=true; shift ;;
     *) echo "unknown option $1"; exit 2 ;;
   esac
 done
@@ -71,8 +74,18 @@ merge_env() {
   remote "powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/rakej/ft_merge_env.ps1 -EnvFile $REMOTE_DIR_FWD/.env -Updates C:/Users/rakej/ft_env_updates.txt"
 }
 
-echo "📤 Sending compose file..."
+# Keep the pre-overhaul app runnable as a fallback (docker-compose.legacy.yml, port 8601).
+if ! remote "docker image inspect fitness-tracker-legacy-ui:2026-10-05" >/dev/null 2>&1; then
+  remote "docker tag fitness_tracker-streamlit:latest fitness-tracker-legacy-ui:2026-10-05 && docker tag fitness_tracker-fastapi:latest fitness-tracker-legacy-api:2026-10-05" \
+    && echo "🏷️  Tagged the current images as the legacy fallback" \
+    || echo "⚠️  Could not tag legacy images (already replaced?)"
+fi
+
+echo "📤 Sending compose files and host-side scripts..."
 scp -q docker-compose.yml "$BEELINK:$REMOTE_DIR_FWD/docker-compose.yml"
+scp -q docker-compose.legacy.yml "$BEELINK:$REMOTE_DIR_FWD/docker-compose.legacy.yml"
+# The 05:00 ZwiftSyncToMac task runs this from the Beelink's disk.
+scp -q scripts/beelink_sync_zwift_to_mac.ps1 "$BEELINK:$REMOTE_DIR_FWD/scripts/beelink_sync_zwift_to_mac.ps1"
 if [[ ${#ENV_KEYS[@]} -gt 0 ]]; then
   for key in "${ENV_KEYS[@]}"; do
     grep -q "^$key=" .env || { echo "❌ $key not found in local .env"; exit 1; }
@@ -106,10 +119,18 @@ done
 remote "docker ps --format \"{{.Names}}\t{{.Status}}\""
 remote "docker image prune -f" >/dev/null
 
+if $FIRST_RUN; then
+  echo "🧹 One-time backfill (ride-file links, lap markers, execution scores, Zwift FTP)..."
+  remote "docker exec fitness-tracker-api python -m src.utils.maintenance backfill"
+  echo "🎯 Goals update..."
+  remote "docker exec fitness-tracker-api python scripts/deploy/goals_2026_10.py"
+fi
+
 cat <<EOF
 
 Deployed ${VERSION:0:12}.  Calendar & coaching: http://100.117.194.8:3000   Admin: http://100.117.194.8:8501
 
-First deploy after the October 2026 overhaul only — run the one-time backfill:
-  ssh $BEELINK "docker exec fitness-tracker-api python -m src.utils.maintenance backfill"
+Old app (fallback), only if needed:
+  ssh $BEELINK "cd /d $REMOTE_DIR && docker compose -f docker-compose.legacy.yml -p fitness-legacy up -d"
+  then http://100.117.194.8:8601  (stop it again with ... down)
 EOF

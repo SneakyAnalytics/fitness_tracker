@@ -1,0 +1,66 @@
+# Fallback: the pre-October-2026 app, exactly as it ran before the overhaul.
+#
+# Uses the images that were running in production on 2026-10-05 (tagged
+# fitness-tracker-legacy-*:2026-10-05 by deploy_to_beelink.sh) and their original
+# startup commands, which copy patched source files out of the data volume.
+# Same data as the new app. Start only when needed:
+#
+#   docker compose -f docker-compose.legacy.yml -p fitness-legacy up -d    -> http://<beelink>:8601
+#   docker compose -f docker-compose.legacy.yml -p fitness-legacy down
+#
+# Matches made here are picked up by the new app automatically.
+
+services:
+  legacy-api:
+    image: fitness-tracker-legacy-api:2026-10-05
+    container_name: fitness-tracker-legacy-api
+    ports:
+      - "8100:8000"
+    volumes:
+      - fitness_tracker_data:/app/data
+      - fitness_tracker_logs:/app/logs
+      - fitness_tracker_shareable:/app/shareable
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ZWIFT_WORKOUTS_DIR=/app/shareable/zwift_workouts
+    command: >
+      sh -c "cp /app/data/api_app.py /app/src/api/app.py 2>/dev/null || true; cp /app/data/database.py /app/src/storage/database.py 2>/dev/null || true; uvicorn src.api.app:app --host 0.0.0.0 --port 8000"
+    mem_limit: 512m
+
+  legacy-ui:
+    image: fitness-tracker-legacy-ui:2026-10-05
+    container_name: fitness-tracker-legacy-ui
+    ports:
+      - "8601:8501"
+    volumes:
+      - fitness_tracker_data:/app/data
+      - fitness_tracker_logs:/app/logs
+      - fitness_tracker_shareable:/app/shareable
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - API_URL=http://legacy-api:8000
+      - ZWIFT_WORKOUTS_DIR=/app/shareable/zwift_workouts
+    command: >
+      sh -c "cp /app/data/streamlit_app.py /app/src/ui/streamlit_app.py 2>/dev/null || true; cp /app/data/workout_matching.py /app/src/storage/workout_matching.py 2>/dev/null || true; cp /app/data/database.py /app/src/storage/database.py 2>/dev/null || true; cp /app/data/ai_chat_session.py /app/src/utils/ai_chat_session.py 2>/dev/null || true; cp /app/data/ai_prompts.py /app/src/utils/ai_prompts.py 2>/dev/null || true; cp /app/data/ai_coach_engine.py /app/src/utils/ai_coach_engine.py 2>/dev/null || true; cp /app/data/trainingpeaks_sync.py /app/src/utils/trainingpeaks_sync.py 2>/dev/null || true; cp /app/data/fit_file_analyzer.py /app/src/utils/fit_file_analyzer.py 2>/dev/null || true; streamlit run src/ui/streamlit_app.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true --server.enableCORS=false --server.enableXsrfProtection=false --server.fileWatcherType=none"
+    depends_on:
+      - legacy-api
+    mem_limit: 384m
+
+networks:
+  default:
+    name: fitness-tracker-legacy-network
+
+volumes:
+  fitness_tracker_data:
+    external: true
+    name: fitness_tracker_data
+  fitness_tracker_logs:
+    external: true
+    name: fitness_tracker_logs
+  fitness_tracker_shareable:
+    external: true
+    name: fitness_tracker_shareable
