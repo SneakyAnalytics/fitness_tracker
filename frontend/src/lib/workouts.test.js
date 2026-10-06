@@ -73,3 +73,18 @@ describe("movementTiming", () => {
     expect(movementTiming({ sets: [{ reps: "10 each leg" }] })).toBeNull();
   });
 });
+
+describe("mergeDayWorkouts with unconfirmed suggestions", () => {
+  it("places a suggested match against its plan and labels suggested commutes", () => {
+    const proposed = [{ id: 7, date: "2026-10-05", name: "Monday Flush", type: "bike" }];
+    const completed = [
+      { id: 1, date: "2026-10-05", title: "Zwift - Monday Flush", suggested_proposed_workout_id: 7, metrics: {} },
+      { id: 2, date: "2026-10-05", title: "Cycling", suggested_label: "Commute to work", metrics: {} },
+    ];
+    const day = mergeDayWorkouts(proposed, completed, "2026-10-05");
+    expect(day.map((w) => w.key)).toEqual(["done-1", "done-2"]); // plan 7 is not "not done"
+    expect(day[0].plan.name).toBe("Monday Flush");
+    expect(day[1].proposed_workout_name).toBe("Commute to work");
+    expect(day[0].unconfirmed).toBe(true);
+  });
+});

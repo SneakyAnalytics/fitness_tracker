@@ -50,18 +50,22 @@ export function mergeDayWorkouts(proposed, completed, dateStr) {
   const onDay = (w) => (w.date || "").startsWith(dateStr);
   const dayPlanned = proposed.filter(onDay);
   const dayDone = completed.filter(onDay);
-  const matchedIds = new Set(dayDone.map((c) => c.proposed_workout_id).filter(Boolean));
+  // A confirmed match wins; otherwise use the review step's suggestion.
+  const planIdOf = (c) => c.proposed_workout_id || c.suggested_proposed_workout_id || null;
+  const matchedIds = new Set(dayDone.map(planIdOf).filter(Boolean));
   const plansById = new Map(proposed.map((p) => [p.id, p]));
 
   return [
     ...dayDone.map((c) => {
-      const plan = c.proposed_workout_id ? plansById.get(c.proposed_workout_id) : null;
+      const plan = planIdOf(c) ? plansById.get(planIdOf(c)) : null;
       return {
         ...(plan || {}),
         ...c,
         key: `done-${c.id}`,
         completed: true,
         plan,
+        unconfirmed: !c.proposed_workout_id && !c.proposed_workout_name,
+        proposed_workout_name: c.proposed_workout_name || c.suggested_label || null,
         name: c.title,
         actualDuration: c.metrics?.actual_duration ?? null,
         actualTSS: c.metrics?.actual_tss ?? null,
