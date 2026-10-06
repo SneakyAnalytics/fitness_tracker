@@ -2268,7 +2268,10 @@ page = st.sidebar.radio("Go to", [
 from src.storage.events import unacknowledged_events, acknowledge_events
 _events = unacknowledged_events(limit=20)
 if _events:
-    with st.sidebar.expander(f"⚠️ {len(_events)} problem(s) need attention", expanded=False):
+    _problems = [e for e in _events if e['level'] in ('warning', 'error')]
+    _title = (f"⚠️ {len(_problems)} problem(s) need attention" if _problems
+              else f"ℹ️ {len(_events)} update(s)")
+    with st.sidebar.expander(_title, expanded=False):
         for _e in _events:
             st.caption(f"{_e['created_at']} · {_e['source']}")
             st.write(_e['message'])
