@@ -1530,6 +1530,18 @@ async def get_workouts_week(start_date: str, end_date: str):
     try:
         db = WorkoutDatabase()
         result = db.get_all_workouts_for_week(start_date, end_date)
+        # Unconfirmed workouts carry the review step's suggestion, so the calendar
+        # shows them against the plan before the Sunday review.
+        from src.utils.week_review import review_week
+        suggested = {}
+        for row in review_week(start_date)["workouts"]:
+            if row["status"] == "suggested" and row.get("match"):
+                suggested[row["id"]] = row["match"]
+        for w in result["completed_workouts"]:
+            m = suggested.get(w.get("id"))
+            if m and not w.get("proposed_workout_id"):
+                w["suggested_proposed_workout_id"] = m.get("proposed_workout_id")
+                w["suggested_label"] = None if m.get("proposed_workout_id") else m.get("name")
         return result
     except Exception as e:
         print(f"Error retrieving workouts: {str(e)}")
