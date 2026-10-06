@@ -167,3 +167,17 @@ Every one of these was silent: a wrong key or column returned null/empty and a b
 **Lessons:** run `json_extract`/column names against the real DB before trusting a query; never catch
 broad exceptions around data lookups; record background failures with `record_event` (shown in the UI sidebar)
 instead of `print` on a headless box; compute anything numeric instead of asking an LLM to judge it.
+
+---
+
+## 2026-10-06 — Strength workouts missing; re-imports undid the review
+
+- **TrainingPeaks structured strength workouts are not in the Workout Summary CSV.** They live in a separate
+  service (`api.peakswaresb.com/rx/activity/...`, own auth). The sync opens the calendar, captures that response
+  and appends the completed sessions to the CSV before upload (`strength_csv_rows` / `append_strength_rows`).
+- **`POST /upload/workouts` deletes and re-inserts its date range.** The live `workouts.id` has no AUTOINCREMENT,
+  so re-inserted rows reused ids in export order: matches were wiped and analyses detached or landed on the wrong
+  workout. The nightly 3-day re-import made this routine. `snapshot_workouts` / `restore_workouts` now put back
+  ids, matches and notes; `reattach_orphan_analyses` repairs by ride file. Test: `tests/test_reimport.py`.
+- **Lesson:** anything that deletes and re-inserts rows must carry user-owned columns and ids across, and must be
+  tested by running it twice.
