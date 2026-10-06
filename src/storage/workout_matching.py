@@ -453,10 +453,28 @@ def _is_garmin(name: str) -> bool:
     return "tp-" in lowered or "garmin" in lowered
 
 
+LOCAL_TZ = "America/Los_Angeles"
+
+
+def local_date(start_time: Optional[str]):
+    """Local (Pacific) calendar date of a FIT start time recorded in UTC."""
+    if not start_time:
+        return None
+    try:
+        import pytz
+        t = datetime.fromisoformat(str(start_time))
+        if t.tzinfo is None:
+            t = pytz.UTC.localize(t)
+        return t.astimezone(pytz.timezone(LOCAL_TZ)).date()
+    except (ValueError, ImportError):
+        return None
+
+
 def link_fit_files(db_path: str, start_date: str, end_date: str) -> int:
     """Link completed workouts to their FIT files (the one FIT matcher).
 
-    Same day preferred, +/-1 day allowed for UTC/Pacific drift. Zwift files only
+    FIT start times are UTC; they're converted to Pacific and must fall on the
+    workout's local date (+/-1 day only when a file has no start time). Zwift files only
     pair with Zwift workouts; strength sessions are skipped; a FIT file already
     linked to a workout is never reused. Garmin files are scored on duration only
     (their TSS is computed differently); Zwift on TSS + duration.
@@ -482,8 +500,9 @@ def link_fit_files(db_path: str, start_date: str, end_date: str) -> int:
             except ValueError:
                 data = {}
             data = data or {}
+            local_day = local_date(data.get("start_time"))
             available.append({
-                "id": fid, "day": day, "file_name": file_name or "",
+                "id": fid, "day": day, "local_day": local_day, "file_name": file_name or "",
                 "tss": float((data.get("metrics") or {}).get("tss") or 0),
                 "duration_min": float((data.get("metrics") or {}).get("duration") or 0)
                                 or float(data.get("duration_seconds") or 0) / 60,
@@ -504,9 +523,17 @@ def link_fit_files(db_path: str, start_date: str, end_date: str) -> int:
 
             best, best_score = None, None
             for fit in available:
-                fday = datetime.strptime(fit["day"][:10], '%Y-%m-%d').date()
-                if abs((fday - wday).days) > 1 or _is_zwift(fit["file_name"]) != _is_zwift(title):
+                if _is_zwift(fit["file_name"]) != _is_zwift(title):
                     continue
+                if fit["local_day"]:
+                    # Garmin/Zwift record UTC; TrainingPeaks dates are local (Pacific).
+                    if fit["local_day"] != wday:
+                        continue
+                    fday = wday
+                else:
+                    fday = datetime.strptime(fit["day"][:10], '%Y-%m-%d').date()
+                    if abs((fday - wday).days) > 1:
+                        continue
                 if _is_garmin(fit["file_name"]):
                     score = abs(dur - fit["duration_min"])
                 else:
@@ -566,5 +593,43 @@ def fix_double_linked_fit_files(db_path: str, apply: bool = False) -> List[Dict[
         if apply:
             conn.commit()
         return changes
+    finally:
+        conn.close()
+
+
+def fix_cross_day_links(db_path: str, apply: bool = False) -> List[Dict[str, Any]]:
+    """Unlink FIT files whose Pacific start date isn't the workout's date.
+
+    Older matchers compared UTC dates with local ones, so e.g. a Wednesday 8am
+    commute (15:00 UTC) could end up on Tuesday's evening ride.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT w.id, w.workout_day, w.workout_title, json_extract(f.fit_data, '$.start_time') "
+            "FROM workouts w JOIN fit_files f ON f.id = w.fit_file_id").fetchall()
+        changes = []
+        for wid, day, title, start in rows:
+            local = local_date(start)
+            if local and local.isoformat() != day[:10]:
+                changes.append({"workout_id": wid, "workout_day": day, "title": title, "file_local_day": local.isoformat()})
+                if apply:
+                    conn.execute("UPDATE workouts SET fit_file_id = NULL WHERE id = ?", (wid,))
+        if apply:
+            conn.commit()
+        return changes
+    finally:
+        conn.close()
+
+
+def heal_name_only_matches(db_path: str) -> int:
+    """Give name-only manual matches (e.g. made in the legacy app) their plan id."""
+    from src.storage.schema_migrations import _m2_proposed_workout_fk
+    conn = sqlite3.connect(db_path)
+    try:
+        before = conn.execute("SELECT COUNT(*) FROM workouts WHERE proposed_workout_id IS NOT NULL").fetchone()[0]
+        _m2_proposed_workout_fk(conn)
+        conn.commit()
+        return conn.execute("SELECT COUNT(*) FROM workouts WHERE proposed_workout_id IS NOT NULL").fetchone()[0] - before
     finally:
         conn.close()

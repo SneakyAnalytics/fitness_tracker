@@ -50,6 +50,18 @@ def _extract_ftp(db: WorkoutDatabase, start_date: str, end_date: str, fallback: 
     return extracted_ftp
 
 
+def plan_week_number(db: WorkoutDatabase, target_date: str) -> Optional[int]:
+    """Week number of the saved plan containing target_date (matches Week_<n> folders)."""
+    import sqlite3
+    conn = sqlite3.connect(db.db_path)
+    try:
+        row = conn.execute("SELECT weekNumber FROM daily_plans WHERE date = ? ORDER BY id DESC LIMIT 1",
+                           (target_date,)).fetchone()
+    finally:
+        conn.close()
+    return row[0] if row else None
+
+
 def refresh_daily_zwift_news(target_date: Optional[str] = None) -> list[str]:
     """Regenerate today's Zwift files so text events use fresh news."""
     if target_date is None:
@@ -66,7 +78,8 @@ def refresh_daily_zwift_news(target_date: Optional[str] = None) -> list[str]:
         end_date=target_date,
         ftp=ftp,
         output_dir=output_dir,
-        week_number=None
+        # Same Week_<n> folder the plan was saved to (not the calendar week).
+        week_number=plan_week_number(db, target_date),
     )
 
 
@@ -75,9 +88,15 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--date", dest="date", help="Target date YYYY-MM-DD (default: today)")
+    parser.add_argument("--week-dir", action="store_true",
+                        help="only print the Week_<n> folder for the date (used by the Beelink sync task)")
     args = parser.parse_args()
 
-    files = refresh_daily_zwift_news(args.date)
-    print(f"Generated {len(files)} file(s):")
-    for path in files:
-        print(f"- {path}")
+    if args.week_dir:
+        n = plan_week_number(WorkoutDatabase(), args.date or date.today().isoformat())
+        print(f"Week_{n}" if n else "")
+    else:
+        files = refresh_daily_zwift_news(args.date)
+        print(f"Generated {len(files)} file(s):")
+        for path in files:
+            print(f"- {path}")

@@ -106,24 +106,14 @@ def generate_zwift_workout(workout_date: str, workout_name: str, intervals: List
         ftp: System FTP for converting watts to FTP fractions (default: 258)
         output_dir: Directory to save the .zwo file (defaults to current working directory)
         week_number: Optional week number for folder naming (defaults to ISO week of year)
-        zwift_ftp_override: Optional FTP override for Zwift (use if Zwift's FTP differs from system FTP)
+        zwift_ftp_override: Ignored (kept for compatibility); Zwift uses its own FTP
         
     Returns:
         Path to the generated .zwo file
     """
-    # If zwift_ftp_override not provided but workout has watt-based intervals, use system FTP
-    if zwift_ftp_override is None:
-        # Check if any intervals use watts
-        has_watt_intervals = any(
-            isinstance(i.get('powerTarget'), dict) and 
-            isinstance(i['powerTarget'].get('type'), str) and 
-            i['powerTarget'].get('type') == 'range' and 
-            i['powerTarget'].get('unit') == 'watts'
-            for i in intervals
-        )
-        if has_watt_intervals:
-            zwift_ftp_override = ftp  # Use system FTP to match watt targets
-            print(f"DEBUG: Setting Zwift FTP override to {ftp}W to match watt-based interval targets")
+    # Zwift scales every .zwo by its own FTP and ignores <ftpOverride>, so none is
+    # written. Watt targets become fractions of `ftp`, which is kept equal to
+    # Zwift's FTP (inferred from rides; see src/utils/zwift_ftp.py).
     
     print(f"DEBUG: Starting workout generation for {workout_name} on {workout_date}")
     print(f"DEBUG: Number of intervals: {len(intervals)}")
@@ -205,10 +195,6 @@ def generate_zwift_workout(workout_date: str, workout_name: str, intervals: List
             '  <sportType>bike</sportType>',
         ]
         
-        # Add FTP override if specified (ensures watt-based intervals match targets)
-        if zwift_ftp_override:
-            xml_content.append(f'  <ftpOverride>{zwift_ftp_override}</ftpOverride>')
-            print(f"DEBUG: Added ftpOverride={zwift_ftp_override}W to workout XML")
         
         xml_content.extend([
             '  <durationType>time</durationType>',

@@ -36,7 +36,9 @@ def main() -> None:
         print(training_load.refresh_all(db.db_path))
     elif args.cmd == "backfill":
         from src.utils import reanalyze
-        from src.storage.workout_matching import fix_double_linked_fit_files
+        from src.storage.workout_matching import fix_cross_day_links, fix_double_linked_fit_files
+        cross = fix_cross_day_links(db.db_path, apply=True)
+        print(f"Unlinked {len(cross)} ride files that belonged to a different day (UTC vs Pacific)")
         fixed = fix_double_linked_fit_files(db.db_path, apply=True)
         print(f"Unlinked {len(fixed)} wrong FIT links (one ride file attached to several workouts)")
         print(f"Linked {link_fit_files(db.db_path, '2000-01-01', date.today().isoformat())} workouts to FIT files")

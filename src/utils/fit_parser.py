@@ -1,6 +1,7 @@
 # src/utils/fit_parser.py
 
 import gzip
+from datetime import timedelta
 from fitparse import FitFile
 from typing import Dict, Any, List, Optional, cast
 import numpy as np
@@ -136,6 +137,7 @@ class FitParser:
             power_data = []
             hr_data = []
             cadence_data = []
+            target_by_time = []  # (timestamp, Zwift ERG target watts) when present
             
             # Extract data
             for record in fitfile.get_messages('record'):
@@ -165,6 +167,9 @@ class FitParser:
                     hr_data.append(convert_numpy(data['heart_rate']))
                 if 'cadence' in data:
                     cadence_data.append(convert_numpy(data['cadence']))
+                # Zwift writes the ERG target as a developer field on each record.
+                if data.get('target_power') and 'timestamp' in data:
+                    target_by_time.append((data['timestamp'], data['target_power']))
             
             # Calculate duration
             if timestamps:
@@ -277,12 +282,20 @@ class FitParser:
                         continue
                     lap_start = lap_data.get('start_time')
                     elapsed = (lap_start - workout_start).total_seconds() if lap_start and workout_start else None
+                    avg_target = None
+                    if target_by_time and lap_start and lap_data.get('total_elapsed_time'):
+                        lap_end = lap_start + timedelta(seconds=float(lap_data['total_elapsed_time']))
+                        in_lap = [t for ts, t in target_by_time if lap_start <= ts < lap_end]
+                        if in_lap:
+                            avg_target = round(sum(in_lap) / len(in_lap), 1)
                     laps.append({
                         'start_elapsed_sec': round(elapsed, 1) if elapsed is not None else None,
                         'total_elapsed_time': lap_data.get('total_elapsed_time'),
                         'avg_power': lap_data.get('avg_power'),
                         'max_power': lap_data.get('max_power'),
                         'avg_heart_rate': lap_data.get('avg_heart_rate'),
+                        # What Zwift's ERG asked for: reveals Zwift's FTP (see zwift_ftp.py)
+                        'avg_target_power': avg_target,
                     })
             except Exception as e:
                 print(f"DEBUG: Lap extraction failed: {e}")

@@ -1337,10 +1337,12 @@ This was an UNPLANNED session (warmup, cooldown, spontaneous ride, or training o
 
 Be specific with numbers from the detected intervals and power data. Use an objective, analytical coaching tone that recognizes this was unplanned but still provides valuable insights. Response should be 350-500 words."""
 
-        # Cycling narration goes to Claude when a key is configured; Gemini is the fallback.
-        claude_text = self._generate_with_claude(prompt)
-        if claude_text:
-            return claude_text
+        # Planned (structured) rides are narrated by Claude when a key is configured;
+        # unplanned rides (commutes etc.) and any Claude failure use free Gemini.
+        if proposed_workout:
+            claude_text = self._generate_with_claude(prompt)
+            if claude_text:
+                return claude_text
 
         # Try each model in the list until one works
         last_error = None

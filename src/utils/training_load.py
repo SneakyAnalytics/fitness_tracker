@@ -333,8 +333,16 @@ def body_metrics(db_path: Optional[str] = None) -> Dict[str, Any]:
 def refresh_all(db_path: Optional[str] = None) -> Dict[str, int]:
     """Refresh every derived table. Safe to run after each sync."""
     from src.utils.progression import refresh_progression
-    return {
+    from src.utils import zwift_ftp
+    from src.storage.workout_matching import heal_name_only_matches
+    heal_name_only_matches(db_path or get_db_path())
+    result = {
         "load_days": refresh_training_load(db_path),
         "ride_power_bests": refresh_ride_power_bests(db_path),
         "progression_rows": refresh_progression(db_path),
+        "zwift_ftp_observations": zwift_ftp.refresh_observations(db_path),
     }
+    change = zwift_ftp.sync_settings_ftp(db_path)
+    if change:
+        result["ftp_change"] = change
+    return result

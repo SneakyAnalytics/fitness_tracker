@@ -171,3 +171,82 @@ def test_double_linked_fit_file_stays_with_the_ride():
     links = dict(conn.execute("SELECT id, fit_file_id FROM workouts").fetchall())
     conn.close()
     assert links == {ride: fid, yoga: None}
+
+
+def test_fit_file_dates_compare_in_pacific_not_utc():
+    """A Wednesday 8:17am Pacific commute is recorded as 15:17 UTC; it must not
+    attach to Tuesday's evening ride (or vice versa)."""
+    from src.storage.workout_matching import fix_cross_day_links, link_fit_files
+    db_path = get_db_path()
+    conn = sqlite3.connect(db_path)
+    conn.execute("DELETE FROM workouts")
+    conn.execute("DELETE FROM fit_files")
+    tue_evening = conn.execute(
+        "INSERT INTO workouts (workout_day, workout_title, workout_data) VALUES ('2026-09-29', 'Cycling', ?)",
+        (json.dumps({"metrics": {"actual_tss": 12, "actual_duration": 20}}),)).lastrowid
+    wed_file = conn.execute(
+        "INSERT INTO fit_files (workout_day, workout_title, fit_data, file_name) VALUES ('2026-09-30', 'g-wed', ?, ?)",
+        (json.dumps({"start_time": "2026-09-30T15:17:22", "metrics": {"duration": 20}}),
+         "tp-1.2026-09-30-15-17-22Z.GarminPing.FIT")).lastrowid
+    tue_file = conn.execute(
+        "INSERT INTO fit_files (workout_day, workout_title, fit_data, file_name) VALUES ('2026-09-30', 'g-tue', ?, ?)",
+        (json.dumps({"start_time": "2026-09-30T00:35:00", "metrics": {"duration": 21}}),  # Tue 5:35pm PT
+         "tp-1.2026-09-30-00-35-00Z.GarminPing.FIT")).lastrowid
+    conn.commit()
+    conn.close()
+    assert link_fit_files(db_path, "2026-09-29", "2026-09-29") == 1
+    conn = sqlite3.connect(db_path)
+    assert conn.execute("SELECT fit_file_id FROM workouts WHERE id = ?", (tue_evening,)).fetchone()[0] == tue_file
+    conn.execute("UPDATE workouts SET fit_file_id = ? WHERE id = ?", (wed_file, tue_evening))  # old-matcher mistake
+    conn.commit()
+    conn.close()
+    assert [c["workout_id"] for c in fix_cross_day_links(db_path, apply=True)] == [tue_evening]
+
+
+def test_week_review_suggests_plan_and_commutes(monkeypatch):
+    from src.utils import week_review
+    from src.utils.week_review import apply_match, review_week
+    queued = []
+    monkeypatch.setattr(week_review, "queue_analysis", lambda wid, path: queued.append(wid))  # no LLM calls
+    db_path = get_db_path()
+    conn = sqlite3.connect(db_path)
+    for t in ("workouts", "fit_files", "proposed_workouts", "daily_plans", "weekly_plans"):
+        conn.execute(f"DELETE FROM {t}")
+    conn.execute("INSERT INTO weekly_plans (weekNumber, startDate, notes, ftp) VALUES (97, '2026-09-28', '', 306)")
+    dp = conn.execute("INSERT INTO daily_plans (weekNumber, dayNumber, date) VALUES (97, 2, '2026-09-29')").lastrowid
+    pw = conn.execute("INSERT INTO proposed_workouts (dailyPlanId, type, name, plannedDuration) VALUES "
+                      "(?, 'bike', 'Sweet Spot Progression', 90)", (dp,)).lastrowid
+
+    seq = {}
+
+    def add(title, wtype, minutes, start=None):
+        seq[title] = seq.get(title, 0) + 1
+        fid = None
+        if start:
+            fid = conn.execute("INSERT INTO fit_files (workout_day, workout_title, fit_data, file_name) VALUES "
+                               "('2026-09-29', ?, ?, 'f')", (start, json.dumps({"start_time": start}),)).lastrowid
+        return conn.execute("INSERT INTO workouts (workout_day, workout_title, workout_data, fit_file_id, "
+                            "sequence_number) VALUES ('2026-09-29', ?, ?, ?, ?)",
+                            (title, json.dumps({"type": wtype, "metrics": {"actual_duration": minutes}}), fid,
+                             seq[title])).lastrowid
+
+    zwift = add("Zwift - 09/29 Sweet Spot Progression", "Bike", 90)
+    to_work = add("Cycling", "Bike", 25, "2026-09-29T15:35:00")    # 8:35am PT
+    from_work = add("Cycling", "Bike", 20, "2026-09-30T00:40:00")  # 5:40pm PT
+    sauna = add("Sauna", "Other", 15)
+    conn.commit()
+    conn.close()
+
+    rows = {r["id"]: r for r in review_week("2026-09-29")["workouts"]}
+    assert rows[zwift]["match"] == {"kind": "plan", "proposed_workout_id": pw,
+                                    "name": "Sweet Spot Progression", "confidence": "high"}
+    assert rows[to_work]["match"]["name"] == "Commute to work"
+    assert rows[from_work]["match"]["name"] == "Commute from work"
+    assert rows[sauna]["match"]["name"] == "Sauna"
+
+    apply_match(to_work, label="Commute to work")
+    assert queued == []  # short unplanned commute: no AI write-up
+    apply_match(zwift, proposed_workout_id=pw)
+    assert queued == []  # no ride file in this test
+    after = {r["id"]: r for r in review_week("2026-09-29")["workouts"]}
+    assert after[to_work]["status"] == "confirmed" and after[to_work]["match"]["name"] == "Commute to work"

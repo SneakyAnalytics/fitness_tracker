@@ -300,7 +300,7 @@ class WorkoutDatabase:
                 print("Added FTP column to weekly_plans table")
             
             conn.commit()
-            print("Database migration completed successfully")
+            pass  # (silent: this runs on every connection)
             
         except Exception as e:
             print(f"Error during database migration: {e}")
