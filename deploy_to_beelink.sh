@@ -35,6 +35,15 @@ done
 
 cd "$(dirname "$0")"
 remote() { ssh -o ConnectTimeout=10 "$BEELINK" "$@"; }
+# Docker Desktop's Windows credential store needs an interactive logon, so registry
+# operations over SSH fail ("A specified logon session does not exist"). Over SSH we
+# use a config whose credential helper answers "none stored" (fine for public images).
+DOCKER_SSH='set PATH=C:\Users\rakej\.docker-ssh\bin;%PATH%&& set DOCKER_CONFIG=C:\Users\rakej\.docker-ssh&&'
+setup_docker_ssh() {
+  remote 'if not exist C:\Users\rakej\.docker-ssh\bin mkdir C:\Users\rakej\.docker-ssh\bin' >/dev/null
+  scp -q scripts/deploy/docker-ssh/config.json "$BEELINK:C:/Users/rakej/.docker-ssh/config.json"
+  scp -q scripts/deploy/docker-ssh/docker-credential-anon.cmd "$BEELINK:C:/Users/rakej/.docker-ssh/bin/docker-credential-anon.cmd"
+}
 
 echo "🔌 Checking the Beelink..."
 remote "docker info --format {{.ServerVersion}}" >/dev/null || {
@@ -48,12 +57,13 @@ if [[ -z "$VERSION" ]]; then
 fi
 echo "📌 Deploying commit ${VERSION:0:12}  ($(git log -1 --format=%s "$VERSION" 2>/dev/null || echo 'unknown locally'))"
 
+setup_docker_ssh
 echo "🔎 Checking the images exist for that commit..."
 for image in fitness-tracker fitness-tracker-web; do
-  if ! remote "docker manifest inspect ghcr.io/sneakyanalytics/$image:$VERSION" >/dev/null 2>&1; then
+  if ! remote "$DOCKER_SSH docker manifest inspect ghcr.io/sneakyanalytics/$image:$VERSION" >/dev/null 2>&1; then
     echo "❌ ghcr.io/sneakyanalytics/$image:$VERSION not found (or not accessible)."
     echo "   - Has the 'Build images' GitHub Action finished for this commit?"
-    echo "   - Are the ghcr.io packages public (or has the Beelink run 'docker login ghcr.io')?"
+    echo "   - Are the ghcr.io packages public? (GitHub → your profile → Packages → package settings)"
     exit 1
   fi
 done
@@ -101,7 +111,7 @@ fi
 echo "APP_VERSION=$VERSION" | merge_env
 
 echo "⬇️  Pulling images and restarting..."
-remote "cd /d $REMOTE_DIR && docker compose pull && docker compose up -d --remove-orphans"
+remote "$DOCKER_SSH cd /d $REMOTE_DIR && docker compose pull && docker compose up -d --remove-orphans"
 
 echo "🩺 Waiting for health..."
 for i in $(seq 1 30); do
