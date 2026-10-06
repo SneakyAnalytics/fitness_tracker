@@ -5,7 +5,12 @@ Uses Gemini AI to generate workout insights and track personal bests.
 Dynamically discovers available free models for resilience.
 """
 
+from src.config import get_db_path
+from src.storage.events import record_event
+from src.utils.erg_execution import compute_execution, format_execution_text
+import json
 import os
+import sqlite3
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 import numpy as np
@@ -31,6 +36,8 @@ class FitFileAnalyzer:
         'gemini-1.5-pro',
     ]
     
+    CLAUDE_ANALYSIS_MODEL = "claude-sonnet-5"
+
     def __init__(self, gemini_api_key: Optional[str] = None, use_dynamic_models: bool = True):
         """
         Initialize the analyzer with Gemini API
@@ -40,6 +47,7 @@ class FitFileAnalyzer:
             use_dynamic_models: If True, dynamically discover free models. If False, use static list.
         """
         self.parser = FitParser()
+        self.last_model_used: Optional[str] = None
         
         # Initialize Gemini
         api_key = gemini_api_key or os.environ.get('GEMINI_API_KEY')
@@ -125,7 +133,7 @@ class FitFileAnalyzer:
                 return None
             
             # Connect to database
-            db_path = Path(__file__).parent.parent.parent / 'data' / 'fitness_data.db'
+            db_path = get_db_path()
             conn = sqlite3.connect(str(db_path))
             c = conn.cursor()
             
@@ -165,7 +173,8 @@ class FitFileAnalyzer:
     def analyze_workout_from_parsed_data(self, parsed_data: Dict[str, Any], 
                                         athlete_ftp: Optional[float] = None,
                                         athlete_notes: Optional[str] = None,
-                                        matched_proposed_workout_name: Optional[str] = None) -> Optional[Dict[str, Any]]:
+                                        matched_proposed_workout_name: Optional[str] = None,
+                                        matched_proposed_workout_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
         """
         Analyze a workout from already-parsed FIT data (useful when database stores JSON)
         
@@ -173,7 +182,12 @@ class FitFileAnalyzer:
             parsed_data: Already-parsed workout data (dict from JSON)
             athlete_ftp: Optional FTP value for power calculations  
             athlete_notes: Optional notes from the athlete about the workout
-            matched_proposed_workout_name: Optional manual match to specific proposed workout by name
+            matched_proposed_workout_name: Manual match by name (legacy), or a custom
+                label for an unplanned session
+            matched_proposed_workout_id: Manual match by proposed_workouts.id (authoritative)
+
+            Any explicit match is final: automatic matching only runs when neither
+            argument is given.
             
         Returns:
             Dictionary containing parsed metrics, AI analysis, and detected personal bests
@@ -279,24 +293,29 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
             else:
                 workout_date = datetime.now().strftime('%Y-%m-%d')
         
-        # Try to find proposed workout
-        # Priority 1: Use manually matched workout name if provided
-        # Priority 2: Fall back to date-based matching (for legacy/auto-matched workouts)
         proposed_workout = None
-        if matched_proposed_workout_name:
-            print(f"🎯 Using manually matched workout: {matched_proposed_workout_name}")
+        explicit_match = bool(matched_proposed_workout_id or matched_proposed_workout_name)
+        if matched_proposed_workout_id:
+            proposed_workout = self._load_proposed_workout_by_id(matched_proposed_workout_id)
+            if proposed_workout:
+                print(f"🎯 Using manual match #{matched_proposed_workout_id}: {proposed_workout['name']}")
+            else:
+                record_event("error", "fit_file_analyzer",
+                             f"Manual match id {matched_proposed_workout_id} not found; analyzing as unplanned",
+                             {"workout_date": workout_date})
+        elif matched_proposed_workout_name:
             proposed_workout = self._load_proposed_workout_by_name(matched_proposed_workout_name, workout_date)
             if proposed_workout:
-                print(f"✅ Loaded manual match: {proposed_workout.get('name')} (date: {proposed_workout.get('date')})")
+                print(f"🎯 Using manual match: {proposed_workout['name']} ({proposed_workout['date']})")
             else:
-                print(f"⚠️ Manual match '{matched_proposed_workout_name}' not found in database, falling back to date lookup")
-        
-        # Fall back to date-based matching if no manual match or manual match not found
-        if not proposed_workout:
+                print(f"ℹ️ '{matched_proposed_workout_name}' is not a planned workout; analyzing as unplanned")
+        else:
             proposed_workout = self._find_best_matching_workout(parsed_data, workout_date)
             if proposed_workout:
-                print(f"📅 Using date-based match: {proposed_workout.get('name')} for {workout_date}")
-        
+                print(f"📅 Using automatic match: {proposed_workout.get('name')} for {workout_date}")
+
+        parsed_data['workout_date'] = workout_date
+
         # Continue with analysis even if no proposed workout found
         # (historical workouts may not have proposed workouts)
         if not proposed_workout:
@@ -307,6 +326,11 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
         
         # Detect intervals automatically
         intervals_data = self._detect_intervals(parsed_data, athlete_ftp)
+
+        prescription_ftp = self._prescription_ftp(proposed_workout, parsed_data, athlete_ftp)
+        execution = None
+        if proposed_workout and proposed_workout.get('intervals'):
+            execution = compute_execution(proposed_workout, parsed_data, prescription_ftp)
         
         # Generate AI analysis (pass intervals and matched proposed workout for context)
         ai_analysis = self._generate_ai_analysis(
@@ -314,7 +338,10 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
             peak_efforts,
             athlete_notes,
             intervals_data,
-            proposed_workout=proposed_workout
+            proposed_workout=proposed_workout,
+            allow_date_fallback=not explicit_match,
+            execution=execution,
+            prescription_ftp=prescription_ftp,
         )
         
         return {
@@ -322,6 +349,8 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
             'peak_efforts': peak_efforts,
             'intervals': intervals_data,
             'ai_analysis': ai_analysis,
+            'proposed_workout': proposed_workout,
+            'execution': execution,
             'analyzed_at': datetime.now().isoformat()
         }
     
@@ -414,142 +443,78 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
         
         return peak_efforts
     
+    # Column names here must match the real (camelCase) schema. A previous
+    # snake_case copy of this query failed on every call and the error was
+    # swallowed, which silently discarded every manual match.
+    _PROPOSED_SELECT = """
+        SELECT pw.id, pw.name, pw.type, pw.plannedDuration,
+               pw.plannedTSS_min, pw.plannedTSS_max,
+               pw.targetRPE_min, pw.targetRPE_max,
+               pw.notes, pw.intervals, pw.sections, pw.prescribed_ftp,
+               dp.date, wp.ftp
+        FROM proposed_workouts pw
+        JOIN daily_plans dp ON pw.dailyPlanId = dp.id
+        LEFT JOIN weekly_plans wp ON dp.weekNumber = wp.weekNumber
+    """
+
+    @staticmethod
+    def _row_to_proposed(row) -> Dict[str, Any]:
+        def _json(value):
+            if not value:
+                return []
+            try:
+                return json.loads(value)
+            except (TypeError, ValueError):
+                return []
+        return {
+            'id': row[0],
+            'name': row[1],
+            'type': row[2],
+            'plannedDuration': row[3],
+            'plannedTSS': {'min': row[4], 'max': row[5]},
+            'targetRPE': {'min': row[6], 'max': row[7]},
+            'notes': row[8],
+            'intervals': _json(row[9]),
+            'sections': _json(row[10]),
+            # FTP in force when this was prescribed; falls back to the week's FTP.
+            'prescribed_ftp': row[11] or row[13],
+            'date': row[12],
+        }
+
+    def _query_proposed(self, where: str, params: tuple) -> List[Dict[str, Any]]:
+        conn = sqlite3.connect(get_db_path())
+        try:
+            rows = conn.execute(self._PROPOSED_SELECT + " WHERE " + where, params).fetchall()
+        finally:
+            conn.close()
+        return [self._row_to_proposed(r) for r in rows]
+
+    def _load_proposed_workout_by_id(self, proposed_workout_id: int) -> Optional[Dict[str, Any]]:
+        rows = self._query_proposed("pw.id = ?", (proposed_workout_id,))
+        return rows[0] if rows else None
+
     def _load_proposed_workout_by_name(self, workout_name: str, workout_date: str) -> Optional[Dict[str, Any]]:
+        """Resolve a manually matched name to a proposed workout (legacy name-only matches).
+
+        Same day first, then nearest within +/-7 days. Returns None when the name
+        is a custom label for an unplanned session.
         """
-        Load a proposed workout by exact name match.
-        Used when user manually matches a workout to specific proposed workout.
-        
-        Args:
-            workout_name: Exact name of proposed workout to load
-            workout_date: Date to help narrow search (week context)
-            
-        Returns:
-            Proposed workout dict or None
-        """
-        from pathlib import Path
-        import json
-        import sqlite3
-        from datetime import timedelta
-        
-        try:
-            # Connect to database
-            db_path = Path(__file__).parent.parent.parent / 'data' / 'fitness_data.db'
-            
-            # Try to find the workout by name within reasonable date range
-            # (±7 days to handle week boundaries and rescheduling)
-            conn = sqlite3.connect(str(db_path))
-            c = conn.cursor()
-            
-            # Calculate date range (±7 days)
-            workout_dt = datetime.strptime(workout_date, '%Y-%m-%d')
-            start_date = (workout_dt - timedelta(days=7)).strftime('%Y-%m-%d')
-            end_date = (workout_dt + timedelta(days=7)).strftime('%Y-%m-%d')
-            
-            c.execute('''
-                SELECT 
-                    pw.id, pw.name, pw.workout_type as type, 
-                    pw.planned_duration as plannedDuration,
-                    pw.planned_tss_min, pw.planned_tss_max,
-                    pw.target_rpe_min, pw.target_rpe_max,
-                    pw.description, pw.notes, pw.intervals,
-                    dp.date
-                FROM proposed_workouts pw
-                JOIN daily_plans dp ON pw.daily_plan_id = dp.id
-                WHERE pw.name = ?
-                AND dp.date BETWEEN ? AND ?
-                ORDER BY ABS(JULIANDAY(dp.date) - JULIANDAY(?)) ASC
-                LIMIT 1
-            ''', (workout_name, start_date, end_date, workout_date))
-            
-            row = c.fetchone()
-            conn.close()
-            
-            if row:
-                intervals = json.loads(row[10]) if row[10] else []
-                return {
-                    'id': row[0],
-                    'name': row[1],
-                    'type': row[2],
-                    'plannedDuration': row[3],
-                    'plannedTSS': {'min': row[4], 'max': row[5]},
-                    'targetRPE': {'min': row[6], 'max': row[7]},
-                    'description': row[8],
-                    'notes': row[9],
-                    'intervals': intervals,
-                    'date': row[11]
-                }
-            return None
-            
-        except Exception as e:
-            print(f"Error loading proposed workout by name: {e}")
-            return None
-    
+        rows = self._query_proposed(
+            "pw.name = ? AND ABS(JULIANDAY(dp.date) - JULIANDAY(?)) <= 7 "
+            "ORDER BY ABS(JULIANDAY(dp.date) - JULIANDAY(?)), pw.id",
+            (workout_name, workout_date, workout_date),
+        )
+        return rows[0] if rows else None
+
     def _load_proposed_workout(self, workout_date: str) -> Optional[Dict[str, Any]]:
-        """
-        Load the proposed workout for a given date from the database
-        
-        Args:
-            workout_date: Date string in YYYY-MM-DD format
-            
-        Returns:
-            Proposed workout dict or None if not found
-        """
-        from pathlib import Path
-        import json
-        import sqlite3
-        
-        try:
-            # Connect to database
-            db_path = Path(__file__).parent.parent.parent / 'data' / 'fitness_data.db'
-            conn = sqlite3.connect(str(db_path))
-            c = conn.cursor()
-            
-            # Query for the proposed workout on this date
-            c.execute('''
-                SELECT pw.name, pw.type, pw.plannedDuration,
-                       pw.plannedTSS_min, pw.plannedTSS_max,
-                       pw.targetRPE_min, pw.targetRPE_max,
-                       pw.intervals, pw.sections, pw.notes
-                FROM proposed_workouts pw
-                JOIN daily_plans dp ON pw.dailyPlanId = dp.id
-                WHERE dp.date = ? AND pw.type = 'bike'
-                LIMIT 1
-            ''', (workout_date,))
-            
-            row = c.fetchone()
-            conn.close()
-            
-            if not row:
-                print(f"No proposed bike workout found for {workout_date}")
-                return None
-            
-            # Parse the workout data
-            workout = {
-                'name': row[0],
-                'type': row[1],
-                'plannedDuration': row[2],
-                'plannedTSS': {
-                    'min': row[3],
-                    'max': row[4]
-                },
-                'targetRPE': {
-                    'min': row[5],
-                    'max': row[6]
-                },
-                'intervals': json.loads(row[7]) if row[7] else [],
-                'sections': json.loads(row[8]) if row[8] else [],
-                'notes': row[9]
-            }
-            
-            print(f"✓ Found proposed workout from database: {workout['name']}")
-            return workout
-            
-        except Exception as e:
-            print(f"Error loading proposed workout from database: {e}")
-            import traceback
-            traceback.print_exc()
-            return None
-    
+        """The day's planned bike workout, only when there is exactly one."""
+        rows = self._query_proposed("dp.date = ? AND pw.type = 'bike' ORDER BY pw.id", (workout_date,))
+        if len(rows) == 1:
+            return rows[0]
+        if len(rows) > 1:
+            print(f"Multiple planned bike workouts on {workout_date}; not guessing")
+        return None
+
     def _detect_intervals(self, parsed_data: Dict[str, Any], athlete_ftp: Optional[float] = None) -> Dict[str, Any]:
         """
         Automatically detect intervals from workout power data
@@ -652,7 +617,7 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
             end_date = (base_date + timedelta(days=date_window_days)).strftime('%Y-%m-%d')
             
             # Connect to database
-            db_path = Path(__file__).parent.parent.parent / 'data' / 'fitness_data.db'
+            db_path = get_db_path()
             conn = sqlite3.connect(str(db_path))
             c = conn.cursor()
             
@@ -873,301 +838,28 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
             traceback.print_exc()
             return None
     
-    def _analyze_prescribed_intervals(self, parsed_data: Dict[str, Any], proposed_workout: Optional[Dict[str, Any]]) -> str:
+    @staticmethod
+    def _prescription_ftp(proposed_workout: Optional[Dict[str, Any]], parsed_data: Dict[str, Any],
+                          athlete_ftp: Optional[float] = None) -> float:
+        """FTP to resolve %FTP targets against: the one in force when prescribed.
+
+        The FTP embedded in parsed FIT data can be a 95th-percentile estimate
+        from fit_parser, so it is only the last resort.
         """
-        Analyze actual execution for each prescribed interval in the workout.
-        Returns formatted text showing interval-by-interval performance.
-        """
-        if not proposed_workout or 'intervals' not in proposed_workout:
-            return ""
-        
-        power_metrics = parsed_data.get('power_metrics') or {}
-        hr_metrics = parsed_data.get('hr_metrics') or {}
-        time_series = parsed_data.get('time_series', {})
-        
-        power_series = power_metrics.get('power_series', [])
-        hr_series = hr_metrics.get('hr_series', [])
-        cadence_series = time_series.get('cadence', [])
-        
-        if not power_series:
-            return ""
-        
-        intervals = proposed_workout.get('intervals', [])
-        analysis_lines = []
-        current_time = 0
-        
-        for idx, interval in enumerate(intervals, 1):
-            interval_name = interval.get('name', f'Interval {idx}')
-            duration = interval.get('duration', 0)
-            
-            if duration == 0:
-                continue
-            
-            # Extract data for this time window
-            start_idx = current_time
-            end_idx = min(current_time + duration, len(power_series))
-            
-            if start_idx >= len(power_series):
-                break
-            
-            # Calculate averages for this interval
-            interval_power = power_series[start_idx:end_idx]
-            interval_hr = hr_series[start_idx:end_idx] if start_idx < len(hr_series) else []
-            interval_cadence = cadence_series[start_idx:end_idx] if start_idx < len(cadence_series) else []
-            
-            # Filter out zeros and calculate stats
-            valid_power = [p for p in interval_power if p > 0]
-            valid_hr = [h for h in interval_hr if h is not None and h > 0]
-            valid_cadence = [c for c in interval_cadence if c is not None and c > 0]
-            
-            avg_power = np.mean(valid_power) if valid_power else 0
-            avg_hr = np.mean(valid_hr) if valid_hr else 0
-            avg_cadence = np.mean(valid_cadence) if valid_cadence else 0
-            
-            # Get prescribed targets
-            power_target = interval.get('powerTarget', {})
-            cadence_target = interval.get('cadenceTarget', {})
-            
-            # Format power target
-            power_target_str = "N/A"
-            if isinstance(power_target, dict):
-                if power_target.get('type') == 'range':
-                    power_target_str = f"{power_target.get('min', 0)}-{power_target.get('max', 0)}W"
-                elif power_target.get('type') == 'watts':
-                    power_target_str = f"{power_target.get('value', 0)}W"
-                elif power_target.get('type') == 'percent_ftp':
-                    power_target_str = f"{power_target.get('value', 0)}% FTP"
-                elif 'start' in power_target and 'end' in power_target:
-                    start_val = power_target['start'].get('value', 0)
-                    end_val = power_target['end'].get('value', 0)
-                    power_target_str = f"{start_val}-{end_val}% FTP ramp"
-            
-            # Format cadence target
-            cadence_target_str = "N/A"
-            if isinstance(cadence_target, dict):
-                cad_min = cadence_target.get('min', 0)
-                cad_max = cadence_target.get('max', 0)
-                if cad_min and cad_max:
-                    cadence_target_str = f"{cad_min}-{cad_max} rpm"
-            
-            # Format time window
-            start_min = current_time // 60
-            end_min = (current_time + duration) // 60
-            time_str = f"Minutes {start_min}-{end_min}"
-            
-            # Build the interval analysis line
-            analysis_lines.append(
-                f"\n{interval_name} ({duration//60}min {duration%60}s) - {time_str}:\n"
-                f"  Prescribed: {power_target_str}, Cadence: {cadence_target_str}\n"
-                f"  Actual: {avg_power:.0f}W avg, {avg_hr:.0f} bpm avg, {avg_cadence:.0f} rpm avg"
-            )
-            
-            current_time += duration
-        
-        if analysis_lines:
-            return "\n📊 INTERVAL-BY-INTERVAL EXECUTION:\n" + "".join(analysis_lines) + "\n"
-        return ""
-
-    def _extract_erg_interval_actuals(self, proposed_workout: Dict, parsed_data: Dict, ftp: float) -> Optional[str]:
-        """
-        For ERG/structured workouts, compute per-interval actual vs target power.
-
-        Three-tier alignment strategy (most to least accurate):
-
-        1. FIT lap messages — Zwift stamps a lap at every ZWO interval boundary and
-           pre-computes avg_power per lap. If the lap count matches the ZWO interval
-           count, use lap avg_power directly (no slicing needed, exact alignment).
-
-        2. Time-series alignment — use the `time_series.timestamps` array (wall-clock
-           per record) to find exact sample indices for each ZWO time window.
-
-        3. Sample-rate fallback — estimate 1 sample ≈ 1 sec adjusted by the ratio
-           of FIT recording samples to total recorded duration.  Used when timestamps
-           are unavailable; approximate but adequate for 1-Hz Zwift recordings.
-
-        Note: the ZWO 'duration' field is always in SECONDS.
-        """
-        intervals = proposed_workout.get('intervals', [])
-        if not intervals:
-            return None
-
-        power_metrics = parsed_data.get('power_metrics') or {}
-        power_series = power_metrics.get('power_series', [])
-        if not power_series or len(power_series) < 30:
-            return None
-
-        lines = ["\n\n📊 ERG INTERVAL EXECUTION (ZWO prescribed vs FIT file actuals):\n"]
-        work_count = 0
-        compliance_symbols = []
-
-        # ── Tier 1: Use FIT lap data ──────────────────────────────────────────
-        laps = parsed_data.get('laps', [])
-        # Filter laps that have avg_power set (warmup laps may be None)
-        useful_laps = [lap for lap in laps if lap.get('avg_power') is not None]
-        use_laps = len(useful_laps) == len(intervals)
-        if useful_laps and not use_laps:
-            # Partial match — still use if counts are close (off-by-one from auto-laps)
-            use_laps = abs(len(useful_laps) - len(intervals)) <= 1
-        if use_laps:
-            lines.append(f"  Source: FIT lap markers ({len(useful_laps)} laps matched to {len(intervals)} ZWO intervals)\n\n")
-
-        # ── Tier 2 / 3 prep: build elapsed-second index for time-series slicing ─
-        # time_series.timestamps has one ISO string per FIT record
-        ts_list = parsed_data.get('time_series', {}).get('timestamps', [])
-        use_timestamps = len(ts_list) > 30
-        if use_timestamps:
-            from datetime import datetime as _dt
-            t0 = _dt.fromisoformat(ts_list[0])
-            elapsed_sec = [(_dt.fromisoformat(t) - t0).total_seconds() for t in ts_list]
-            # power_series (filtered) length may differ from ts_list length.
-            # Build a time→power lookup using the raw power from time_series which
-            # preserves ALL samples (including the pre-ride zeros) at the correct times.
-            ts_power_raw = parsed_data.get('time_series', {}).get('power', [])
-            has_ts_power = len(ts_power_raw) == len(ts_list)
-            lines.append(f"  Source: FIT time-series alignment ({len(ts_list)} samples over {elapsed_sec[-1]:.0f}s)\n\n")
-        else:
-            # Tier 3: approximate sample rate
-            fit_duration = parsed_data.get('duration_seconds', len(power_series))
-            samples_per_sec = len(power_series) / fit_duration if fit_duration > 0 else 1.0
-            # Estimate pre-ride offset: ZWO total vs FIT total; workout always ends
-            # at cooldown finish, extra recording is at the start
-            zwo_total = sum(int(iv.get('duration', 0)) for iv in intervals)
-            pre_offset_sec = max(0, fit_duration - zwo_total)
-            pre_offset_samples = int(pre_offset_sec * samples_per_sec)
-            lines.append(
-                f"  Source: sample-rate estimate ({len(power_series)} samples, "
-                f"rate≈{samples_per_sec:.3f}/s, pre-ride offset≈{pre_offset_sec:.0f}s)\n\n"
-            )
-
-        cursor_sec = 0.0
-        lap_idx = 0
-
-        for i, interval in enumerate(intervals):
-            duration_sec = int(interval.get('duration', 0))
-            if duration_sec <= 0:
-                continue
-
-            name = interval.get('name', f'Interval {i+1}')
-            power_target = interval.get('powerTarget', {})
-
-            # Resolve target watts
-            target_watts = None
-            target_str = "—"
-            if power_target:
-                if power_target.get('type') == 'range':
-                    lo = float(power_target.get('min', 0))
-                    hi = float(power_target.get('max', 0))
-                    target_watts = (lo + hi) / 2
-                    target_str = f"{lo:.0f}-{hi:.0f}W"
-                elif 'start' in power_target and 'end' in power_target:
-                    s, e = power_target['start'], power_target['end']
-                    if s.get('type') == 'percent_ftp':
-                        s_w = round(s.get('value', 0) / 100 * ftp)
-                        e_w = round(e.get('value', 0) / 100 * ftp)
-                        target_watts = (s_w + e_w) / 2
-                        target_str = f"{s.get('value')}→{e.get('value')}% FTP ({s_w}→{e_w}W ramp)"
-                    else:
-                        sv, ev = float(s.get('value', 0)), float(e.get('value', 0))
-                        target_watts = (sv + ev) / 2
-                        target_str = f"{sv:.0f}→{ev:.0f}W ramp"
-                elif power_target.get('type') == 'percent_ftp':
-                    pct = float(power_target.get('value', 0))
-                    target_watts = round(pct / 100 * ftp)
-                    target_str = f"{pct:.0f}% FTP ({target_watts}W)"
-                elif power_target.get('type') == 'watts':
-                    target_watts = float(power_target.get('value', 0)) or None
-                    target_str = f"{int(target_watts)}W" if target_watts else "—"
-                else:
-                    v = power_target.get('value')
-                    if v is not None:
-                        target_watts = float(v)
-                        target_str = f"{int(target_watts)}W"
-
-            # Classify interval label
-            name_lower = name.lower()
-            if any(x in name_lower for x in ['warmup', 'warm up', 'warm-up']):
-                label = "WARMUP"
-            elif any(x in name_lower for x in ['cooldown', 'cool down', 'cool-down']):
-                label = "COOLDOWN"
-            elif any(x in name_lower for x in ['recovery', 'rest', 'easy']):
-                label = "RECOVERY"
-            else:
-                label = "WORK"
-                work_count += 1
-
-            mins = duration_sec // 60
-            secs_rem = duration_sec % 60
-            actual_avg = None
-
-            # ── Get actual power by tier ──────────────────────────────────────
-            if use_laps and lap_idx < len(useful_laps):
-                lap = useful_laps[lap_idx]
-                actual_avg = float(lap['avg_power'])
-                lap_idx += 1
-
-            elif use_timestamps and has_ts_power:
-                # Slice by actual elapsed time
-                import bisect
-                start_idx = bisect.bisect_left(elapsed_sec, cursor_sec)
-                end_idx   = bisect.bisect_left(elapsed_sec, cursor_sec + duration_sec)
-                segment   = ts_power_raw[start_idx:end_idx]
-                valid = [p for p in segment if p and p > 0]
-                if valid:
-                    actual_avg = sum(valid) / len(valid)
-
-            elif use_timestamps:
-                # timestamps available but power array length mismatch; use scaled indices
-                import bisect
-                start_idx = bisect.bisect_left(elapsed_sec, cursor_sec)
-                end_idx   = bisect.bisect_left(elapsed_sec, cursor_sec + duration_sec)
-                scale = len(power_series) / len(ts_list)
-                ps_start = int(start_idx * scale)
-                ps_end   = int(end_idx * scale)
-                segment  = power_series[ps_start:ps_end]
-                valid = [p for p in segment if p and p > 0]
-                if valid:
-                    actual_avg = sum(valid) / len(valid)
-
-            else:
-                # Tier 3: sample-rate fallback with pre-ride offset correction
-                ps_start = pre_offset_samples + int(cursor_sec * samples_per_sec)
-                ps_end   = pre_offset_samples + int((cursor_sec + duration_sec) * samples_per_sec)
-                segment  = power_series[ps_start:min(ps_end, len(power_series))]
-                valid = [p for p in segment if p and p > 0]
-                if valid:
-                    actual_avg = sum(valid) / len(valid)
-
-            cursor_sec += duration_sec
-
-            # ── Format output line ────────────────────────────────────────────
-            if actual_avg is not None:
-                if target_watts and target_watts > 0:
-                    deviation = (actual_avg - target_watts) / target_watts * 100
-                    status = "✓" if abs(deviation) <= 5 else ("~" if abs(deviation) <= 10 else ("✗LOW" if deviation < 0 else "↑HIGH"))
-                    if label not in ('WARMUP', 'COOLDOWN'):
-                        compliance_symbols.append(status)
-                    line = (f"  {i+1:2d}. [{label}] {name}: {mins}:{secs_rem:02d}"
-                            f" | Target: {target_str} | Actual: {actual_avg:.0f}W | {status} ({deviation:+.0f}%)\n")
-                else:
-                    line = (f"  {i+1:2d}. [{label}] {name}: {mins}:{secs_rem:02d}"
-                            f" | Target: {target_str} | Actual: {actual_avg:.0f}W\n")
-            else:
-                line = (f"  {i+1:2d}. [{label}] {name}: {mins}:{secs_rem:02d}"
-                        f" | Target: {target_str} | no power data\n")
-
-            lines.append(line)
-
-        lines.append(f"\n  Work intervals executed: {work_count}\n")
-        lines.append("  Compliance key: ✓=within 5%  ~=within 10%  ✗LOW=under  ↑HIGH=over\n")
-        if compliance_symbols:
-            lines.append(f"  Work interval compliance: {' '.join(compliance_symbols)}\n")
-        return "".join(lines)
+        if proposed_workout and proposed_workout.get('prescribed_ftp'):
+            return float(proposed_workout['prescribed_ftp'])
+        if athlete_ftp:
+            return float(athlete_ftp)
+        return float((parsed_data.get('power_metrics') or {}).get('ftp') or 300)
 
     def _generate_ai_analysis(self, parsed_data: Dict[str, Any], 
                              peak_efforts: Dict[str, Dict[str, float]],
                              athlete_notes: Optional[str] = None,
                              intervals_data: Optional[Dict] = None,
-                             proposed_workout: Optional[Dict[str, Any]] = None) -> str:
+                             proposed_workout: Optional[Dict[str, Any]] = None,
+                             allow_date_fallback: bool = True,
+                             execution: Optional[Dict[str, Any]] = None,
+                             prescription_ftp: Optional[float] = None) -> str:
         """
         Generate AI-powered workout analysis using Gemini
         
@@ -1312,25 +1004,22 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
         trend_analysis = self._analyze_workout_trends(parsed_data)
         
         # Load proposed workout for context (use matched workout if provided)
-        workout_date = parsed_data.get('start_time', '')[:10] if parsed_data.get('start_time') else None
+        workout_date = parsed_data.get('workout_date') or (parsed_data.get('start_time') or '')[:10] or None
         proposed_workout_text = ""
         
-        if proposed_workout is None and workout_date:
+        if proposed_workout is None and workout_date and allow_date_fallback:
             proposed_workout = self._load_proposed_workout(workout_date)
             if proposed_workout:
                 print(f"📅 AI Analysis: Loaded proposed workout by date: {proposed_workout.get('name')}")
 
-        # When a proposed workout is available, use the ZWO interval structure to slice
-        # the actual FIT power stream at prescribed boundaries. This gives per-interval
-        # actual vs target power — far more reliable than auto-detection for ERG workouts
-        # where flat-top power prevents the detector from finding segment boundaries.
-        # This overrides auto-detected intervals (which may be missing or wrong for ERG).
-        if proposed_workout and proposed_workout.get('intervals'):
-            ftp_for_calc = float((power_metrics or {}).get('ftp', 300))
-            erg_text = self._extract_erg_interval_actuals(proposed_workout, parsed_data, ftp_for_calc)
-            if erg_text:
-                detected_intervals_text = erg_text
-                print("📊 ERG interval extraction: using ZWO boundaries on FIT power stream")
+        # Prescribed-vs-actual execution is computed deterministically (see
+        # erg_execution.py) and overrides auto-detected intervals, which fail on
+        # flat ERG power.
+        prescription_ftp = prescription_ftp or self._prescription_ftp(proposed_workout, parsed_data)
+        if execution is None and proposed_workout and proposed_workout.get('intervals'):
+            execution = compute_execution(proposed_workout, parsed_data, prescription_ftp)
+        if execution:
+            detected_intervals_text = format_execution_text(execution)
 
         # Fallback note when both detector and ERG extraction produced nothing
         if not detected_intervals_text and proposed_workout:
@@ -1444,6 +1133,49 @@ Target RPE: {proposed_workout.get('targetRPE', {}).get('min', 'N/A')}-{proposed_
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
         
+        planned_tss = proposed_workout.get('plannedTSS', {}) if proposed_workout else {}
+        if execution and execution.get('execution_score') is not None:
+            scoring_instructions = f"""**EXECUTION SCORE IS ALREADY COMPUTED: {execution['execution_score']}/10**
+
+The ERG INTERVAL EXECUTION table above was computed directly from the FIT file
+against the prescribed intervals. It is the source of truth for what happened.
+- Report the EXECUTION SCORE exactly as {execution['execution_score']}/10. Do not re-score or adjust it.
+- Explain the score using the per-interval rows (work intervals matter; warmup,
+  recovery and cooldown are context only).
+- "In band" means the athlete hit the prescription. On an ERG trainer, power
+  sitting at the edge of the band is normal and correct.
+- If the table reports an ERG scaling offset, say plainly that it comes from
+  Zwift's FTP setting, not the athlete, and suggest aligning the two FTPs.
+
+**ANALYSIS STRUCTURE:**
+
+1. **EXECUTION SCORE: {execution['execution_score']}/10**
+   - One or two sentences on why, citing the work intervals."""
+        else:
+            scoring_instructions = f"""**CRITICAL ANALYSIS INSTRUCTIONS:**
+
+The planned workout above shows the athlete's intent. Interval-level actuals could
+not be computed for this ride, so judge execution from the power, heart rate and
+any auto-detected intervals, and say that the score is an estimate.
+
+**IMPORTANT GUIDELINES:**
+1. Warmup and cooldown are not work efforts; do not criticize them as easy
+2. Power within ±5-10% of targets is NORMAL and GOOD (not a failure)
+3. Athletes often modify workouts slightly (shorter warmup, different interval count) - this is acceptable
+
+**SCORING RUBRIC (Rate 1-10):**
+- 9-10: Exceptional execution, hit all targets, perfect pacing
+- 7-8: Very good execution, minor deviations (±5-10% power, HR appropriate)
+- 5-6: Acceptable execution, some struggles but completed core work
+- 3-4: Significant struggles, major deviations from targets
+- 1-2: Did not execute the workout as intended, abandoned early
+
+**ANALYSIS STRUCTURE:**
+
+1. **EXECUTION SCORE (estimated, 1-10 using rubric above)**
+   - Were work intervals executed at proper intensity?
+   - Was overall TSS close to planned {planned_tss.get('min', 'N/A')}-{planned_tss.get('max', 'N/A')}?"""
+
         if proposed_workout:
             # Build prompt WITH proposed workout context (as reference only)
             prompt = f"""You are an expert cycling coach analyzing workout execution with a supportive, constructive approach.
@@ -1461,7 +1193,7 @@ POWER DATA:
 - Max Power: {power_metrics.get('max_power', 0):.0f}W
 - Intensity Factor: {power_metrics.get('intensity_factor', 0):.2f}
 - TSS (actual): {power_metrics.get('tss', 0):.1f}
-- FTP (used for calculations): {power_metrics.get('ftp', 0):.0f}W
+- FTP: {prescription_ftp:.0f}W
 
 POWER ZONES (% of workout time):
 {power_zones_text or "No power zone data"}
@@ -1481,35 +1213,7 @@ HEART RATE ZONES (% of workout time):
 ATHLETE NOTES:
 {athlete_notes or "No notes provided"}
 
-**CRITICAL ANALYSIS INSTRUCTIONS:**
-
-You must use the AUTO-DETECTED INTERVAL STRUCTURE above as the PRIMARY SOURCE OF TRUTH for what actually happened in the workout. The planned workout is provided only for REFERENCE to understand the athlete's intent.
-
-**IMPORTANT GUIDELINES:**
-1. Focus your execution analysis on the "MAIN WORKOUT INTERVALS" section - these are the work intervals
-2. Warmup and cooldown intervals are shown for context but should NOT be analyzed as if they were work efforts
-3. Intervals labeled "vo2max" or "threshold" in the MAIN WORKOUT section ARE work intervals that were executed
-4. Intervals labeled "recovery" or "rest" ARE actual recovery periods at low power
-5. DO NOT criticize warmup intervals for being "too easy" - they are supposed to be easy
-6. DO NOT analyze cooldown intervals for work quality - they are meant to be easy
-7. Power execution within ±5-10% of targets is NORMAL and GOOD (not a failure)
-8. Athletes often modify workouts slightly (shorter warmup, different interval count) - this is acceptable
-9. Focus on the QUALITY of execution for the work intervals that were actually performed
-
-**SCORING RUBRIC (Rate 1-10):**
-- 9-10: Exceptional execution, hit all targets, perfect pacing
-- 7-8: Very good execution, minor deviations (±5-10% power, HR appropriate)
-- 5-6: Acceptable execution, some struggles but completed core work
-- 3-4: Significant struggles, major deviations from targets
-- 1-2: Did not execute the workout as intended, abandoned early
-
-**ANALYSIS STRUCTURE:**
-
-1. **EXECUTION SCORE (Rate 1-10 using rubric above)**
-   - Based on the MAIN WORKOUT INTERVALS (not warmup/cooldown), did athlete complete appropriate work?
-   - Were work intervals (vo2max, threshold, tempo, etc.) executed at proper intensity?
-   - Were recovery intervals truly easy to allow adaptation?
-   - Was overall TSS close to planned {proposed_workout.get('plannedTSS', {}).get('min', 'N/A')}-{proposed_workout.get('plannedTSS', {}).get('max', 'N/A')}?
+{scoring_instructions}
 
 2. **WHAT WENT WELL**
    - Identify 2-3 positive aspects of the execution
@@ -1633,6 +1337,11 @@ This was an UNPLANNED session (warmup, cooldown, spontaneous ride, or training o
 
 Be specific with numbers from the detected intervals and power data. Use an objective, analytical coaching tone that recognizes this was unplanned but still provides valuable insights. Response should be 350-500 words."""
 
+        # Cycling narration goes to Claude when a key is configured; Gemini is the fallback.
+        claude_text = self._generate_with_claude(prompt)
+        if claude_text:
+            return claude_text
+
         # Try each model in the list until one works
         last_error = None
         for model_name in self.MODELS:
@@ -1641,6 +1350,7 @@ Be specific with numbers from the detected intervals and power data. Use an obje
                 model = genai.GenerativeModel(model_name)
                 response = model.generate_content(prompt)
                 print(f"✅ Successfully generated analysis with {model_name}")
+                self.last_model_used = model_name
                 return response.text
             except exceptions.ResourceExhausted as e:
                 print(f"⚠️  Quota exceeded for {model_name}, trying next model...")
@@ -1658,8 +1368,34 @@ Be specific with numbers from the detected intervals and power data. Use an obje
         
         # If we get here, all models failed
         error_msg = f"❌ Could not generate analysis - all {len(self.MODELS)} models failed.\nLast error: {last_error}\n\nTried models: {', '.join(self.MODELS)}"
-        print(error_msg)
+        record_event("error", "fit_file_analyzer", "Workout analysis failed on every model", {"last_error": last_error})
+        self.last_model_used = None
         return error_msg
+
+    def _generate_with_claude(self, prompt: str) -> Optional[str]:
+        """Narrate the workout with Claude. Returns None to fall back to Gemini."""
+        api_key = os.environ.get('CLAUDE_API_KEY') or os.environ.get('ANTHROPIC_API_KEY')
+        model = os.environ.get('WORKOUT_ANALYSIS_MODEL', self.CLAUDE_ANALYSIS_MODEL)
+        if not api_key or not model:
+            return None
+        try:
+            import anthropic
+            client = anthropic.Anthropic(api_key=api_key)
+            response = client.messages.create(
+                model=model,
+                max_tokens=4000,
+                output_config={"effort": "medium"},
+                messages=[{"role": "user", "content": prompt}],
+            )
+            text = "".join(block.text for block in response.content if block.type == "text").strip()
+            if not text:
+                return None
+            self.last_model_used = model
+            print(f"✅ Generated analysis with {model}")
+            return text
+        except Exception as e:  # any API failure: fall back to Gemini rather than lose the analysis
+            record_event("warning", "fit_file_analyzer", f"Claude analysis failed, falling back to Gemini: {e}")
+            return None
     
     def _analyze_workout_trends(self, parsed_data: Dict[str, Any]) -> str:
         """

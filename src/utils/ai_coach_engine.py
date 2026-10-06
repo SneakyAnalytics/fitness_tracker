@@ -42,10 +42,11 @@ We use: Sequential + Feedback (generate, validate, fix if needed)
 - Cost tracking (prevent runaway spending)
 """
 
+from src.config import get_db_path
 import json
 import time
 import random
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass, asdict
@@ -53,12 +54,12 @@ import re
 
 # Import our components
 try:
-    from .ai_coach_config import AIModel, AICoachConfig
+    from .ai_coach_config import AIModel, AICoachConfig, MODEL_COSTS
     from .ai_prompts import AICoachPrompts, PromptContext
     from .coaching_notes import CoachingNotesManager
     from .ai_database_queries import AICoachDatabaseQueries
 except ImportError:
-    from ai_coach_config import AIModel, AICoachConfig
+    from ai_coach_config import AIModel, AICoachConfig, MODEL_COSTS
     from ai_prompts import AICoachPrompts, PromptContext
     from coaching_notes import CoachingNotesManager
     from ai_database_queries import AICoachDatabaseQueries
@@ -72,29 +73,6 @@ except ImportError:
     APIS_AVAILABLE = False
     print("⚠️  Warning: google-generativeai or anthropic not installed")
     print("   Install with: pip install google-generativeai anthropic")
-
-# GitHub Models uses the OpenAI-compatible SDK
-try:
-    from openai import OpenAI as _OpenAIClient
-    _OPENAI_SDK_AVAILABLE = True
-except ImportError:
-    _OPENAI_SDK_AVAILABLE = False
-
-import os as _os_env  # for GITHUB_MODEL env var overrides
-_GITHUB_MODELS_URL = "https://models.inference.ai.azure.com"
-# Actual model IDs on GitHub Models — override via env if needed
-def _github_model_id(model):
-    """Return the upstream model name to pass to the GitHub Models endpoint."""
-    defaults = {
-        "github-gpt4o-mini": "gpt-4o-mini",
-        "github-gpt4o":      "gpt-4o",
-    }
-    env_override = {
-        "github-gpt4o-mini": _os_env.getenv("GITHUB_FAST_MODEL"),
-        "github-gpt4o":      _os_env.getenv("GITHUB_BEST_MODEL"),
-    }
-    return env_override.get(model.value) or defaults.get(model.value, model.value)
-
 
 @dataclass
 class CoachingResult:
@@ -154,273 +132,138 @@ class AICoachEngine:
         self.api_calls = []
     
     def _setup_api_client(self):
-        """
-        Setup API client based on selected model.
-        
-        Educational note: API Client Patterns
-        
-        Different APIs, different clients:
-        - Google: genai.GenerativeModel
-        - Anthropic: Anthropic client
-        - OpenAI: OpenAI client (if we add it)
-        
-        Pattern: Abstract away differences, expose simple interface
-        """
+        """Create the provider client for the selected model."""
         if not APIS_AVAILABLE:
             self.client = None
             print("⚠️  APIs not available - running in demo mode")
             return
-        
+
         api_key = self.config.get_api_key(self.model)
-        
         if not api_key:
             raise ValueError(f"No API key found for {self.model.value}")
-        
-        if self.model in [AIModel.GEMINI_FREE, AIModel.GEMINI_FLASH_LITE, AIModel.GEMINI_PRO]:
-            # Google Gemini — model name comes straight from the enum, which uses
-            # Google's rolling "-latest" aliases so this doesn't go stale again.
+
+        if self.model.is_gemini:
             genai.configure(api_key=api_key)
-            model_name = self.model.value
-            self.client = genai.GenerativeModel(model_name)
-            print(f"✅ Configured {model_name}")
-
-        elif self.model in [AIModel.CLAUDE_HAIKU, AIModel.CLAUDE_SONNET]:
-            # Anthropic Claude
+            self.client = genai.GenerativeModel(self.model.value)
+        elif self.model.is_claude:
             self.client = Anthropic(api_key=api_key)
-            print(f"✅ Configured {self.model.value}")
-
-        elif self.model in [AIModel.GITHUB_GPT4O_MINI, AIModel.GITHUB_GPT4O]:
-            # GitHub Models — OpenAI-compatible endpoint using GitHub token
-            if not _OPENAI_SDK_AVAILABLE:
-                raise ImportError(
-                    "openai package required for GitHub Models. "
-                    "Install with: pip install openai>=1.50.0"
-                )
-            self.client = _OpenAIClient(
-                base_url=_GITHUB_MODELS_URL,
-                api_key=api_key,
-            )
-            self._github_model_name = _github_model_id(self.model)
-            print(f"✅ Configured GitHub Models → {self._github_model_name} (with Anthropic fallback if available)")
-
         else:
             raise ValueError(f"Unsupported model: {self.model}")
-    
+        print(f"✅ Configured {self.model.value}")
+
+    # Claude 5-family models think adaptively by default and thinking tokens count
+    # toward max_tokens, so small caps truncate the visible answer.
+    _CLAUDE_MIN_MAX_TOKENS = 16000
+
+    SERVER_FALLBACK_BETA = "server-side-fallback-2026-07-01"
+
+    def messages_api(self) -> Tuple[Any, Dict[str, Any]]:
+        """(messages endpoint, extra kwargs). Opus 5 opts into server-side refusal
+        fallbacks so a rare policy decline is retried on a fallback model instead
+        of returning an empty turn."""
+        if self.model.supports_server_fallback:
+            return self.client.beta.messages, {"betas": [self.SERVER_FALLBACK_BETA], "fallbacks": "default"}
+        return self.client.messages, {}
+
+    def _claude_request(self, prompt: str, temperature: float, max_tokens: int) -> Dict[str, Any]:
+        params: Dict[str, Any] = {
+            "model": self.model.value,
+            "max_tokens": max(max_tokens, self._CLAUDE_MIN_MAX_TOKENS),
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        if self.model.supports_sampling_params:
+            params["temperature"] = temperature
+        return params
+
+    def _gemini_kwargs(self, temperature: float, max_tokens: int) -> Dict[str, Any]:
+        from google.generativeai.types import HarmCategory, HarmBlockThreshold
+        return {
+            "generation_config": genai.GenerationConfig(temperature=temperature, max_output_tokens=max_tokens),
+            # Fitness/health content trips default filters
+            "safety_settings": {
+                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+            },
+        }
+
+    def _record_cost(self, prompt_tokens: int, completion_tokens: int) -> float:
+        costs = MODEL_COSTS.get(self.model)
+        cost = 0.0
+        if costs:
+            cost = prompt_tokens / 1_000_000 * costs.input_cost + completion_tokens / 1_000_000 * costs.output_cost
+        self.session_cost += cost
+        self.api_calls.append({
+            'timestamp': datetime.now().isoformat(),
+            'model': self.model.value,
+            'tokens': prompt_tokens + completion_tokens,
+            'cost': cost,
+        })
+        return cost
+
+    def _record_usage(self, usage) -> float:
+        """Cost from an Anthropic usage object, pricing cache writes/reads correctly."""
+        cache_write = getattr(usage, "cache_creation_input_tokens", 0) or 0
+        cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
+        effective_input = usage.input_tokens + cache_write * 1.25 + cache_read * 0.1
+        return self._record_cost(int(effective_input), usage.output_tokens)
+
     def _call_api(self, prompt: str, temperature: float = 0.7,
                   max_tokens: int = 4000) -> Tuple[str, Dict]:
         """
-        Make API call to LLM.
-        
-        Educational note: Temperature Parameter
-        
-        Temperature (0.0 - 2.0) controls randomness:
-        - 0.0: Deterministic, same output every time
-        - 0.7: Balanced creativity and consistency
-        - 1.5: Very creative, more varied outputs
-        
-        Use low temp for: JSON generation, factual analysis
-        Use high temp for: Creative writing, brainstorming
-        
-        Args:
-            prompt: The prompt to send
-            temperature: Randomness (0-2)
-            max_tokens: Maximum response length
-        
+        Make a non-streaming LLM call.
+
+        temperature is honored by Gemini and Haiku; Sonnet 5 / Opus 5 reject it,
+        so it is dropped for those.
+
         Returns:
             (response_text, metadata)
         """
         if not self.client:
-            # Demo mode - return mock response
             return self._mock_response(prompt), {'demo': True}
-        
+
         start_time = time.time()
-        
-        try:
-            if self.model in [AIModel.GEMINI_FREE, AIModel.GEMINI_FLASH_LITE, AIModel.GEMINI_PRO]:
-                # Google Gemini API
-                # Set safety settings to allow fitness/health content
-                from google.generativeai.types import HarmCategory, HarmBlockThreshold
-                
-                safety_settings = {
-                    HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-                    HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-                }
-                
-                response = self.client.generate_content(
-                    prompt,
-                    generation_config=genai.GenerationConfig(
-                        temperature=temperature,
-                        max_output_tokens=max_tokens,
-                    ),
-                    safety_settings=safety_settings
-                )
-                
-                # Check if response was blocked
-                if not response.candidates:
-                    raise ValueError(f"Response blocked. Finish reason: {response.prompt_feedback}")
-                
-                # Get text, handling potential blocks
+        if self.model.is_gemini:
+            response = self.client.generate_content(prompt, **self._gemini_kwargs(temperature, max_tokens))
+            if not response.candidates:
+                raise ValueError(f"Response blocked. Finish reason: {response.prompt_feedback}")
+            try:
+                response_text = response.text
+            except ValueError:
+                candidate = response.candidates[0]
+                raise ValueError(f"Response blocked. Reason: {candidate.finish_reason}, Safety: {candidate.safety_ratings}")
+            finish_reason = str(response.candidates[0].finish_reason) if response.candidates[0].finish_reason else None
+            prompt_tokens, completion_tokens = len(prompt) // 4, len(response_text) // 4
+        else:
+            response = None
+            for attempt in range(3):
                 try:
-                    response_text = response.text
-                except ValueError as e:
-                    # Response was blocked - check why
-                    if response.candidates:
-                        finish_reason = response.candidates[0].finish_reason
-                        safety_ratings = response.candidates[0].safety_ratings
-                        raise ValueError(f"Response blocked. Reason: {finish_reason}, Safety: {safety_ratings}")
-                    raise
-                
-                finish_reason = None
-                if response.candidates and response.candidates[0].finish_reason:
-                    finish_reason = str(response.candidates[0].finish_reason)
-
-                # Extract token usage if available
-                metadata = {
-                    'model': self.model.value,
-                    'latency': time.time() - start_time,
-                    'prompt_tokens': len(prompt) // 4,  # Rough estimate
-                    'completion_tokens': len(response_text) // 4,
-                    'finish_reason': finish_reason,
-                }
-            
-            elif self.model in [AIModel.CLAUDE_HAIKU, AIModel.CLAUDE_SONNET]:
-                # Anthropic Claude API with retry logic for 500 errors
-                model_name = self.model.value
-
-                # Retry configuration for transient API errors
-                max_retries = 3
-                base_delay = 2  # seconds
-
-                for attempt in range(max_retries):
-                    try:
-                        response = self.client.messages.create(
-                            model=model_name,
-                            max_tokens=max_tokens,
-                            temperature=temperature,
-                            messages=[
-                                {"role": "user", "content": prompt}
-                            ]
-                        )
-
-                        response_text = response.content[0].text
-                        finish_reason = getattr(response, 'stop_reason', None)
-
-                        metadata = {
-                            'model': self.model.value,
-                            'latency': time.time() - start_time,
-                            'prompt_tokens': response.usage.input_tokens,
-                            'completion_tokens': response.usage.output_tokens,
-                            'finish_reason': finish_reason,
-                            'retries': attempt
-                        }
-
-                        break  # Success, exit retry loop
-
-                    except InternalServerError as e:
-                        if attempt < max_retries - 1:
-                            delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
-                            print(f"⚠️  Anthropic API 500 error (attempt {attempt + 1}/{max_retries}), retrying in {delay:.1f}s...")
-                            time.sleep(delay)
-                        else:
-                            print(f"❌ Anthropic API failed after {max_retries} attempts")
-                            raise
-
-                    except (RateLimitError, APIError) as e:
-                        print(f"❌ Anthropic API error: {type(e).__name__}: {str(e)}")
+                    api, extra = self.messages_api()
+                    response = api.create(**self._claude_request(prompt, temperature, max_tokens), **extra)
+                    break
+                except InternalServerError:
+                    if attempt == 2:
                         raise
+                    delay = 2 * (2 ** attempt) + random.uniform(0, 1)
+                    print(f"⚠️  Anthropic 500 (attempt {attempt + 1}/3), retrying in {delay:.1f}s...")
+                    time.sleep(delay)
+            # Content may start with a thinking block; join only the text.
+            response_text = "".join(b.text for b in response.content if b.type == "text")
+            finish_reason = response.stop_reason
+            prompt_tokens, completion_tokens = response.usage.input_tokens, response.usage.output_tokens
+            self._record_usage(response.usage)
 
-            elif self.model in [AIModel.GITHUB_GPT4O_MINI, AIModel.GITHUB_GPT4O]:
-                # GitHub Models — OpenAI-compatible endpoint, with Anthropic direct fallback
-                # Hard-cap at 4000 tokens (GitHub Models limit for high-tier models)
-                gh_model = self._github_model_name
-                gh_max_tokens = min(max_tokens, 4000)
-                try:
-                    gh_response = self.client.chat.completions.create(
-                        model=gh_model,
-                        messages=[{"role": "user", "content": prompt}],
-                        temperature=temperature,
-                        max_tokens=gh_max_tokens,
-                    )
-                    finish_reason = gh_response.choices[0].finish_reason
-                    # Treat a truncated response as a failure — fall through to Anthropic
-                    if finish_reason == "length":
-                        used = gh_response.usage.completion_tokens if gh_response.usage else "?"
-                        raise RuntimeError(
-                            f"GitHub Models response truncated at token limit "
-                            f"(finish_reason=length, {used}/{gh_max_tokens} output tokens). "
-                            f"Falling back to Anthropic for complete response."
-                        )
-                    response_text = gh_response.choices[0].message.content
-                    usage = gh_response.usage
-                    metadata = {
-                        'model': f"github/{gh_model}",
-                        'latency': time.time() - start_time,
-                        'prompt_tokens': usage.prompt_tokens if usage else len(prompt) // 4,
-                        'completion_tokens': usage.completion_tokens if usage else len(response_text) // 4,
-                        'finish_reason': finish_reason,
-                        'provider': 'github',
-                    }
-                except Exception as gh_err:
-                    fallback_key = self.config.claude_api_key
-                    if fallback_key:
-                        print(f"⚠️  GitHub Models failed ({type(gh_err).__name__}: {gh_err}), falling back to direct Anthropic API...")
-                        fb_client = Anthropic(api_key=fallback_key)
-                        fb_model = "claude-sonnet-4-6"
-                        fb_resp = fb_client.messages.create(
-                            model=fb_model,
-                            max_tokens=max_tokens,  # use original uncapped limit
-                            temperature=temperature,
-                            messages=[{"role": "user", "content": prompt}],
-                        )
-                        response_text = fb_resp.content[0].text
-                        metadata = {
-                            'model': f"anthropic-fallback/{fb_model}",
-                            'latency': time.time() - start_time,
-                            'prompt_tokens': fb_resp.usage.input_tokens,
-                            'completion_tokens': fb_resp.usage.output_tokens,
-                            'finish_reason': fb_resp.stop_reason,
-                            'provider': 'anthropic_fallback',
-                        }
-                    else:
-                        raise
+        metadata = {
+            'model': self.model.value,
+            'latency': time.time() - start_time,
+            'prompt_tokens': prompt_tokens,
+            'completion_tokens': completion_tokens,
+            'finish_reason': finish_reason,
+        }
+        metadata['cost'] = self.api_calls[-1]['cost'] if self.model.is_claude else self._record_cost(prompt_tokens, completion_tokens)
+        return response_text, metadata
 
-            else:
-                raise ValueError(f"Unsupported model: {self.model}")
-            
-            # Calculate cost (rough estimate based on model pricing)
-            # Gemini Flash: Free, Pro: ~$0.00025 per 1K tokens
-            # Claude Haiku: ~$0.00025 per 1K tokens, Sonnet: ~$0.003 per 1K tokens
-            total_tokens = metadata['prompt_tokens'] + metadata['completion_tokens']
-            if self.model in [AIModel.GEMINI_FREE, AIModel.GEMINI_FLASH_LITE]:
-                cost = 0.0  # Free tier
-            elif self.model == AIModel.GEMINI_PRO:
-                cost = (total_tokens / 1000) * 0.00025
-            elif self.model == AIModel.CLAUDE_HAIKU:
-                cost = (total_tokens / 1000) * 0.00025
-            elif self.model == AIModel.CLAUDE_SONNET:
-                cost = (total_tokens / 1000) * 0.003
-            else:
-                cost = 0.0
-            
-            metadata['cost'] = cost
-            self.session_cost += cost
-            
-            # Track call
-            self.api_calls.append({
-                'timestamp': datetime.now().isoformat(),
-                'model': self.model.value,
-                'tokens': metadata['prompt_tokens'] + metadata['completion_tokens'],
-                'cost': cost
-            })
-            
-            return response_text, metadata
-        
-        except Exception as e:
-            print(f"❌ API call failed: {e}")
-            raise
-    
     def _mock_response(self, prompt: str) -> str:
         """Return mock response for demo mode."""
         if "Analyze This Week's Training" in prompt:
@@ -453,119 +296,38 @@ Athlete responding well to current training load. Continue progressive approach.
     def _call_api_streaming(self, prompt: str, temperature: float = 0.7,
                             max_tokens: int = 4000):
         """
-        Streaming variant of _call_api.  Yields text chunks as a generator so
-        callers can pass it directly to st.write_stream().
-
-        Anthropic: client.messages.stream() context manager
-        Gemini:    generate_content(stream=True)
-        Demo mode: yields the mock response in one chunk
+        Streaming variant of _call_api. Yields text chunks, so callers can pass
+        it straight to st.write_stream().
         """
         if not self.client:
             yield self._mock_response(prompt)
             return
 
-        if self.model in [AIModel.GEMINI_FREE, AIModel.GEMINI_FLASH_LITE, AIModel.GEMINI_PRO]:
-            from google.generativeai.types import HarmCategory, HarmBlockThreshold
-            safety_settings = {
-                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-            }
-            response = self.client.generate_content(
-                prompt,
-                generation_config=genai.GenerationConfig(
-                    temperature=temperature,
-                    max_output_tokens=max_tokens,
-                ),
-                safety_settings=safety_settings,
-                stream=True,
-            )
+        if self.model.is_gemini:
+            response = self.client.generate_content(prompt, stream=True, **self._gemini_kwargs(temperature, max_tokens))
             for chunk in response:
                 try:
-                    text = chunk.text
-                    if text:
-                        yield text
-                except Exception:
-                    pass
+                    if chunk.text:
+                        yield chunk.text
+                except ValueError:
+                    pass  # chunk without text (e.g. safety metadata)
+            return
 
-        elif self.model in [AIModel.CLAUDE_HAIKU, AIModel.CLAUDE_SONNET]:
-            model_name = self.model.value
-            max_retries = 3
-            base_delay = 2
-            for attempt in range(max_retries):
-                try:
-                    with self.client.messages.stream(
-                        model=model_name,
-                        max_tokens=max_tokens,
-                        temperature=temperature,
-                        messages=[{"role": "user", "content": prompt}],
-                    ) as stream:
-                        for text in stream.text_stream:
-                            yield text
-                    break
-                except InternalServerError:
-                    if attempt < max_retries - 1:
-                        delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
-                        print(f"⚠️  Anthropic stream 500 error (attempt {attempt + 1}/{max_retries}), retrying in {delay:.1f}s...")
-                        time.sleep(delay)
-                    else:
-                        raise
-                except (RateLimitError, APIError):
-                    raise
-
-        elif self.model in [AIModel.GITHUB_GPT4O_MINI, AIModel.GITHUB_GPT4O]:
-            # GitHub Models streaming — buffer first to detect truncation before yielding.
-            # If the response is cut off at the token limit we fall back to Anthropic
-            # rather than surfacing a half-formed plan to the UI.
-            gh_model = self._github_model_name
-            gh_max_tokens = min(max_tokens, 4000)  # hard cap at GitHub Models limit
-            fallback_key = self.config.claude_api_key
+        for attempt in range(3):
             try:
-                stream = self.client.chat.completions.create(
-                    model=gh_model,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=temperature,
-                    max_tokens=gh_max_tokens,
-                    stream=True,
-                )
-                buffered = []
-                finish_reason = None
-                for chunk in stream:
-                    if chunk.choices:
-                        delta = chunk.choices[0].delta.content
-                        if delta:
-                            buffered.append(delta)
-                        if chunk.choices[0].finish_reason:
-                            finish_reason = chunk.choices[0].finish_reason
-
-                if finish_reason == "length":
-                    print(f"⚠️  GitHub Models stream hit token limit (finish_reason=length, "
-                          f"{len(buffered)} chunks buffered). Falling back to Anthropic...")
-                    raise RuntimeError("response_truncated")
-
-                # No truncation — stream out the buffered chunks
-                for text in buffered:
-                    yield text
-
-            except Exception as gh_err:
-                if fallback_key:
-                    print(f"⚠️  GitHub Models stream failed ({type(gh_err).__name__}), falling back to direct Anthropic API...")
-                    fb_client = Anthropic(api_key=fallback_key)
-                    fb_model = "claude-sonnet-4-6"  # always use Sonnet 4.6 for fallback quality
-                    with fb_client.messages.stream(
-                        model=fb_model,
-                        max_tokens=max_tokens,  # use original uncapped limit
-                        temperature=temperature,
-                        messages=[{"role": "user", "content": prompt}],
-                    ) as fb_stream:
-                        for text in fb_stream.text_stream:
-                            yield text
-                else:
+                api, extra = self.messages_api()
+                with api.stream(**self._claude_request(prompt, temperature, max_tokens), **extra) as stream:
+                    for text in stream.text_stream:
+                        yield text
+                    final = stream.get_final_message()
+                self._record_usage(final.usage)
+                return
+            except InternalServerError:
+                if attempt == 2:
                     raise
-
-        else:
-            raise ValueError(f"Unsupported model for streaming: {self.model}")
+                delay = 2 * (2 ** attempt) + random.uniform(0, 1)
+                print(f"⚠️  Anthropic stream 500 (attempt {attempt + 1}/3), retrying in {delay:.1f}s...")
+                time.sleep(delay)
 
     def analyze_week(self, weekly_summary: Dict, 
                      comprehensive_context: Optional[Dict] = None,
@@ -792,7 +554,7 @@ Return ONLY this JSON structure:
         # Get the next sequential week number from the database
         # This is the athlete's training program week, not ISO calendar week
         from pathlib import Path
-        db_path = Path(__file__).parent.parent.parent / 'data' / 'fitness_data.db'
+        db_path = get_db_path()
         conn = sqlite3.connect(str(db_path))
         cursor = conn.cursor()
         
@@ -1184,8 +946,8 @@ Return ONLY this JSON structure:
             Tuple of (success: bool, message: str, zwift_files: List[str])
         """
         try:
-            from storage.database import WorkoutDatabase
-            from utils.zwift_workout_generator import generate_zwift_workouts_from_db
+            from src.storage.database import WorkoutDatabase
+            from src.utils.zwift_workout_generator import generate_zwift_workouts_from_db
             from datetime import datetime, timedelta
             
             db = WorkoutDatabase()
@@ -1525,7 +1287,7 @@ if __name__ == "__main__":
         
         # Add parent directory to path to import database module
         sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        from storage.database import WorkoutDatabase
+        from src.storage.database import WorkoutDatabase
         
         # Use last complete week (Oct 27 - Nov 2)
         start_date = '2025-10-27'

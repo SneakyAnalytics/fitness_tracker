@@ -11,6 +11,7 @@ Helps AI coach understand training progression and periodization patterns.
 - Progression tracking over time
 """
 
+from src.config import get_db_path
 import sqlite3
 import re
 from pathlib import Path
@@ -93,7 +94,7 @@ class WorkoutTypeAnalyzer:
     def __init__(self, db_path: Optional[Path] = None):
         if db_path is None:
             project_root = Path(__file__).parent.parent.parent
-            db_path = project_root / "data" / "fitness_data.db"
+            db_path = get_db_path()
         
         self.db_path = Path(db_path)
         
@@ -370,8 +371,8 @@ class WorkoutTypeAnalyzer:
                 json_extract(w.workout_data, '$.power_data.normalized_power'),
                 json_extract(ff.fit_data, '$.power_metrics.normalized_power')
             ) as normalized_power,
-            json_extract(w.workout_data, '$.power_data.intensity_factor') as intensity_factor,
-            json_extract(w.workout_data, '$.heart_rate_data.average_hr') as avg_hr,
+            json_extract(w.workout_data, '$.power_data.if') as intensity_factor,
+            json_extract(w.workout_data, '$.heart_rate_data.average') as avg_hr,
             w.workout_data,
             wa.analysis_data
         FROM workouts w
@@ -571,9 +572,9 @@ class WorkoutTypeAnalyzer:
             workout_day,
             workout_title,
             json_extract(workout_data, '$.type') as workout_type,
-            json_extract(workout_data, '$.power_data.intensity_factor') as intensity_factor,
+            json_extract(workout_data, '$.power_data.if') as intensity_factor,
             json_extract(workout_data, '$.metrics.actual_duration') as duration_min,
-            json_extract(workout_data, '$.heart_rate_data.average_hr') as avg_hr,
+            json_extract(workout_data, '$.heart_rate_data.average') as avg_hr,
             json_extract(workout_data, '$.heart_rate_data.zones') as hr_zones_json
         FROM workouts
         WHERE workout_day >= date('now', '-' || ? || ' days')

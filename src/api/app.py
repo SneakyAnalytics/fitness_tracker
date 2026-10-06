@@ -1,6 +1,7 @@
 # src/api/app.py
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from src.config import get_db_path
+from fastapi import Request, FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 
 from datetime import datetime
@@ -196,42 +197,46 @@ class QualitativeData(BaseModel):
     modifications: Optional[str] = None
     athlete_comments: Optional[str] = None
 
+from src.api.coach_routes import router as coach_router
+app.include_router(coach_router)
+
+
 @app.get("/")
 async def root():
     return {"message": "Fitness Tracker API is running"}
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint for monitoring and troubleshooting"""
+    """Health check for monitoring and post-deploy verification."""
     import os
-    from pathlib import Path
-    
-    db_path = Path("data/fitness_data.db")
-    db_exists = db_path.exists()
-    
-    # Try to connect to database
-    db_accessible = False
+    from src.storage.events import unacknowledged_events
+
+    db_path = Path(get_db_path())
+    db_accessible, schema_version, db_error = False, None, None
     try:
-        db = WorkoutDatabase()
-        db.conn.execute("SELECT 1").fetchone()
+        WorkoutDatabase()  # applies pending migrations
+        conn = sqlite3.connect(str(db_path))
+        try:
+            schema_version = conn.execute("SELECT MAX(version) FROM schema_version").fetchone()[0]
+        finally:
+            conn.close()
         db_accessible = True
     except Exception as e:
         db_error = str(e)
-    
+
     return {
         "status": "healthy" if db_accessible else "degraded",
-        "database": {
-            "exists": db_exists,
-            "accessible": db_accessible,
-            "path": str(db_path)
-        },
+        "database": {"exists": db_path.exists(), "accessible": db_accessible, "path": str(db_path),
+                     "schema_version": schema_version, "error": db_error},
         "environment": {
-            "has_anthropic_key": bool(os.getenv("ANTHROPIC_API_KEY")),
-            "has_google_key": bool(os.getenv("GOOGLE_API_KEY")),
-            "has_tp_username": bool(os.getenv("TP_USERNAME"))
+            "has_claude_key": bool(os.getenv("CLAUDE_API_KEY") or os.getenv("ANTHROPIC_API_KEY")),
+            "has_gemini_key": bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")),
+            "has_tp_username": bool(os.getenv("TRAININGPEAKS_USERNAME")),
         },
-        "message": "Fitness Tracker API is running"
+        "open_problems": len(unacknowledged_events(limit=100)) if db_accessible else None,
+        "message": "Fitness Tracker API is running",
     }
+
 
 @app.get("/workouts")
 async def get_workouts():
@@ -244,7 +249,7 @@ async def get_workouts_with_analyses():
     import sqlite3
     import json
     
-    db_path = "data/fitness_data.db"
+    db_path = get_db_path()
     conn = sqlite3.connect(db_path)
     
     # Use proposed_workout_name if available (from AI matching), otherwise fall back to workout_title
@@ -1206,49 +1211,6 @@ async def upload_fit(file: UploadFile = File(...)):
         traceback.print_exc()
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.post("/debug/workout_upload")
-async def debug_workout_upload(file: UploadFile = File(...)):
-    """Debug endpoint to examine CSV data"""
-    try:
-        contents = await file.read()
-        df = pd.read_csv(io.StringIO(contents.decode('utf-8')))
-        
-        # Get full data analysis
-        debug_info = {
-            "columns": list(df.columns),
-            "row_count": len(df),
-            "sample_rows": [],
-            "column_stats": {}
-        }
-        
-        # Analyze each column
-        for column in df.columns:
-            non_null_count = df[column].count()
-            unique_values = df[column].nunique()
-            sample_values = df[column].dropna().head(3).tolist()
-            
-            debug_info["column_stats"][column] = {
-                "non_null_count": int(non_null_count),
-                "unique_values": int(unique_values),
-                "has_nulls": bool(df[column].isnull().any()),
-                "sample_values": sample_values,
-                "dtype": str(df[column].dtype)
-            }
-        
-        # Get sample rows
-        for _, row in df.head(3).iterrows():
-            row_dict = row.to_dict()
-            # Convert any special types to strings for JSON serialization
-            row_dict = {k: str(v) if pd.isna(v) else v for k, v in row_dict.items()}
-            debug_info["sample_rows"].append(row_dict)
-        
-        return debug_info
-    
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error analyzing CSV: {str(e)}")
-
-__all__ = ['app']
-
 @app.post("/upload/proposed_workouts")
 async def upload_proposed_workouts(file: UploadFile = File(...)):
     try:
@@ -1422,26 +1384,36 @@ async def get_athlete_settings(athlete_id: Optional[str] = 'default'):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/athlete/settings")
-async def save_athlete_settings(athlete_id: Optional[str] = Form('default'), settings: str = Form(...)):
-    """Save persisted athlete settings. Expects JSON string in `settings` form field."""
-    try:
-        db = WorkoutDatabase()
+async def _read_body(request: Request) -> Dict[str, Any]:
+    """JSON (React) or form fields (Streamlit) — both are accepted."""
+    if "application/json" in (request.headers.get("content-type") or ""):
+        body = await request.json()
+        return body if isinstance(body, dict) else {}
+    return dict(await request.form())
+
+
+def _maybe_json(value: Any) -> Any:
+    if isinstance(value, str):
         try:
-            settings_obj = json.loads(settings) if isinstance(settings, str) else settings
-        except Exception:
-            raise HTTPException(status_code=400, detail="Invalid JSON for settings field")
-        aid = athlete_id or 'default'
-        success = db.save_athlete_settings(aid, settings_obj)
-        if success:
-            return {"message": "Athlete settings saved", "athlete_id": aid}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to persist athlete settings")
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Error saving athlete settings: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+            return json.loads(value)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid JSON")
+    return value
+
+
+@app.post("/athlete/settings")
+async def save_athlete_settings(request: Request):
+    """Save athlete settings. JSON `{"athlete_id"?, "settings": {...}}` or the
+    legacy form fields `athlete_id` + `settings` (JSON string)."""
+    body = await _read_body(request)
+    settings_obj = _maybe_json(body.get("settings"))
+    if not isinstance(settings_obj, dict):
+        raise HTTPException(status_code=400, detail="`settings` object is required")
+    aid = body.get("athlete_id") or "default"
+    if not WorkoutDatabase().save_athlete_settings(aid, settings_obj):
+        raise HTTPException(status_code=500, detail="Failed to persist athlete settings")
+    return {"message": "Athlete settings saved", "athlete_id": aid}
+
 
 @app.get("/zwift/generate_workouts")
 async def generate_zwift_workouts(start_date: str, end_date: str, output_dir: Optional[str] = None, ftp: int = 258, week_number: Optional[int] = None):
@@ -1517,46 +1489,22 @@ async def generate_zwift_workouts(start_date: str, end_date: str, output_dir: Op
         )
 
 @app.post("/workout/performance")
-async def save_workout_performance(
-    workout_id: int = Form(...),
-    workout_date: str = Form(...),
-    actual_duration: int = Form(...),
-    performance_data: str = Form(...)
-):
-    """Save performance data for a specific workout"""
+async def save_workout_performance(request: Request):
+    """Save logged performance (sets/reps/weights) for a workout.
+    JSON or form: workout_id, workout_date, actual_duration, performance_data."""
+    body = await _read_body(request)
     try:
-        # Parse performance_data JSON
-        perf_data_dict = None
-        if performance_data:
-            try:
-                perf_data_dict = json.loads(performance_data)
-            except json.JSONDecodeError:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Invalid JSON in performance_data"
-                )
-        
-        db = WorkoutDatabase()
-        success = db.save_workout_performance(
-            workout_id=workout_id,
-            workout_date=workout_date,
-            actual_duration=actual_duration,
-            performance_data=perf_data_dict or {}
-        )
-        
-        if success:
-            return {"message": "Performance data saved successfully"}
-        else:
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to save performance data"
-            )
-    except Exception as e:
-        print(f"Error saving workout performance: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error saving workout performance data: {str(e)}"
-        )
+        workout_id = int(body["workout_id"])
+        workout_date = str(body["workout_date"])
+        actual_duration = int(float(body.get("actual_duration") or 0))
+    except (KeyError, TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="workout_id and workout_date are required")
+    perf = _maybe_json(body.get("performance_data")) or {}
+    if not WorkoutDatabase().save_workout_performance(
+            workout_id=workout_id, workout_date=workout_date,
+            actual_duration=actual_duration, performance_data=perf):
+        raise HTTPException(status_code=500, detail="Failed to save performance data")
+    return {"message": "Performance data saved successfully"}
 
 @app.get("/workout/performance")
 async def get_workout_performance(workout_id: int, workout_date: str):

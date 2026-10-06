@@ -101,7 +101,9 @@ class RAGContextLoader:
     def __init__(self, rag_dir: Optional[Path] = None):
         if rag_dir is None:
             project_root = Path(__file__).parent.parent.parent
-            rag_dir = project_root / "data" / "rag_context"
+            # Versioned copy ships in the image; data/rag_context is the legacy location.
+            bundled = project_root / "knowledge" / "rag_context"
+            rag_dir = bundled if bundled.exists() else project_root / "data" / "rag_context"
         
         self.rag_dir = Path(rag_dir)
         

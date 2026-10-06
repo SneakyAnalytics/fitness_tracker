@@ -78,6 +78,7 @@ class PromptContext:
     constraints: Optional[Dict] = None
     focus_topics: Optional[Set[str]] = None
     user_context: Optional[Dict] = None  # schedule_constraints, training_focus, week_feedback
+    training_state: Optional[str] = None  # computed load/progression/readiness (coach_context)
 
 
 class AICoachPrompts:
@@ -217,12 +218,10 @@ You are an expert cycling coach specializing in endurance training and gravel ra
             improvement = profile['current_ftp'] - profile['starting_ftp']
             sections.append(f"**FTP Progression:** +{improvement}W from {profile['starting_ftp']}W baseline")
         
-        sections.append(f"**Training Phase:** {context.coaching_notes.get('current_training_phase', 'Not specified')}")
-        
-        # Goals
-        if profile.get('primary_goals'):
-            sections.append("\n## Primary Goals")
-            sections.append(self._format_list(profile['primary_goals']))
+        # Goals and training phase deliberately omitted here: goals come only from the
+        # goals table (with dates/status) and the week type from the computed training
+        # state. The old free-text primary_goals list and phase label went stale and
+        # made the coach bring up finished goals.
         
         # Seasonal preferences
         if profile.get('seasonal_preferences'):
@@ -462,11 +461,10 @@ You are an expert cycling coach specializing in endurance training and gravel ra
         # Previous week's continuity (AI's memory of what to focus on)
         continuity = coaching_notes.get('coaching_continuity', [])
         if continuity:
-            sections.append("## Last Week's Continuity Notes")
-            sections.append("*Your observations and priorities from the most recent coaching session:*\n")
-            
             # Get most recent continuity
             last_week = continuity[-1] if continuity else None
+            sections.append(f"## Continuity Notes (week of {last_week.get('week_start_date', 'unknown')})")
+            sections.append("*Your observations and priorities from the most recent coaching session:*\n")
             if last_week:
                 if last_week.get('key_observations'):
                     sections.append("**Key Observations:**")
@@ -474,21 +472,21 @@ You are an expert cycling coach specializing in endurance training and gravel ra
                         sections.append(f"- {obs}")
                     sections.append("")
                 
-                if last_week.get('progression'):
+                if last_week.get('progression_notes') or last_week.get('progression'):
                     sections.append("**Progression Notes:**")
-                    for prog in last_week['progression']:
+                    for prog in last_week.get('progression_notes') or last_week.get('progression'):
                         sections.append(f"- {prog}")
                     sections.append("")
                 
-                if last_week.get('monitor'):
+                if last_week.get('areas_to_monitor') or last_week.get('monitor'):
                     sections.append("**Areas to Monitor:**")
-                    for area in last_week['monitor']:
+                    for area in last_week.get('areas_to_monitor') or last_week.get('monitor'):
                         sections.append(f"- {area}")
                     sections.append("")
                 
-                if last_week.get('next_priorities'):
+                if last_week.get('next_week_priorities') or last_week.get('next_priorities'):
                     sections.append("**Priorities for This Week:**")
-                    for priority in last_week['next_priorities']:
+                    for priority in last_week.get('next_week_priorities') or last_week.get('next_priorities'):
                         sections.append(f"- {priority}")
                     sections.append("")
                 
@@ -511,10 +509,8 @@ You are an expert cycling coach specializing in endurance training and gravel ra
                 if obs.get('athlete_response'):
                     sections.append(f"**Athlete Response:** {obs['athlete_response']}")
         
-        # Current focus
-        if coaching_notes.get('next_week_focus'):
-            sections.append(f"\n## Planned Next Week Focus")
-            sections.append(coaching_notes['next_week_focus'])
+        # (The old 'next_week_focus' string is superseded by the dated continuity
+        # notes above; it was last written months ago.)
         
         return "\n".join(sections)
 
@@ -912,31 +908,6 @@ Be specific, reference actual numbers from the data, and explain your reasoning.
                         sections.append(f"  - {insight}")
                 sections.append("")
         
-        # Add sentiment-based tone guidance
-        if context.comprehensive_context and 'recent_observations' in context.comprehensive_context:
-            recent_obs = context.comprehensive_context['recent_observations']
-            if recent_obs and recent_obs[-1].get('sentiment'):
-                sentiment = recent_obs[-1]['sentiment']
-                sections.append("## 😊 Athlete Sentiment & Tone Guidance")
-                sections.append("*Adjust your coaching tone based on detected mood:*\n")
-                
-                if sentiment == 'struggling':
-                    sections.append("- **Current Mood:** 😟 Struggling")
-                    sections.append("- **Coaching Approach:** Be extra supportive and encouraging. Consider reducing training load. Acknowledge challenges explicitly. Offer alternatives and check-in more frequently.")
-                elif sentiment == 'confident':
-                    sections.append("- **Current Mood:** 💪 Confident & Strong")
-                    sections.append("- **Coaching Approach:** Celebrate success! Can push a bit harder. Maintain momentum but watch for overconfidence leading to overtraining.")
-                elif sentiment == 'positive':
-                    sections.append("- **Current Mood:** 😊 Positive")
-                    sections.append("- **Coaching Approach:** Encouraging and progressive. Good time to build on momentum.")
-                elif sentiment == 'negative':
-                    sections.append("- **Current Mood:** 😕 Negative or Challenged")
-                    sections.append("- **Coaching Approach:** Acknowledge difficulties. Focus on wins. Consider if training load is appropriate.")
-                else:
-                    sections.append("- **Current Mood:** 😐 Neutral")
-                    sections.append("- **Coaching Approach:** Standard supportive coaching. Look for opportunities to inject motivation.")
-                sections.append("")
-        
         # Add recurring schedule reminders
         if context.comprehensive_context and 'coaching_continuity' in context.comprehensive_context:
             continuity = context.comprehensive_context['coaching_continuity']
@@ -1000,23 +971,14 @@ Be specific, reference actual numbers from the data, and explain your reasoning.
         sections.append(self._build_training_context(context))
         sections.append("\n" + "="*80 + "\n")
         
-        # Multi-week TSS baseline for load planning
-        if context.comprehensive_context and context.comprehensive_context.get('weekly_summary'):
+        if context.training_state:
+            from src.utils.coach_context import PROGRESSION_RULES
+            sections.append(context.training_state)
+            sections.append("\n" + PROGRESSION_RULES)
+            sections.append("\n" + "="*80 + "\n")
+        elif context.comprehensive_context and context.comprehensive_context.get('weekly_summary'):
             sections.append(self._build_tss_baseline_guidance(context.comprehensive_context['weekly_summary']))
             sections.append("\n" + "="*80 + "\n")
-        
-        # Previous AI analyses for coaching continuity
-        if context.comprehensive_context and 'previous_ai_analyses' in context.comprehensive_context:
-            prev_analyses = context.comprehensive_context['previous_ai_analyses']
-            if prev_analyses:
-                sections.append("# Previous Weekly Coaching Analyses\n")
-                sections.append("*For continuity: Your own insights from recent weeks. Reference these to maintain coaching narrative and build on prior observations.*\n\n")
-                for i, analysis in enumerate(prev_analyses, 1):
-                    sections.append(f"## Analysis {i} ({analysis['timestamp'][:10]})")
-                    sections.append(f"**{analysis['week_info']}**\n")
-                    sections.append(analysis['analysis_text'])
-                    sections.append(f"\n*(Full analysis: {analysis['full_length']} characters)*\n\n")
-                sections.append("\n" + "="*80 + "\n")
         
         # Include analysis if provided
         if analysis_output:
@@ -1075,27 +1037,19 @@ Create a 7-day workout plan based on your analysis and the athlete's context.
    - Where is athlete in periodization cycle?
    - What should be emphasized this week?
 
-2. **Calculate Weekly Load (CRITICAL - READ TSS BASELINE SECTION!)**
-   - **FIRST:** Check \"Multi-Week TSS Baseline\" section above
-   - **IDENTIFY:** Was last week an anomaly (travel, illness, low TSS)?
-   - **BASELINE:** Use 4-week average of NORMAL weeks, NOT last week if anomaly
-   - **TARGET:** Stay within recommended range from baseline section
+2. **Weekly Load (CRITICAL)**
+   - Use the weekly TSS band in "Next Week's Load Target" when present; it is computed
+     from fitness (CTL), a safe ramp, the build/recovery cadence and event tapers.
+     Plans outside it are rejected. Otherwise use the Multi-Week TSS Baseline section.
    - **DISTRIBUTION:** Spread TSS across 7 days (hard days 70-120 TSS, easy days 20-50 TSS)
-   
-   **EXAMPLES:**
-   - If baseline shows 450 TSS average (Build phase): Target 400-500 TSS
-   - If last week was 300 TSS (travel week): IGNORE IT, use baseline instead
-   - If returning from illness: Start at baseline -20%, ramp back up
 
-3. **Select Workout Types (MAXIMIZE VARIETY!)**
-   - **CRITICAL:** Don't repeat same workout types every week!
-   - **ROTATE THROUGH:** Threshold, VO2max, Tempo, Sweet Spot, Over/Unders, Endurance, Recovery
-   - **CHECK RECENT HISTORY:** What did athlete do last 2-3 weeks? Choose DIFFERENT types
-   - **AVOID PATTERNS:** Don't always do \"Tuesday Threshold, Wednesday Endurance, Thursday VO2max\"
-   - Balance intensity vs volume
-   - Include appropriate recovery (1-2 easy days minimum)
-   
-   **WORKOUT TYPE EXAMPLES TO USE:**
+3. **Choose and Progress Key Sessions**
+   - Follow the progression rules above: 2-3 key sessions that serve the current block,
+     each a deliberate step from the last session of that type in the progression table.
+   - Vary structure within a type (e.g. 3x15 → 2x22 threshold), not the type week to week.
+   - Balance intensity vs volume; include 1-2 easy days minimum.
+
+   **WORKOUT TYPE REFERENCE:**
    - Threshold: Steady 2x15min or 2x20min @ FTP
    - Sweet Spot: 3x12min @ 88-93% FTP (great for building)
    - Over/Unders: 4x8min alternating 95%/105% FTP (race simulation)
@@ -1110,14 +1064,9 @@ Create a 7-day workout plan based on your analysis and the athlete's context.
    - Progressive difficulty through sets (e.g., increasing power or decreasing rest)
    - Include coaching notes explaining workout purpose
 
-5. **Vary Workout Days (CRITICAL - AVOID RIGID PATTERNS!)**
-   - **DON'T:** Always put threshold on Tuesday, VO2max on Thursday, etc.
-   - **DO:** Rotate which days get hard workouts week-to-week
-   - **EXAMPLE ROTATION:**
-     - Week 1: Mon Rest, Tue Threshold, Wed Endurance, Thu VO2max, Fri Recovery, Sat Long Ride, Sun Cross-train
-     - Week 2: Mon Recovery, Tue Sweet Spot, Wed Rest, Thu Tempo, Fri Strength, Sat Threshold, Sun Endurance
-     - Week 3: Mon Yoga, Tue VO2max, Wed Endurance, Thu Recovery, Fri Over/Unders, Sat Long Ride, Sun Rest
-   - This prevents adaptation plateaus and maintains training stimulus variety
+5. **Placement**
+   - Placing key sessions on different days week to week is fine when the schedule calls
+     for it; keep at least 48h between hard days.
 
 6. **Sequence Workouts (ATHLETE SCHEDULE FIRST!)**
    - **FIRST:** Review athlete's constraints (travel, races, work conflicts) in \"Athlete's Context\" section
@@ -1127,15 +1076,7 @@ Create a 7-day workout plan based on your analysis and the athlete's context.
    - If no constraints: Hard days need 48hr between (e.g., Mon/Wed/Fri or Tue/Thu/Sat)
    - Recovery positioned strategically (day before/after hard efforts)
 
-5. **Sequence Workouts (CRITICAL - CHECK ATHLETE'S SCHEDULE!)**
-   - **FIRST:** Review athlete's constraints (travel, races, work conflicts)
-   - **THEN:** Place hard days on AVAILABLE days with proper spacing
-   - If athlete says \"Friday morning flight\" → Friday = NO hard workout
-   - If athlete says \"traveling Fri-Sun\" → Friday, Saturday, Sunday = light/rest only
-   - Recovery positioned strategically
-   - Consider weekly flow: Tuesday/Thursday hard, Monday/Friday medium, Wed/Sat/Sun easy (if no constraints)
-
-6. **Add Context**
+7. **Add Context**
    - Workout descriptions
    - Week focus notes
    - Special considerations
@@ -1219,7 +1160,9 @@ Remember: Quality over quantity. Each workout should have clear purpose and prop
     def build_chat_system_prompt(self, weekly_summary: Dict,
                                   comprehensive_context: Optional[Dict],
                                   coaching_notes: Dict,
-                                  prior_sessions: Optional[list] = None) -> str:
+                                  prior_sessions: Optional[list] = None,
+                                  training_state: Optional[str] = None,
+                                  tools_enabled: bool = False) -> str:
         """
         Build the one-shot system prompt for the interactive chat coach session.
 
@@ -1252,11 +1195,16 @@ Remember: Quality over quantity. Each workout should have clear purpose and prop
         sections.append(self._build_coaching_observations(coaching_notes))
         sections.append("\n" + "=" * 80 + "\n")
 
-        # TSS baseline guidance
-        recent_weeks = comprehensive_context.get('recent_weeks', []) if comprehensive_context else []
-        if recent_weeks:
-            sections.append(self._build_tss_baseline_guidance(recent_weeks))
+        if training_state:
+            # Computed load/progression/readiness supersedes the simple TSS baseline.
+            sections.append(training_state)
             sections.append("\n" + "=" * 80 + "\n")
+        else:
+            # Producer key is 'weekly_summary' (ai_database_queries.get_comprehensive_context).
+            recent_weeks = comprehensive_context.get('weekly_summary', []) if comprehensive_context else []
+            if recent_weeks:
+                sections.append(self._build_tss_baseline_guidance(recent_weeks))
+                sections.append("\n" + "=" * 80 + "\n")
 
         # Inject prior chat transcripts so the coach remembers what the athlete said
         if prior_sessions:
@@ -1293,6 +1241,9 @@ gather enough context to build next week's training plan.
 - Keep each message under 200 words unless the athlete asks for detail
 - Do NOT start generating the plan until you emit READY_TO_GENERATE
 """)
+        if tools_enabled:
+            from src.utils.coach_context import TOOL_INSTRUCTIONS
+            sections.append(TOOL_INSTRUCTIONS)
 
         return "\n".join(sections)
 

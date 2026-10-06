@@ -6,6 +6,8 @@ import os
 import streamlit as st
 import pandas as pd
 from src.storage.database import WorkoutDatabase
+from src.config import get_db_path
+from src.utils.reanalyze import reanalyze_workout
 
 # Some versions of NumPy (e.g. 1.26+) do not expose a top-level `numpy.rec` module
 # which older code (and pandas internals) sometimes expect to import. Ensure a
@@ -319,281 +321,6 @@ def create_workout_badge(workout_type):
     
     return f'<span class="{css_class}">{icon} {workout_type.title()}</span>'
 
-def display_weekly_summary(summary):
-    """Display weekly summary data with enhanced styling"""
-    # Enhanced summary metrics with custom styling
-    create_section_header("Weekly Training Summary", "📊")
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        create_custom_metric("Total TSS", f"{summary.get('total_tss', 0):.1f}", "🎯", "blue")
-    with col2:
-        create_custom_metric("Training Hours", f"{summary.get('total_training_hours', 0):.1f}", "⏱️", "green") 
-    with col3:
-        create_custom_metric("Sessions", str(summary.get('sessions_completed', 0)), "🏃‍♂️", "orange")
-    
-    # Workout Types with badges
-    workout_types = summary.get('workout_types', [])
-    if workout_types:
-        create_section_header("Workout Types", "🏋️‍♂️")
-        badges_html = " ".join([create_workout_badge(wt) for wt in workout_types])
-        st.markdown(badges_html, unsafe_allow_html=True)
-    
-    # Enhanced Daily Notes
-    create_section_header("Daily Training Notes", "📝")
-    qualitative_feedback = summary.get('qualitative_feedback', [])
-    if qualitative_feedback and isinstance(qualitative_feedback, list):
-        for note in qualitative_feedback:
-            # Handle different data formats safely
-            if isinstance(note, dict):
-                # Get day and type with safe fallbacks
-                day_label = str(note.get('day', 'Unknown Day'))
-                type_label = str(note.get('type', 'Unknown Type'))
-                
-                with st.expander(f"{day_label} - {type_label}"):
-                    # Handle various formats of feedback data
-                    feedback = note.get('feedback', {})
-                    if isinstance(feedback, dict):
-                        # Process dictionary feedback
-                        for key, value in feedback.items():
-                            if value and key not in ('intervals', 'sections'):  # Skip special fields
-                                # Convert values to string for display
-                                if isinstance(value, (dict, list)):
-                                    value = str(value)
-                                st.write(f"**{key.replace('_', ' ').title()}:** {value}")
-                    elif isinstance(feedback, str):
-                        # If feedback is a plain string
-                        st.write(feedback)
-                    elif feedback is not None:
-                        # Any other format, convert to string
-                        st.write(str(feedback))
-            elif note is not None:
-                # Handle case where the note itself isn't a dictionary
-                st.write(str(note))
-    else:
-        st.info("No daily notes available for this period")
-
-def display_fit_file_analysis(fit_file, workout_data):
-    """Display FIT file analysis in a structured way with better None handling"""
-    st.write(f"### {fit_file.name}")
-    
-    # Helper function to safely format numeric values
-    def safe_format(value, format_str="{:.1f}", default="N/A"):
-        if value is None:
-            return default
-        try:
-            return format_str.format(float(value))
-        except (ValueError, TypeError):
-            return default
-    
-    # Create three columns for key metrics
-    col1, col2, col3 = st.columns(3)
-    
-    if workout_data.get('metrics'):
-        metrics = workout_data['metrics']
-        with col1:
-            st.metric("Duration (min)", 
-                     safe_format(metrics.get('duration')))
-        with col2:
-            st.metric("TSS", 
-                     safe_format(metrics.get('tss')))
-        with col3:
-            st.metric("Intensity Factor", 
-                     safe_format(metrics.get('intensity'), "{:.2f}"))
-        with col3:
-            st.metric("RPE", 
-                     safe_format(metrics.get('rpe'), "{:.1f}"))  # Display RPE value
-    
-    # Determine available data types
-    has_power = bool(workout_data.get('power_metrics'))
-    has_hr = bool(workout_data.get('hr_metrics'))
-    
-    # Create tabs based on available data
-    tab_names = []
-    if has_power:
-        tab_names.append("Power Analysis")
-    if has_hr:
-        tab_names.append("Heart Rate Analysis")
-    if has_power or has_hr:
-        tab_names.append("Zone Distribution")
-    tab_names.append("Summary")  # Always include Summary tab
-    
-    if not tab_names:
-        st.info("No detailed metrics available for this workout type")
-        with st.expander("View Raw Data"):
-            st.json(workout_data)
-        return
-    
-    tabs = st.tabs(tab_names)
-    current_tab = 0
-    
-    # Power Analysis Tab
-    if has_power:
-        with tabs[current_tab]:
-            metrics = workout_data['power_metrics']
-            
-            pcol1, pcol2 = st.columns(2)
-            with pcol1:
-                st.metric("Average Power", 
-                         f"{safe_format(metrics.get('average_power'), '{:.0f}')}W")
-                st.metric("Normalized Power", 
-                         f"{safe_format(metrics.get('normalized_power'), '{:.0f}')}W")
-            with pcol2:
-                st.metric("Max Power", 
-                         f"{safe_format(metrics.get('max_power'), '{:.0f}')}W")
-                st.metric("Intensity Factor", 
-                         safe_format(metrics.get('intensity_factor'), "{:.2f}"))
-            
-            if metrics.get('zones'):
-                st.subheader("Power Zone Distribution")
-                # Function to standardize zone display format
-                def standardize_zone_key(key):
-                    """Convert any zone format to a consistent display format"""
-                    if isinstance(key, str) and key.lower().startswith('zone'):
-                        # Already in a good format, just ensure consistent capitalization
-                        return key
-                    return key
-                
-                # Create dataframe with standardized zone names
-                zones_df = pd.DataFrame(
-                    [(standardize_zone_key(k), v) for k, v in metrics['zones'].items() if v is not None and v > 0],
-                    columns=['Zone', 'Time %']
-                )
-                if not zones_df.empty:
-                    zones_df = zones_df.sort_values('Zone')
-                    st.bar_chart(zones_df.set_index('Zone'))
-        current_tab += 1
-    
-    # Heart Rate Analysis Tab
-    if has_hr:
-        with tabs[current_tab]:
-            metrics = workout_data['hr_metrics']
-            
-            hcol1, hcol2 = st.columns(2)
-            with hcol1:
-                st.metric("Average HR", 
-                         f"{safe_format(metrics.get('average_hr'), '{:.0f}')} bpm")
-                st.metric("Min HR", 
-                         f"{safe_format(metrics.get('min_hr'), '{:.0f}')} bpm")
-            with hcol2:
-                st.metric("Max HR", 
-                         f"{safe_format(metrics.get('max_hr'), '{:.0f}')} bpm")
-            
-            if metrics.get('zones'):
-                st.subheader("Heart Rate Zone Distribution")
-                # Function to standardize zone display format for heart rate zones
-                def standardize_hr_zone_key(key):
-                    """Convert any zone format to a consistent display format"""
-                    if isinstance(key, str):
-                        # Handle 'zone1' format
-                        if key.lower().startswith('zone'):
-                            if len(key) > 4 and key[4:5].isdigit() and key.lower() == f"zone{key[4:5]}":
-                                zone_num = key[4:5]
-                                # Map to standard format
-                                zone_names = {
-                                    '1': 'Zone 1 (Recovery)',
-                                    '2': 'Zone 2 (Endurance)',
-                                    '3': 'Zone 3 (Tempo)',
-                                    '4': 'Zone 4 (Threshold)',
-                                    '5': 'Zone 5 (Maximum)'
-                                }
-                                return zone_names.get(zone_num, f"Zone {zone_num}")
-                            # Already in a fully defined format
-                            return key
-                    return key
-                
-                # Create dataframe with standardized zone names
-                zones_df = pd.DataFrame(
-                    [(standardize_hr_zone_key(k), v) for k, v in metrics['zones'].items() if v is not None and v > 0],
-                    columns=['Zone', 'Time %']
-                )
-                if not zones_df.empty:
-                    zones_df = zones_df.sort_values('Zone')
-                    st.bar_chart(zones_df.set_index('Zone'))
-        current_tab += 1
-    
-    # Zone Distribution Tab
-    if has_power or has_hr:
-        with tabs[current_tab]:
-            col1, col2 = st.columns(2)
-            
-            if has_power and workout_data.get('power_metrics', {}).get('zones'):
-                with col1:
-                    st.subheader("Power Zones")
-                    zones = workout_data['power_metrics']['zones']
-                    # Function to standardize zone display format
-                    def standardize_zone_key(key):
-                        """Convert any zone format to a consistent display format"""
-                        if isinstance(key, str) and key.lower().startswith('zone'):
-                            # Already in a good format, just ensure consistent capitalization
-                            return key
-                        return key
-                    
-                    # Filter out None values and zeros
-                    valid_zones = {standardize_zone_key(k): v for k, v in zones.items() 
-                                  if v is not None and v > 0}
-                    if valid_zones:
-                        fig = px.pie(
-                            values=list(valid_zones.values()),
-                            names=list(valid_zones.keys()),
-                            title="Power Zone Distribution"
-                        )
-                        st.plotly_chart(fig)
-            
-            if has_hr and workout_data.get('hr_metrics', {}).get('zones'):
-                with col2:
-                    st.subheader("Heart Rate Zones")
-                    zones = workout_data['hr_metrics']['zones']
-                    # Function to standardize zone display format for heart rate zones
-                    def standardize_hr_zone_key(key):
-                        """Convert any zone format to a consistent display format"""
-                        if isinstance(key, str):
-                            # Handle 'zone1' format
-                            if key.lower().startswith('zone'):
-                                if len(key) > 4 and key[4:5].isdigit() and key.lower() == f"zone{key[4:5]}":
-                                    zone_num = key[4:5]
-                                    # Map to standard format
-                                    zone_names = {
-                                        '1': 'Zone 1 (Recovery)',
-                                        '2': 'Zone 2 (Endurance)',
-                                        '3': 'Zone 3 (Tempo)',
-                                        '4': 'Zone 4 (Threshold)',
-                                        '5': 'Zone 5 (Maximum)'
-                                    }
-                                    return zone_names.get(zone_num, f"Zone {zone_num}")
-                                # Already in a fully defined format
-                                return key
-                        return key
-                    
-                    # Filter out None values and zeros with standardized keys
-                    valid_zones = {standardize_hr_zone_key(k): v for k, v in zones.items() 
-                                  if v is not None and v > 0}
-                    if valid_zones:
-                        fig = px.pie(
-                            values=list(valid_zones.values()),
-                            names=list(valid_zones.keys()),
-                            title="HR Zone Distribution"
-                        )
-                        st.plotly_chart(fig)
-        current_tab += 1
-    
-    # Summary Tab (always last)
-    with tabs[-1]:
-        if workout_data.get('metrics'):
-            st.subheader("Workout Summary")
-            summary_data = {
-                "Duration": f"{safe_format(workout_data['metrics'].get('duration'))} minutes",
-                "TSS": safe_format(workout_data['metrics'].get('tss')),
-                "Intensity": safe_format(workout_data['metrics'].get('intensity'), "{:.2f}"),
-                "Start Time": workout_data.get('start_time', 'N/A')
-            }
-            
-            for key, value in summary_data.items():
-                st.write(f"**{key}:** {value}")
-        
-        with st.expander("View Raw Data"):
-            st.json(workout_data)
-
 def display_performance_analytics():
     """Display performance analytics with workout analysis, personal bests, and visualizations"""
     from src.utils.fit_file_analyzer import FitFileAnalyzer
@@ -623,7 +350,7 @@ def display_performance_analytics():
         
         try:
             from src.storage.database import WorkoutDatabase
-            db = WorkoutDatabase('data/fitness_data.db')
+            db = WorkoutDatabase(get_db_path())
             personal_bests = db.get_personal_bests(athlete_id='default')
             
             if personal_bests:
@@ -724,7 +451,7 @@ def display_performance_analytics():
                 try:
                     from src.utils.daily_auto_sync_and_analyze import DailyAutoSyncAndAnalyze
                     
-                    automation = DailyAutoSyncAndAnalyze(db_path='data/fitness_data.db')
+                    automation = DailyAutoSyncAndAnalyze(db_path=get_db_path())
                     
                     # Convert analysis_date to proper date object
                     target_date = analysis_date if isinstance(analysis_date, date) else analysis_date[0] if isinstance(analysis_date, tuple) else datetime.now().date()
@@ -1019,7 +746,7 @@ def display_performance_analytics():
                                 st.markdown("---")
                                 if st.button("💾 Save Analysis to Database"):
                                     try:
-                                        db = WorkoutDatabase('data/fitness_data.db')
+                                        db = WorkoutDatabase(get_db_path())
                                         
                                         # Store analysis
                                         analysis_id = db.store_workout_analysis(
@@ -2048,163 +1775,6 @@ def display_strength_workout_with_tracking(workout, unique_key=""):
         if submitted:
             st.success("Workout data saved successfully!")
 
-def create_workout_timer():
-    """Create a persistent timer for workout tracking with audio alerts"""
-    # Initialize timer state if not already in session state
-    if 'timer_running' not in st.session_state:
-        st.session_state.timer_running = False
-        st.session_state.timer_duration = 60
-        st.session_state.rest_duration = 30
-        st.session_state.timer_mode = "Work"  # "Work" or "Rest"
-        st.session_state.timer_end_time = None
-        st.session_state.last_update = datetime.now()
-        st.session_state.should_play_audio = False
-        st.session_state.audio_type = None  # "work_complete" or "rest_complete"
-        st.session_state.cycles_completed = 0  # Track completed cycles
-    
-    # Create a container that will always be visible and fixed at the top
-    with st.sidebar:
-        st.markdown("### 🕒 Workout Timer")
-        st.markdown("*The clock doesn't care about your excuses.*")
-        
-        # Work/Rest cycle settings
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            work_duration = st.number_input("Work (seconds)", min_value=5, max_value=600, 
-                                          value=st.session_state.timer_duration, step=5, 
-                                          key="work_duration_input")
-            st.session_state.timer_duration = work_duration
-        
-        with col2:
-            rest_duration = st.number_input("Rest (seconds)", min_value=5, max_value=600, 
-                                          value=st.session_state.rest_duration, step=5,
-                                          key="rest_duration_input")
-            st.session_state.rest_duration = rest_duration
-        
-        # Add audio option
-        enable_audio = st.checkbox("Enable sound alerts", value=True)
-        
-        # Controls row
-        col1, col2 = st.columns(2)
-        with col1:
-            if not st.session_state.timer_running:
-                if st.button("▶️ Start", key="start_timer_button", use_container_width=True):
-                    # Explicitly set all timer state
-                    current_time = datetime.now()
-                    st.session_state.timer_running = True
-                    st.session_state.timer_end_time = current_time + timedelta(seconds=work_duration)
-                    st.session_state.timer_mode = "Work"
-                    st.session_state.last_update = current_time
-                    st.session_state.should_play_audio = False
-                    st.session_state.cycles_completed = 0
-                    # Force immediate rerun to start the timer
-                    st.rerun()
-            else:
-                if st.button("⏹️ Stop", key="stop_timer_button", use_container_width=True):
-                    st.session_state.timer_running = False
-                    st.rerun()
-        
-        with col2:
-            if st.button("🔄 Reset", key="reset_timer_button", use_container_width=True):
-                st.session_state.timer_running = False
-                st.session_state.timer_mode = "Work"
-                st.session_state.should_play_audio = False
-                st.session_state.cycles_completed = 0
-                st.rerun()
-        
-        # Display cycles completed
-        if st.session_state.cycles_completed > 0:
-            st.caption(f"Completed cycles: {st.session_state.cycles_completed}")
-        
-        # Current mode indicator with color coding
-        mode_color = "#4CAF50" if st.session_state.timer_mode == "Work" else "#FF9800"
-        st.markdown(f"""
-            <div style='background-color: {mode_color}; padding: 10px; border-radius: 5px; text-align: center; color: white; font-weight: bold;'>
-                {st.session_state.timer_mode} MODE
-            </div>
-        """, unsafe_allow_html=True)
-        
-        # Audio element (browsers require user interaction to play audio on a page)
-        # We use a simple beep sound for now
-        if enable_audio and st.session_state.should_play_audio:
-            audio_type = st.session_state.audio_type
-            if audio_type == "work_complete":
-                st.markdown("""
-                <audio autoplay>
-                    <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTGH0fPTgjMGHm7A7+OZSA0PVK7n77FdGAg+ltryxnMpBSl+zPLaizsIGGS57OihUBELTKXh8bllHgU2jdXzzn0vBSF1xe/glEILElyx6OyrWBUIQ5zd8sFuJAUuhM/z1YU2Bhxqvu7mnEoODlGq5PC1YBoGPJPY88p2KwUme8rx3I4+CRZiturqpVITC0mi4PK8aB8GM4nU8tGAMQYfcsLu45ZFDBFYr+ftrFoXCECY3PLEcSYELIHO8diJOQgZaLvt559NEAxPp+PwtmMcBjiP1/PMeS0GI3fH8N2RQAoUXrTp66hVFApGnt/yvmwhBTCG0fPTgjQGHW/A7eSaRw0PVK7m77BeGQc9ltvyxnUoBSh+zPDaizsIGGS57OihUBELTKXh8bllHgU1jdT0z30vBSJ0xe/glEILElyx6OyrWRUIRJve8sFuJAUug8/z1oU2Bhxqvu7mnEoPDVKq5PC1YRoGPJLY88p3KgUme8rx3I4+CRVht+rqpVMSC0mi4PG9aB8GMojU8tGAMQYfccPu45ZFDBBYr+ftrVkYB0CZ3PLEcSYGK4DN8tiIOQgZaLzt559NFAxPpuPxtmQcBjiP1/PMeywGI3fH8N2RQAoUXrTp66hWFApGnt/yv2wiBDCG0PTTgzQHHG/A7eSaSA0PVK3m77BeGQc9ltrzxnQpBSh+zPDaizsIF2S57OihUREKTKXh8blmHgY1jdT0z30vBSF0xe/glUILElyw6eyrWRYIRJzd8sFvJQQug8/z1oY2Bhxqvu3mnEoPDVKp5PC1YRoGOpPY88p3KwUmecnw3Y4+CRVht+rqpVQSCkmi4PG9aB8GM4jT89GAMgUfccPu45ZFDBBYr+ftrVkYB0CZ3PLEcScFLIHO8diJOAgZaLvt559NEAxPpuPxtmQdBTiP1/PMey0FI3fH8N2RQAoUXrTp66hWFApGnt/yv2wiBDCG0PTTgzQHHG3A7eSaSA0PVK3m77BeGQc+ltvyxnQpBSh9zPDbizsIF2W57OihUREKTKXh8blmHgY1jdT0z30vBSF0xO/glUILElyw6eyrWRYIRJzd8sFvJQQug8/z1oY3BRxqvu3mnEoPDVKp5PC1YRoGOpPY88p3KwUmecnw3Y4+CRVht+rqpVQSCkmi4PG9aB8GM4jT89GAMgUfccPu45ZFDBBYr+ftrVkYB0CZ3PLEcScFLIHO8diJOAgYaLvt559OEAxPpuPxtmQdBTeP1/PMey0FI3fH8N2RQQkUXrTo66hWFQlGnt/yv2wiBDCG0PTTgzUGHG3A7eSaSA0PVK3m77BeGQc+ltrzyHQpBSh9zPDbizsIF2W57OiiUBAKTKXi8blmHgY1jdT0z34wBCF0xO/glUILElux6eyrWRYIRJzd8sFvJQQug8/z1oY3BRxqvu3mnEoPDVKp5PC1YRoGOpPY88p3KwUmecnw3Y4/CBVht+rqpVQSCkmi4PG9aSAFM4jT89GAMgUfccPu45ZGCxBYr+ftrVkYB0CZ3PLEcScFLIHO8diJOAgYaLvt559OEAxPpuPxtmQdBTeP1/PMey0FI3fH8N2RQQkUXrTo66hWFQlGnt/yv2wiBDCG0PTTgzUGHG3A7eSaSA4PVK3m77BeGQc+ltrzyHQpBSh9zPDbizsIF2W57OiiUBAKTKXi8blmHgY1jdT0z34wBCF0xO/glUILElux6eyrWRYIRJzd8sFvJQQug8/z1oY3BRxqvu3mnEoPDVKp5PC1YRoGOpPY88p3KwUmecnw3Y4/CBVht+rqpVQSCkmi4PG9aSAFM4jT89GAMgUfccPu45ZGCxBYr+ftrVkYB0CZ3PLEcScFLIHO8diJOAgYaLvt559OEAxPpuPxtmQdBTeP1/PMey0FI3fH8N2RQQkUXrTo66hWFQlGnt/yv2wiBDCG0PTTgzUGHG3A7eSaSA4PVK3m77BeGQc+ltrzyHQpBSh9zPDbi0MIFmS46+mjTw==">
-                </audio>
-                """, unsafe_allow_html=True)
-            elif audio_type == "rest_complete":
-                st.markdown("""
-                <audio autoplay>
-                    <source src="data:audio/wav;base64,UklGRl43AABXQVZFZm10IBAAAAABAAEARKwAAESsAAABAAgAZGF0YWY3AAAAAAEBAQECAgMEBQcICAoLDQ8SFBcaHSEkKCwvMzc7QEVKS09TVFZYXF9jZ2pucHN2eXt9f4GDhYaIioyOkZOWmZygo6eqrbCztbcwNjk7PD5AQkVKUVpkbnd4enuFiJGWm6Cio6WmqKqsra+wsbKys7S0tbW1tra1tLS0tLOysrGwsK+vrq6tra2trq6vsbK1t7q9wMPHys7S1tnc3+Ll6Ojs7fHy8/T09fX19fX19PPy8fDu7ezr6ejo5+fm5uXl5OTj4+Li4uHh4eHh4eHi4uPk5OXm5+jp6uvs7e3u7u/v7+/v7+7u7u3t7Ozr6urp6Ofm5eTj4uHg39/e3dzb2tnY19bV1NTT0tLR0dDQz9DO0M/Pz9DP0NHS0tPT1NTV1tfY2dna29vc3d3e39/g4ODh4eHi4uLi4uPj4+Pk5OTk5OXl5eXl5eXm5ubm5ubm5ubm5ebm5eXl5eXk5OTk4+Pj4+Pi4uLi4eHh4eHg4ODg4ODf39/f39/f39/f3+Df4ODg4ODg4ODg4eHh4eHh4eHi4uLi4uPj4+Pk5OTk5OTl5eXl5ebm5ubm5ubm5ubm5ubm5ubm5eXl5eXl5eXk5OTk5OTk4+Pj4+Pj4+Pi4uLi4uLi4uLi4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uPi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uPj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXl5eXm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ojo6Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj4+Pj5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/f4CAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGBgYGCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCg=">
-                </audio>
-                """, unsafe_allow_html=True)
-            
-            # Reset audio state
-            st.session_state.should_play_audio = False
-            
-        # Calculate and display time remaining if timer is running
-        if st.session_state.timer_running and st.session_state.timer_end_time:
-            now = datetime.now()
-            time_remaining = max(0, (st.session_state.timer_end_time - now).total_seconds())
-            
-            # Display progress bar and time
-            current_duration = st.session_state.timer_duration if st.session_state.timer_mode == "Work" else st.session_state.rest_duration
-            progress = 1.0 - (time_remaining / current_duration)
-            st.progress(progress)
-            # Use ceiling instead of floor to show the current second we're in
-            time_display = math.ceil(time_remaining) if time_remaining > 0 else 0
-            st.markdown(f"<h2 style='text-align: center;'>{time_display}s</h2>", unsafe_allow_html=True)
-            
-            # Check if timer has ended
-            if time_remaining <= 0:
-                if st.session_state.timer_mode == "Work":
-                    # Switch from Work to Rest
-                    st.session_state.timer_mode = "Rest"
-                    st.session_state.timer_end_time = datetime.now() + timedelta(seconds=rest_duration)
-                    # Set audio to play on next update
-                    st.session_state.should_play_audio = enable_audio
-                    st.session_state.audio_type = "work_complete"
-                    # Show visual notification
-                    st.warning("⏰ Work period complete! Switching to REST mode")
-                else:
-                    # Switch from Rest to Work
-                    st.session_state.timer_mode = "Work"
-                    st.session_state.timer_end_time = datetime.now() + timedelta(seconds=work_duration)
-                    # Increment the cycle counter
-                    st.session_state.cycles_completed += 1
-                    # Set audio to play on next update
-                    st.session_state.should_play_audio = enable_audio
-                    st.session_state.audio_type = "rest_complete"
-                    # Show visual notification
-                    st.success("⏰ Rest period complete! Switching to WORK mode")
-                
-                # Force rerun immediately to update the timer
-                st.rerun()
-            
-            # Debug info to help troubleshoot
-            # st.caption(f"Time remaining: {time_remaining:.1f}s, Last update: {(now - st.session_state.last_update).total_seconds():.1f}s ago")
-            
-            # Only update UI if sufficient time has passed (to avoid excessive reruns)
-            # but ensure we always update at least once per second
-            time_since_update = (now - st.session_state.last_update).total_seconds()
-            if time_since_update >= 0.25:  # Update more frequently (4 times per second)
-                st.session_state.last_update = now
-                
-                # Always rerun while timer is running (don't check time_remaining)
-                st.rerun()
-        else:
-            # Show empty progress bar when not running
-            st.progress(0.0)
-            if not st.session_state.timer_running:
-                st.markdown("<p style='text-align: center; color: gray;'>Timer not running</p>", unsafe_allow_html=True)
-    
-    # Return the timer state for reference
-    return st.session_state.timer_running
-
-
 def _normalize_date_widget(d: Any) -> Optional[date]:
     """Normalize Streamlit date widget return values to a date or None.
 
@@ -2268,19 +1838,17 @@ def display_ai_coach():
             ai_end_date = st.date_input("Completed week end", value=end_of_week, key="chat_end_date")
 
     with col_model:
-        import os as _os
-        _has_github = bool(_os.getenv("GITHUB_TOKEN") or _os.getenv("GH_TOKEN"))
-        _model_options = [
-            "GitHub GPT-4o (Free \u2728)",
-            "Claude Haiku 4.5 (Fast \u00b7 $0.025/wk)",
-            "Claude Sonnet 4.6 (Best \u00b7 $0.27/wk)",
-            "Gemini Flash (Free)",
-            "Gemini Flash-Lite (Free \u00b7 fastest)",
-        ]
+        _model_options = {
+            "Claude Opus 5 (Best coach · ~$1/wk)": AIModel.CLAUDE_OPUS,
+            "Claude Sonnet 5 (Strong · cheaper)": AIModel.CLAUDE_SONNET,
+            "Claude Haiku 4.5 (Fast · cheapest)": AIModel.CLAUDE_HAIKU,
+            "Gemini Flash (Free)": AIModel.GEMINI_FREE,
+            "Gemini Flash-Lite (Free · fastest)": AIModel.GEMINI_FLASH_LITE,
+        }
         model_choice = st.selectbox(
             "AI Model",
-            options=_model_options,
-            index=0 if _has_github else 1,  # default to GitHub GPT-4o if token present
+            options=list(_model_options),
+            index=0,
             key="chat_model_choice",
         )
 
@@ -2306,16 +1874,7 @@ def display_ai_coach():
     # ------------------------------------------------------------------
     # Select AI model
     # ------------------------------------------------------------------
-    if "GitHub" in model_choice:
-        ai_model = AIModel.GITHUB_GPT4O
-    elif "Haiku" in model_choice:
-        ai_model = AIModel.CLAUDE_HAIKU
-    elif "Sonnet" in model_choice:
-        ai_model = AIModel.CLAUDE_SONNET
-    elif "Flash-Lite" in model_choice:
-        ai_model = AIModel.GEMINI_FLASH_LITE
-    else:
-        ai_model = AIModel.GEMINI_FREE
+    ai_model = _model_options[model_choice]
 
     # ------------------------------------------------------------------
     # Load / create session
@@ -2668,176 +2227,6 @@ def display_ai_coach():
     st.caption(phase_labels.get(session.phase, session.phase))
 
 
-def display_session_comparison_page():
-    """Session Comparison page - compare similar workouts to track progress"""
-    from src.utils.workout_comparator import WorkoutComparator
-    from src.ui.components.session_comparison import (
-        display_session_comparison,
-        display_similar_workouts_list,
-        display_find_similar_ui
-    )
-    
-    create_section_header("Session Comparison - Track Your Progress", "🔄")
-    
-    st.markdown("""
-    <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                padding: 1.5rem; border-radius: 10px; margin-bottom: 1.5rem; color: white;'>
-        <h3 style='margin: 0 0 0.5rem 0; color: white;'>🔍 Compare Similar Workouts</h3>
-        <p style='margin: 0; opacity: 0.9;'>
-            Find similar workouts from your training history and compare them side-by-side to track
-            progress, identify improvements, and understand how your fitness is developing over time.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Fetch cycling workouts with analyses
-    try:
-        response = requests.get(f"{API_URL}/workouts/with-analyses")
-        if response.status_code != 200:
-            st.error("Error fetching workout data")
-            return
-        
-        workouts = response.json()
-        
-        # Filter to cycling workouts only (have TSS/power data)
-        cycling_workouts = [
-            w for w in workouts 
-            if 'Zwift' in w.get('workout_title', '') or 'Bike' in w.get('workout_title', '')
-        ]
-        
-        if not cycling_workouts:
-            st.warning("No cycling workouts with analyses found. Please run batch sync to analyze your workouts first.")
-            st.info("💡 Go to **Import Data** → **Batch Sync & Analysis** to analyze your cycling workouts.")
-            return
-        
-        # Create DataFrame for easier manipulation
-        workouts_df = pd.DataFrame(cycling_workouts)
-        
-        st.success(f"✅ Found {len(cycling_workouts)} analyzed cycling workouts")
-        
-        # Show comparison mode selector
-        mode = st.radio(
-            "Comparison Mode:",
-            ["🔍 Find Similar Workouts", "⚖️ Compare Two Specific Workouts"],
-            horizontal=True
-        )
-        
-        st.markdown("---")
-        
-        if mode == "🔍 Find Similar Workouts":
-            # Find similar workouts mode
-            selected_idx, min_similarity, max_results = display_find_similar_ui(workouts_df)
-            
-            if st.button("🔎 Find Similar Workouts", type="primary"):
-                target_workout = cycling_workouts[selected_idx]
-                
-                # Initialize comparator
-                comparator = WorkoutComparator()
-                
-                # Find similar workouts
-                with st.spinner("Analyzing workout similarities..."):
-                    similar_workouts = comparator.find_similar_workouts(
-                        target_workout,
-                        cycling_workouts,
-                        min_similarity=min_similarity,
-                        max_results=max_results
-                    )
-                
-                if similar_workouts:
-                    display_similar_workouts_list(similar_workouts, target_workout['workout_day'])
-                    
-                    # If we have matches, show detailed comparison for the top match
-                    if similar_workouts:
-                        st.markdown("---")
-                        st.markdown("### 📊 Detailed Comparison (Top Match)")
-                        
-                        top_match_workout, top_similarity = similar_workouts[0]
-                        
-                        # Perform detailed comparison
-                        comparison = comparator.compare_workouts_detailed(
-                            target_workout,
-                            top_match_workout
-                        )
-                        
-                        # Display the comparison
-                        display_session_comparison(
-                            target_workout,
-                            top_match_workout,
-                            comparison
-                        )
-                else:
-                    st.info(f"No workouts found with similarity ≥ {min_similarity}%. Try lowering the threshold.")
-        
-        else:
-            # Compare two specific workouts mode
-            st.markdown("### Select Two Workouts to Compare")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("**Workout 1** (Recent)")
-                # Use workout_name if available (from proposed workout matching), otherwise fall back to title
-                # Clean up filenames if they appear
-                def format_workout_name(row):
-                    name = row.get('workout_name', row.get('workout_title', 'Workout'))
-                    # If it looks like a filename, use type instead
-                    if '.fit' in name.lower() or len(name) > 50:
-                        name = row.get('type', 'Workout')
-                    return name
-                
-                workout1_options = workouts_df['workout_day'].astype(str) + ' - ' + workouts_df.apply(format_workout_name, axis=1).str[:40]
-                workout1_idx = st.selectbox(
-                    "Select first workout:",
-                    options=range(len(workout1_options)),
-                    format_func=lambda x: workout1_options.iloc[x],
-                    key="workout1"
-                )
-            
-            with col2:
-                st.markdown("**Workout 2** (Comparison)")
-                workout2_options = workouts_df['workout_day'].astype(str) + ' - ' + workouts_df.apply(format_workout_name, axis=1).str[:40]
-                workout2_idx = st.selectbox(
-                    "Select second workout:",
-                    options=range(len(workout2_options)),
-                    format_func=lambda x: workout2_options.iloc[x],
-                    key="workout2"
-                )
-            
-            if st.button("⚖️ Compare Workouts", type="primary"):
-                if workout1_idx == workout2_idx:
-                    st.warning("Please select two different workouts to compare.")
-                else:
-                    workout1 = cycling_workouts[workout1_idx]
-                    workout2 = cycling_workouts[workout2_idx]
-                    
-                    # Initialize comparator
-                    comparator = WorkoutComparator()
-                    
-                    # Calculate similarity
-                    similarity = comparator.calculate_similarity_score(workout1, workout2)
-                    
-                    st.info(f"**Similarity Score:** {similarity:.0f}%")
-                    
-                    # Perform detailed comparison
-                    with st.spinner("Analyzing workouts..."):
-                        comparison = comparator.compare_workouts_detailed(workout1, workout2)
-                    
-                    # Display the comparison
-                    display_session_comparison(workout1, workout2, comparison)
-    
-    except requests.exceptions.ConnectionError:
-        st.error("❌ Cannot connect to the API. Please ensure the FastAPI server is running.")
-        st.code("python3 -m uvicorn src.api.app:app --reload", language="bash")
-    except Exception as e:
-        st.error(f"An error occurred: {str(e)}")
-        import traceback
-        with st.expander("Show Error Details"):
-            st.code(traceback.format_exc())
-
-def reset_form_state():
-    st.session_state.show_notes_form = False
-    st.session_state.notes_saved = False
-
 # Apply custom styling
 apply_custom_styling()
 
@@ -2850,6 +2239,20 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Enhanced sidebar
+def _react_app_url() -> str:
+    """Same host the browser used (Tailscale IP or MagicDNS name), React port."""
+    if os.getenv("REACT_APP_URL"):
+        return os.environ["REACT_APP_URL"]
+    try:
+        host = (st.context.headers.get("Host") or "localhost").split(":")[0]
+    except Exception:
+        host = "localhost"
+    return f"http://{host}:3000"
+
+st.sidebar.markdown(
+    f"📱 **[Open the training app]({_react_app_url()})** — calendar, coaching, dashboard",
+)
+st.sidebar.caption("This Streamlit app is the admin side: data import, workout matching, analysis.")
 st.sidebar.markdown("### 🎯 Navigation")
 page = st.sidebar.radio("Go to", [
     '📊 Dashboard', 
@@ -2860,6 +2263,18 @@ page = st.sidebar.radio("Go to", [
     '📦 Workout Data Ingestion',  # NEW: Manual matching workflow
     '⚙️ Athlete Settings',  # NEW: FTP and zones configuration
 ], index=0)
+
+# Background failures (nightly sync, analysis) are recorded durably; show them.
+from src.storage.events import unacknowledged_events, acknowledge_events
+_events = unacknowledged_events(limit=20)
+if _events:
+    with st.sidebar.expander(f"⚠️ {len(_events)} problem(s) need attention", expanded=False):
+        for _e in _events:
+            st.caption(f"{_e['created_at']} · {_e['source']}")
+            st.write(_e['message'])
+        if st.button("Dismiss all", key="dismiss_events"):
+            acknowledge_events([_e['id'] for _e in _events])
+            st.rerun()
 
 if page == '📅 Workout Calendar':
     display_workout_calendar()
@@ -2883,7 +2298,7 @@ elif page == '⚙️ Athlete Settings':
     """)
     
     # Load current settings
-    db = WorkoutDatabase('data/fitness_data.db')
+    db = WorkoutDatabase(get_db_path())
     current_settings = db.get_athlete_settings('default')
     
     st.markdown("---")
@@ -2954,10 +2369,6 @@ elif page == '⚙️ Athlete Settings':
             st.error(f"❌ Invalid input format: {e}")
         except Exception as e:
             st.error(f"❌ Error saving settings: {e}")
-
-# Session Comparison moved to Historical Analysis tab - keeping function for potential future use
-# elif page == '🔄 Session Comparison':
-#     display_session_comparison_page()
 
 elif page == '📊 Dashboard':
     create_section_header("Training Dashboard", "📊")
@@ -3527,7 +2938,7 @@ elif page == '📦 Workout Data Ingestion':
     from utils.fit_parser import FitParser
     
     # Define database path for all sections
-    db_path = 'data/fitness_data.db'
+    db_path = get_db_path()
     
     # ========== SECTION A: SYNC & MATCH NEW WORKOUTS ==========
     with st.expander("📥 Sync & Match New Workouts", expanded=True):
@@ -3804,16 +3215,17 @@ elif page == '📦 Workout Data Ingestion':
                             week_start = get_week_start_date(workout_date.isoformat())
                             proposed_workouts = get_proposed_workouts_for_week(db_path, week_start)
                             
-                            # Create dropdown options
+                            # Dropdown options carry the planned workout's id: names
+                            # repeat across weeks, so the id is the real link.
                             options = []
                             for pw in proposed_workouts:
                                 label = f"{pw['workout_day']} - {pw['name']}"
                                 if pw['tss']:
                                     label += f" (TSS: {pw['tss']})"
-                                options.append((label, pw['name']))
+                                options.append((label, pw['name'], pw['id']))
                             
                             # Add "Other (Custom)" option
-                            options.append(("Other (Custom workout/warm-up/cool-down)", "OTHER"))
+                            options.append(("Other (Custom workout/warm-up/cool-down)", "OTHER", None))
                             
                             # Dropdown
                             selected_option = st.selectbox(
@@ -3822,8 +3234,8 @@ elif page == '📦 Workout Data Ingestion':
                                 key=f"workout_select_{workout['id']}"
                             )
                             
-                            # Get the actual name from the selected option
-                            selected_name = next((opt[1] for opt in options if opt[0] == selected_option), None)
+                            # Get the actual name and id from the selected option
+                            selected_name, selected_pw_id = next(((opt[1], opt[2]) for opt in options if opt[0] == selected_option), (None, None))
                             
                             # If "Other" selected, show text input
                             if selected_name == "OTHER":
@@ -3849,7 +3261,8 @@ elif page == '📦 Workout Data Ingestion':
                                                     db_path,
                                                     workout['id'],
                                                     selected_name,
-                                                    'manual'
+                                                    'manual',
+                                                    proposed_workout_id=selected_pw_id,
                                                 )
                                                 st.success(f"✅ Matched to: {selected_name}")
                                                 
@@ -3861,35 +3274,14 @@ elif page == '📦 Workout Data Ingestion':
                                                 if fit_data_for_analysis and not is_other and has_power:
                                                     with st.spinner("🤖 Running AI analysis..."):
                                                         try:
-                                                            # Get athlete FTP
+                                                            # Shared path: honors the match just saved,
+                                                            # computes execution, persists everything.
                                                             db = WorkoutDatabase(db_path)
-                                                            settings = db.get_athlete_settings()
-                                                            ftp = settings.get('ftp', 300)
-                                                            
-                                                            # Get athlete comments
-                                                            comments = workout.get('comments', '')
-                                                            
-                                                            # Run analysis using already-parsed FIT data
-                                                            # Pass the manually matched workout name so AI grades against correct workout
-                                                            analyzer = FitFileAnalyzer(use_dynamic_models=True)
-                                                            analysis = analyzer.analyze_workout_from_parsed_data(
-                                                                parsed_data=workout['fit_data'],
-                                                                athlete_ftp=float(ftp),
-                                                                athlete_notes=comments,
-                                                                matched_proposed_workout_name=selected_name  # Use manual match!
-                                                            )
+                                                            analysis = reanalyze_workout(workout['id'], db)
                                                             
                                                             if analysis:
-                                                                # Get AI analysis text
                                                                 ai_analysis = analysis.get('ai_analysis', '')
-                                                                
-                                                                # Store analysis in database
-                                                                analysis_id = db.store_workout_analysis(
-                                                                    workout_id=workout['id'],
-                                                                    fit_file_id=workout['fit_file_id'],
-                                                                    analysis_text=ai_analysis,
-                                                                    model_used=analysis.get('model_used', 'gemini-2.0-flash-exp')
-                                                                )
+                                                                exec_score = (analysis.get('execution') or {}).get('execution_score')
                                                                 
                                                                 # Store personal bests
                                                                 peak_efforts = analysis.get('peak_efforts', {})
@@ -3912,7 +3304,7 @@ elif page == '📦 Workout Data Ingestion':
                                                                 st.session_state.last_analysis_pbs = pb_count
                                                                 st.session_state.show_analysis_result = True
                                                                 
-                                                                st.success(f"✅ AI analysis complete! (ID: {analysis_id})")
+                                                                st.success("✅ AI analysis complete!" + (f" Execution score: {exec_score}/10" if exec_score is not None else ""))
                                                                 if pb_count > 0:
                                                                     st.success(f"🏆 {pb_count} personal best(s) recorded!")
                                                                 
@@ -4032,6 +3424,9 @@ elif page == '📦 Workout Data Ingestion':
                         
                         st.divider()
         
+        if st.session_state.get('rematch_result'):
+            st.success(st.session_state.pop('rematch_result'))
+
         # Show re-match dialog if workout selected
         if st.session_state.get('rematch_workout_id'):
             workout_id = st.session_state.rematch_workout_id
@@ -4061,15 +3456,15 @@ elif page == '📦 Workout Data Ingestion':
                 week_start = get_week_start_date(workout_date.isoformat())
                 proposed_workouts = get_proposed_workouts_for_week(db_path, week_start)
                 
-                # Create dropdown options
+                # Options carry the planned workout's id (names repeat across weeks)
                 options = []
                 for pw in proposed_workouts:
                     label = f"{pw['workout_day']} - {pw['name']}"
                     if pw['tss']:
                         label += f" (TSS: {pw['tss']})"
-                    options.append((label, pw['name']))
+                    options.append((label, pw['name'], pw['id']))
                 
-                options.append(("Other (Custom workout/warm-up/cool-down)", "OTHER"))
+                options.append(("Other (Custom workout/warm-up/cool-down)", "OTHER", None))
                 
                 # Dropdown
                 selected_option = st.selectbox(
@@ -4078,7 +3473,7 @@ elif page == '📦 Workout Data Ingestion':
                     key=f"rematch_select_{workout_id}"
                 )
                 
-                selected_name = next((opt[1] for opt in options if opt[0] == selected_option), None)
+                selected_name, selected_pw_id = next(((opt[1], opt[2]) for opt in options if opt[0] == selected_option), (None, None))
                 
                 # If "Other" selected, show text input
                 if selected_name == "OTHER":
@@ -4095,19 +3490,20 @@ elif page == '📦 Workout Data Ingestion':
                 # Re-match button
                 col1, col2 = st.columns(2)
                 with col1:
-                    if st.button("✅ Save & Re-analyze", type="primary", use_container_width=True, disabled=(selected_name is None or selected_name == current_name)):
-                        if selected_name and selected_name != current_name:
+                    if st.button("✅ Save & Re-analyze", type="primary", use_container_width=True, disabled=(selected_name is None)):
+                        if selected_name:
                             with st.spinner("Re-matching and re-analyzing..."):
                                 try:
-                                    # Update match
-                                    match_workout_to_proposed(db_path, workout_id, selected_name, 'manual')
-                                    st.success(f"✅ Re-matched to: {selected_name}")
-                                    
-                                    # Note: Re-analysis not yet implemented for re-match workflow
-                                    # TODO: Load FIT data and run analyze_workout_from_parsed_data()
-                                    st.info("ℹ️ Re-match saved. Use 'Sync & Match' workflow for full AI analysis.")
-                                    
-                                    # Clear selection
+                                    match_workout_to_proposed(db_path, workout_id, selected_name, 'manual',
+                                                              proposed_workout_id=selected_pw_id)
+                                    message = f"✅ Re-matched to: {selected_name}"
+                                    analysis = reanalyze_workout(workout_id, WorkoutDatabase(db_path))
+                                    if analysis:
+                                        exec_score = (analysis.get('execution') or {}).get('execution_score')
+                                        message += " — re-analyzed" + (f" (execution score {exec_score}/10)" if exec_score is not None else "")
+                                    else:
+                                        message += " — no FIT data to re-analyze"
+                                    st.session_state.rematch_result = message
                                     st.session_state.rematch_workout_id = None
                                     st.session_state.rematch_current_name = None
                                     st.rerun()

@@ -11,6 +11,7 @@ historical training data and make informed coaching decisions.
 - Data aggregation and statistical analysis
 """
 
+from src.config import get_db_path
 import sqlite3
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
@@ -35,7 +36,7 @@ class AICoachDatabaseQueries:
         if db_path is None:
             # Default to standard database location
             project_root = Path(__file__).parent.parent.parent
-            db_path = project_root / "data" / "fitness_data.db"
+            db_path = get_db_path()
         
         self.db_path = Path(db_path)
         
@@ -79,8 +80,8 @@ class AICoachDatabaseQueries:
                 date(workout_day, 'weekday 0', '-6 days') as week_start,
                 json_extract(workout_data, '$.type') as workout_type,
                 COUNT(*) as workout_count,
-                SUM(CAST(json_extract(workout_data, '$.TSS') AS REAL)) as total_tss,
-                SUM(CAST(json_extract(workout_data, '$.TimeTotalInHours') AS REAL) * 60) as total_minutes
+                SUM(CAST(json_extract(workout_data, '$.metrics.actual_tss') AS REAL)) as total_tss,
+                SUM(CAST(json_extract(workout_data, '$.metrics.actual_duration') AS REAL)) as total_minutes
             FROM workouts
             WHERE workout_day >= date('now', '-' || ? || ' days')
             GROUP BY week_start, workout_type
@@ -218,15 +219,17 @@ class AICoachDatabaseQueries:
         """
         query = """
         SELECT 
-            date(workout_day, 'weekday 0', '-6 days') as week_start,
-            AVG(CAST(json_extract(workout_data, '$.power_data.average') AS REAL)) as avg_power,
-            AVG(CAST(json_extract(workout_data, '$.power_data.normalized_power') AS REAL)) as normalized_power,
-            AVG(CAST(json_extract(workout_data, '$.power_data.intensity_factor') AS REAL)) as intensity_factor,
+            date(w.workout_day, 'weekday 0', '-6 days') as week_start,
+            AVG(CAST(json_extract(w.workout_data, '$.power_data.average') AS REAL)) as avg_power,
+            -- NP is only stored in the parsed FIT data, not the TrainingPeaks CSV row
+            AVG(CAST(json_extract(f.fit_data, '$.power_metrics.normalized_power') AS REAL)) as normalized_power,
+            AVG(CAST(json_extract(w.workout_data, '$.power_data.if') AS REAL)) as intensity_factor,
             COUNT(*) as workout_count
-        FROM workouts
-        WHERE json_extract(workout_data, '$.type') = 'Bike'
-        AND workout_day >= date('now', '-' || ? || ' days')
-        AND json_extract(workout_data, '$.power_data.average') IS NOT NULL
+        FROM workouts w
+        LEFT JOIN fit_files f ON f.id = w.fit_file_id
+        WHERE json_extract(w.workout_data, '$.type') = 'Bike'
+        AND w.workout_day >= date('now', '-' || ? || ' days')
+        AND json_extract(w.workout_data, '$.power_data.average') IS NOT NULL
         GROUP BY week_start
         ORDER BY week_start DESC
         """
@@ -252,12 +255,12 @@ class AICoachDatabaseQueries:
         SELECT 
             date(workout_day, 'weekday 0', '-6 days') as week_start,
             json_extract(workout_data, '$.type') as workout_type,
-            AVG(CAST(json_extract(workout_data, '$.heart_rate_data.average_hr') AS REAL)) as avg_hr,
-            AVG(CAST(json_extract(workout_data, '$.heart_rate_data.max_hr') AS REAL)) as max_hr,
+            AVG(CAST(json_extract(workout_data, '$.heart_rate_data.average') AS REAL)) as avg_hr,
+            AVG(CAST(json_extract(workout_data, '$.heart_rate_data.max') AS REAL)) as max_hr,
             COUNT(*) as workout_count
         FROM workouts
         WHERE workout_day >= date('now', '-' || ? || ' days')
-        AND json_extract(workout_data, '$.heart_rate_data.average_hr') IS NOT NULL
+        AND json_extract(workout_data, '$.heart_rate_data.average') IS NOT NULL
         GROUP BY week_start, workout_type
         ORDER BY week_start DESC, workout_type
         """

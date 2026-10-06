@@ -10,138 +10,63 @@ from typing import List, Dict
 import pandas as pd
 
 
+class _GoalsView:
+    """Adapter so the existing renderers read the SQLite goals table."""
+
+    def get_goals_by_priority(self, status: str = 'active'):
+        from types import SimpleNamespace
+        from src.storage import goals as goals_store
+        rows = goals_store.list_goals(include_inactive=(status != 'active'))
+        return [SimpleNamespace(**{**g, 'category': g.get('category') or 'general'})
+                for g in rows if g['status'] == status]
+
+
+def render_goal_editor():
+    """Fix dates/status by hand; the coach also updates goals via its tools."""
+    from src.storage import goals as goals_store
+    with st.expander("✏️ Edit goals"):
+        for g in goals_store.list_goals(include_inactive=True):
+            cols = st.columns([4, 2, 2, 1])
+            cols[0].markdown(f"**#{g['id']}** {g['description']}" + (" ⚠️ date passed" if g['stale'] else ""))
+            status = cols[1].selectbox("Status", goals_store.VALID_STATUSES,
+                                       index=goals_store.VALID_STATUSES.index(g['status']),
+                                       key=f"goal_status_{g['id']}", label_visibility="collapsed")
+            target = cols[2].text_input("Target date", value=g['target_date'] or "", placeholder="YYYY-MM-DD",
+                                        key=f"goal_date_{g['id']}", label_visibility="collapsed")
+            if cols[3].button("Save", key=f"goal_save_{g['id']}"):
+                try:
+                    goals_store.update_goal(g['id'], status=status, target_date=target or None)
+                    st.rerun()
+                except ValueError as e:
+                    st.error(str(e))
+        with st.form("add_goal"):
+            st.markdown("**Add a goal or event**")
+            desc = st.text_input("Description")
+            c1, c2, c3 = st.columns(3)
+            category = c1.selectbox("Category", ["event", "power", "endurance", "technical", "consistency", "body"])
+            priority = c2.selectbox("Priority", [1, 2, 3, 4, 5], index=1,
+                                    help="1 = A event (drives tapers), 2 = B event, 3+ = background goal")
+            target_date = c3.text_input("Target date", placeholder="YYYY-MM-DD")
+            if st.form_submit_button("Add") and desc:
+                try:
+                    goals_store.add_goal(desc, category, priority, target_date or None)
+                    st.rerun()
+                except ValueError as e:
+                    st.error(str(e))
+
+
 def render_achievements_tab():
     """Render goals and power PRs tab."""
-    from src.utils.coaching_notes import CoachingNotesManager
-
     st.header("🎯 Goals & Power PRs")
-
-    manager = CoachingNotesManager()
 
     viz_tabs = st.tabs(["🎯 Active Goals", "⚡ Power PRs"])
 
     with viz_tabs[0]:
-        render_active_goals(manager)
+        render_active_goals(_GoalsView())
+        render_goal_editor()
 
     with viz_tabs[1]:
         render_power_achievements()
-
-
-def render_achievement_timeline(manager: 'CoachingNotesManager'):
-    """Render timeline visualization of achievements."""
-    st.subheader("Achievement Timeline")
-    
-    achievements = manager.achievements
-    
-    if not achievements:
-        st.info("No achievements recorded yet. Complete milestones to see them here!")
-        st.markdown("""
-        **Achievements are auto-detected from feedback like:**
-        - "Completed my first 100-mile ride"
-        - "Hit a new FTP of 315W"
-        - "Finished my first gran fondo"
-        """)
-        return
-    
-    # Convert to DataFrame
-    ach_data = []
-    for ach in achievements:
-        ach_data.append({
-            'Date': ach.date,
-            'Description': ach.description,
-            'Category': ach.category.capitalize(),
-            'Value': ach.value or '',
-            'Week': ach.week_number or 0
-        })
-    
-    df = pd.DataFrame(ach_data)
-    df['Date'] = pd.to_datetime(df['Date'])
-    df = df.sort_values('Date')
-    
-    # Category selector
-    categories = ['All'] + sorted(df['Category'].unique().tolist())
-    selected_category = st.selectbox("Filter by category:", categories)
-    
-    if selected_category != 'All':
-        df_filtered = df[df['Category'] == selected_category]
-    else:
-        df_filtered = df
-    
-    # Create timeline visualization
-    if len(df_filtered) > 0:
-        # Color mapping for categories
-        category_colors = {
-            'Distance': '#FF6B6B',
-            'Power': '#4ECDC4',
-            'Endurance': '#45B7D1',
-            'Technical': '#FFA07A',
-            'Event': '#98D8C8',
-            'Consistency': '#C7CEEA'
-        }
-        
-        fig = go.Figure()
-        
-        for category in df_filtered['Category'].unique():
-            cat_data = df_filtered[df_filtered['Category'] == category]
-            
-            fig.add_trace(go.Scatter(
-                x=cat_data['Date'],
-                y=[category] * len(cat_data),
-                mode='markers+text',
-                name=category,
-                marker=dict(
-                    size=15,
-                    color=category_colors.get(category, '#95A5A6'),
-                    symbol='star',
-                    line=dict(width=2, color='white')
-                ),
-                text=[desc[:30] + '...' if len(desc) > 30 else desc for desc in cat_data['Description']],
-                textposition='top center',
-                hovertemplate='<b>%{text}</b><br>Date: %{x}<br>Category: ' + category + '<extra></extra>',
-                showlegend=True
-            ))
-        
-        fig.update_layout(
-            title="Achievement Timeline by Category",
-            xaxis_title="Date",
-            yaxis_title="Category",
-            height=400,
-            hovermode='closest',
-            showlegend=True
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Achievement list
-        st.subheader(f"All Achievements ({len(df_filtered)})")
-        for _, row in df_filtered.iterrows():
-            col1, col2, col3 = st.columns([2, 1, 1])
-            with col1:
-                st.markdown(f"**{row['Description']}**")
-            with col2:
-                st.badge(row['Category'])
-            with col3:
-                st.caption(row['Date'].strftime('%Y-%m-%d'))
-    else:
-        st.info(f"No achievements in '{selected_category}' category yet.")
-    
-    # Achievement stats
-    st.subheader("Achievement Statistics")
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric("Total Achievements", len(achievements))
-    
-    with col2:
-        most_common_cat = df['Category'].mode()[0] if len(df) > 0 else "None"
-        st.metric("Most Common Category", most_common_cat)
-    
-    with col3:
-        if len(df) > 0:
-            days_since_last = (datetime.now() - df['Date'].max()).days
-            st.metric("Days Since Last Achievement", days_since_last)
-        else:
-            st.metric("Days Since Last Achievement", "N/A")
 
 
 def render_power_achievements():
@@ -314,7 +239,7 @@ def render_power_achievements():
         st.code(traceback.format_exc())
 
 
-def render_active_goals(manager: 'CoachingNotesManager'):
+def render_active_goals(manager):
     """Render active goals with priorities."""
     st.subheader("Active Goals")
     
@@ -393,123 +318,3 @@ def render_active_goals(manager: 'CoachingNotesManager'):
         power_goals = len([g for g in active_goals if g.category == 'power'])
         st.metric("Power Goals", power_goals)
 
-
-def render_pattern_insights(manager: 'CoachingNotesManager'):
-    """Render multi-week pattern analysis and sentiment trends."""
-    st.subheader("Pattern Insights")
-    
-    # Multi-week pattern analysis
-    weeks_back = st.slider("Analyze past N weeks:", min_value=2, max_value=12, value=6)
-    patterns = manager.analyze_multi_week_patterns(weeks_back=weeks_back)
-    
-    if patterns['patterns_detected']:
-        st.markdown(f"### Trends Over Past {patterns['weeks_analyzed']} Weeks")
-        
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.markdown("**📈 Power Trend**")
-            trend = patterns['power_trend']
-            if trend == 'improving':
-                st.success("✅ Improving")
-            elif trend == 'declining':
-                st.warning("⚠️ Declining")
-            else:
-                st.info("➡️ Stable")
-        
-        with col2:
-            st.markdown("**✅ Compliance Trend**")
-            trend = patterns['compliance_trend']
-            if trend == 'consistently_high':
-                st.success("✅ Consistently High")
-            elif trend == 'inconsistent':
-                st.warning("⚠️ Inconsistent")
-            else:
-                st.info("➡️ Moderate")
-        
-        with col3:
-            st.markdown("**💤 Recovery Trend**")
-            trend = patterns['recovery_trend']
-            if trend == 'strong':
-                st.success("✅ Strong")
-            elif trend == 'declining':
-                st.warning("⚠️ Declining")
-            else:
-                st.info("➡️ Adequate")
-        
-        # Strengths and concerns
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if patterns['recurring_strengths']:
-                st.markdown("### 💪 Recurring Strengths")
-                for strength in patterns['recurring_strengths']:
-                    st.success(f"✓ {strength}")
-        
-        with col2:
-            if patterns['recurring_concerns']:
-                st.markdown("### ⚠️ Areas to Monitor")
-                for concern in patterns['recurring_concerns']:
-                    st.warning(f"• {concern}")
-        
-        # Key insights
-        if patterns['insights']:
-            st.markdown("### 💡 Key Insights")
-            for insight in patterns['insights']:
-                st.info(insight)
-    else:
-        st.info("Insufficient data for pattern analysis. Keep training and providing feedback!")
-    
-    # Sentiment trends
-    st.divider()
-    st.subheader("Sentiment Trends")
-    
-    recent_obs = manager.get_recent_observations(n=10)
-    sentiment_data = []
-    
-    for obs in recent_obs:
-        if obs.sentiment:
-            sentiment_data.append({
-                'Week': obs.week_number,
-                'Date': obs.date,
-                'Sentiment': obs.sentiment.capitalize(),
-                'Observation': obs.observation[:50] + '...' if len(obs.observation) > 50 else obs.observation
-            })
-    
-    if sentiment_data:
-        df_sentiment = pd.DataFrame(sentiment_data)
-        
-        # Sentiment distribution
-        sentiment_counts = df_sentiment['Sentiment'].value_counts()
-        
-        fig = px.pie(
-            values=sentiment_counts.values,
-            names=sentiment_counts.index,
-            title="Sentiment Distribution (Recent Weeks)",
-            color=sentiment_counts.index,
-            color_discrete_map={
-                'Confident': '#2ECC71',
-                'Positive': '#3498DB',
-                'Neutral': '#95A5A6',
-                'Negative': '#E74C3C',
-                'Struggling': '#C0392B'
-            }
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Recent sentiment timeline
-        st.markdown("#### Recent Sentiment Timeline")
-        for _, row in df_sentiment.iterrows():
-            emoji_map = {
-                'Confident': '💪',
-                'Positive': '😊',
-                'Neutral': '😐',
-                'Negative': '😕',
-                'Struggling': '😟'
-            }
-            emoji = emoji_map.get(row['Sentiment'], '📝')
-            st.markdown(f"{emoji} **Week {row['Week']}** ({row['Date']}): {row['Sentiment']}")
-            st.caption(row['Observation'])
-    else:
-        st.info("No sentiment data available yet. Sentiment is detected from your weekly feedback!")

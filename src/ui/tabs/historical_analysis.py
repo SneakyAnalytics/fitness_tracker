@@ -1,3 +1,4 @@
+from src.config import get_db_path
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
@@ -76,7 +77,7 @@ def render_historical_analysis_tab():
                             except:
                                 pass  # If model discovery fails, just continue
                             
-                            automation = DailyAutoSyncAndAnalyze('data/fitness_data.db')
+                            automation = DailyAutoSyncAndAnalyze(get_db_path())
                             
                             # Analyze each day in the range
                             total_analyzed = 0
@@ -132,7 +133,7 @@ def render_historical_analysis_tab():
     st.markdown("---")
     
     try:
-        db = WorkoutDatabase('data/fitness_data.db')
+        db = WorkoutDatabase(get_db_path())
         
         # Week navigation
         col1, col2, col3 = st.columns([2, 1, 1])

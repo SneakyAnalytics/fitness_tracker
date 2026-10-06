@@ -69,6 +69,9 @@ class AIChatSession:
         self._comprehensive_context: Optional[Dict] = None
         self._coaching_notes: Optional[Dict] = None
         self._system_prompt: Optional[str] = None
+        self._training_state: Optional[str] = None
+        self._week_target = None  # periodization.WeekTarget for the plan week
+        self._last_turn_text: str = ""
 
     # ----------------------------------------------------------- class method
 
@@ -100,14 +103,23 @@ class AIChatSession:
 
     # --------------------------------------------------------- lazy loading
 
+    @property
+    def _tools_enabled(self) -> bool:
+        """Claude models get database tools; Gemini keeps the prompt-only flow."""
+        model = getattr(self._coach, "model", None)
+        return bool(model is not None and model.is_claude and getattr(self._coach, "client", None))
+
     def _ensure_context(self, week_end_date: str) -> None:
         """Load DB context if not already loaded."""
         if self._system_prompt is not None:
             return
 
-        from utils.ai_database_queries import AICoachDatabaseQueries
-        from utils.coaching_notes import CoachingNotesManager
-        from utils.ai_prompts import AICoachPrompts
+        from src.utils.ai_database_queries import AICoachDatabaseQueries
+        from src.utils.coaching_notes import CoachingNotesManager
+        from src.utils.ai_prompts import AICoachPrompts
+        from src.storage import continuity as continuity_store
+        from src.storage import goals as goals_store
+        from src.utils.coach_context import build_training_state
 
         db_queries = AICoachDatabaseQueries()
         coaching_mgr = CoachingNotesManager()
@@ -117,17 +129,26 @@ class AIChatSession:
         ) or {}
         self._comprehensive_context = db_queries.get_comprehensive_context(weeks_back=4)
 
-        # Mirror how AICoachEngine.analyze_week() builds the notes dict
+        # The Settings page is the single source of truth for FTP.
+        settings_ftp = (self._db.get_athlete_settings() or {}).get('ftp')
+        athlete_profile = dict(coaching_mgr.athlete_profile.__dict__)
+        if settings_ftp:
+            athlete_profile['current_ftp'] = settings_ftp
+
         self._coaching_notes = {
-            'athlete_profile': coaching_mgr.athlete_profile.__dict__,
+            'athlete_profile': athlete_profile,
             'personality': coaching_mgr.personality.__dict__,
             'current_training_phase': coaching_mgr.current_training_phase,
             'next_week_focus': coaching_mgr.next_week_focus,
             'observations': [obs.__dict__ for obs in coaching_mgr.observations],
-            'coaching_continuity': [cont.to_dict() for cont in coaching_mgr.coaching_continuity],
-            'goals': [g.to_dict() for g in coaching_mgr.goals],
+            'coaching_continuity': continuity_store.recent_continuity(3, self._db.db_path),
+            'goals': goals_store.list_goals(db_path=self._db.db_path),
             'achievements': [a.to_dict() for a in coaching_mgr.achievements],
         }
+
+        self._training_state, self._week_target = build_training_state(
+            self.week_start_date, settings_ftp, self._db.db_path
+        )
 
         prompts = AICoachPrompts()
         prior_sessions = self._db.load_prior_chat_sessions(
@@ -138,8 +159,48 @@ class AIChatSession:
             comprehensive_context=self._comprehensive_context,
             coaching_notes=self._coaching_notes,
             prior_sessions=prior_sessions,
+            training_state=self._training_state,
+            tools_enabled=self._tools_enabled,
         )
         self._prompts = prompts
+
+    # ------------------------------------------------------------- tool loop
+
+    def _week_end_date(self) -> str:
+        from datetime import timedelta as _td
+        return (datetime.strptime(self.week_start_date, '%Y-%m-%d') + _td(days=6)).strftime('%Y-%m-%d')
+
+    _OPENING = "Please start this week's coaching session now."
+
+    def _api_messages(self) -> List[Dict[str, Any]]:
+        msgs = [{"role": "user", "content": self._OPENING}]
+        msgs += [{"role": m["role"], "content": m["content"]} for m in self.messages
+                 if m.get("role") in ("user", "assistant") and m.get("content")]
+        return msgs
+
+    def _converse_with_tools(self) -> Generator[str, None, None]:
+        """One coach turn with tool use. Streams text plus short status lines;
+        only the coach's own words are kept in self._last_turn_text."""
+        from src.utils.coach_tools import stream_tool_conversation
+
+        api, extra = self._coach.messages_api()
+        result: Dict[str, Any] = {}
+        for kind, value in stream_tool_conversation(
+                api, extra, self._coach.model.value, self._system_prompt, self._api_messages(),
+                db_path=self._db.db_path, on_usage=self._coach._record_usage, result=result):
+            yield value if kind == "text" else f"\n\n_🔎 {value}…_\n\n"
+        self._last_turn_text = result.get("text", "")
+
+    def _converse(self, prompt_fallback: str) -> Generator[str, None, None]:
+        """Run one coach turn; sets self._last_turn_text."""
+        if self._tools_enabled:
+            yield from self._converse_with_tools()
+            return
+        full_text = ""
+        for chunk in self._coach._call_api_streaming(prompt_fallback, temperature=0.7, max_tokens=1500):
+            full_text += chunk
+            yield chunk
+        self._last_turn_text = full_text
 
     # ------------------------------------------------------- public streaming
 
@@ -151,13 +212,11 @@ class AIChatSession:
         self._ensure_context(week_end_date)
 
         prompt = self._system_prompt + "\n\n# Begin\nPlease start the coaching session now."
-        full_text = ""
-        for chunk in self._coach._call_api_streaming(prompt, temperature=0.7, max_tokens=1500):
-            full_text += chunk
-            yield chunk
+        yield from self._converse(prompt)
+        full_text = self._last_turn_text
 
         clean, triggered = _strip_sentinel(full_text)
-        self._append_assistant(clean if clean != full_text else full_text)
+        self._append_assistant(clean)
         if triggered:
             self.phase = "GENERATING"
         else:
@@ -176,11 +235,11 @@ class AIChatSession:
 
         self._append_user(user_message)
 
-        prompt = self._build_conversation_prompt()
-        full_text = ""
-        for chunk in self._coach._call_api_streaming(prompt, temperature=0.7, max_tokens=1500):
-            full_text += chunk
-            yield chunk
+        # A session rebuilt from the DB (e.g. after a Streamlit rerun) has no
+        # context loaded yet; previously it silently chatted with an empty prompt.
+        self._ensure_context(self._week_end_date())
+        yield from self._converse(self._build_conversation_prompt())
+        full_text = self._last_turn_text
 
         clean, triggered = _strip_sentinel(full_text)
         self._append_assistant(clean)
@@ -232,7 +291,7 @@ class AIChatSession:
             "next_week_start_date": next_week_start_date,
         }
 
-        from utils.ai_prompts import AICoachPrompts, PromptContext
+        from src.utils.ai_prompts import AICoachPrompts, PromptContext
         prompts = self._prompts or AICoachPrompts()
         context = PromptContext(
             athlete_profile=self._coaching_notes.get("athlete_profile", {}),
@@ -240,6 +299,7 @@ class AIChatSession:
             weekly_summary=self._weekly_summary,
             comprehensive_context=self._comprehensive_context,
             user_context=user_context,
+            training_state=self._training_state,
         )
         # analysis_output is the conversation transcript so the AI has full context
         gen_prompt = prompts.build_workout_generation_prompt(
@@ -248,12 +308,28 @@ class AIChatSession:
 
         full_text = ""
         for chunk in self._coach._call_api_streaming(gen_prompt, temperature=0.3,
-                                                     max_tokens=16000):
+                                                     max_tokens=32000):
             full_text += chunk
             yield chunk
 
         # Parse JSON from response
         plan = _extract_json(full_text)
+
+        # Enforce the computed load band: one corrective regeneration if outside it.
+        band_error = self._band_error(plan)
+        if band_error:
+            yield f"\n\n*({band_error} — regenerating inside the band…)*\n\n"
+            retry_prompt = (gen_prompt + "\n\n# Correction\nYour previous plan was rejected: " + band_error
+                            + ". Regenerate the full plan with plannedTSS and the daily workouts inside the band.")
+            retry_text = ""
+            for chunk in self._coach._call_api_streaming(retry_prompt, temperature=0.3, max_tokens=32000):
+                retry_text += chunk
+                yield chunk
+            retried = _extract_json(retry_text)
+            if retried:
+                plan, full_text = retried, retry_text
+                if self._band_error(retried):
+                    yield "\n\n*(Still outside the band — review the TSS before saving.)*\n\n"
 
         if not plan:
             # First pass JSON not parseable — try structural extraction of day objects
@@ -295,6 +371,13 @@ class AIChatSession:
             )
         yield ""
 
+    def _band_error(self, plan: Optional[Dict]) -> Optional[str]:
+        if not plan or not self._week_target:
+            return None
+        from src.utils.periodization import validate_plan_tss
+        tss = plan.get("plannedTSS") or {}
+        return validate_plan_tss(tss.get("min"), tss.get("max"), self._week_target.to_dict())
+
     def apply_surgical_edit(self, feedback: str) -> Generator[str, None, None]:
         """
         Apply targeted edits to specific days of the current plan.
@@ -304,7 +387,7 @@ class AIChatSession:
             yield "No plan loaded – please generate a plan first."
             return
 
-        from utils.ai_prompts import AICoachPrompts
+        from src.utils.ai_prompts import AICoachPrompts
         prompts = self._prompts or AICoachPrompts()
         edit_prompt = prompts.build_surgical_edit_prompt(self.current_plan, feedback)
 
@@ -344,170 +427,117 @@ class AIChatSession:
             self._db.save_chat_session(
                 self.week_start_date, self.messages, self.current_plan, self.phase
             )
-            # Extract and persist any new goals the athlete mentioned
-            try:
-                self._extract_and_save_goals()
-            except Exception as _e:
-                print(f"Goal extraction skipped: {_e}")
-            # Update status of any goals the athlete reported completing/abandoning
-            try:
-                self._extract_and_update_goals()
-            except Exception as _e:
-                print(f"Goal update skipped: {_e}")
+            from src.storage.events import record_event
+            for step in (self._save_rationale, self._save_continuity):
+                try:
+                    step(plan_start_date)
+                except Exception as exc:  # never fail a saved plan over bookkeeping
+                    record_event("warning", "ai_chat_session", f"{step.__name__} failed: {exc}")
+            if not self._tools_enabled:
+                # Claude records goals live via tools; the prompt-only flow extracts them afterwards.
+                for step in (self._extract_and_save_goals, self._extract_and_update_goals):
+                    try:
+                        step()
+                    except Exception as exc:
+                        record_event("warning", "ai_chat_session", f"{step.__name__} failed: {exc}")
         return success, message, zwift_files
 
     # ----------------------------------------------------- persistence helper
 
-    def _extract_and_save_goals(self) -> None:
-        """
-        After saving a plan, run a small AI call to extract any new goals the
-        athlete mentioned during the conversation and write them to coaching_notes.json.
-        Only adds genuinely new goals — ones not already described in existing entries.
-        """
-        from utils.coaching_notes import CoachingNotesManager
-        import json as _json
+    def _save_rationale(self, plan_start_date: str) -> None:
+        """Store why this week's targets were chosen, for next week's coach to read."""
+        import sqlite3 as _sqlite3
+        rationale = {
+            "target": self._week_target.to_dict() if self._week_target else None,
+            "plan_notes": (self.current_plan or {}).get("notes"),
+            "planned_tss": (self.current_plan or {}).get("plannedTSS"),
+        }
+        with _sqlite3.connect(self._db.db_path) as conn:
+            conn.execute("UPDATE weekly_plans SET rationale = ? WHERE startDate = ?",
+                         (json.dumps(rationale, default=str), plan_start_date))
 
+    def _save_continuity(self, plan_start_date: str) -> None:
+        """Distil this session into continuity notes (one small model call)."""
+        from src.storage.continuity import save_continuity
         conversation = _messages_to_text(self.messages)
         if not conversation.strip():
             return
-
-        mgr = CoachingNotesManager()
-        existing_descriptions = [g.description.lower() for g in mgr.goals]
-
-        extract_prompt = f"""You are reviewing a coaching conversation to identify any NEW training goals or events the athlete explicitly mentioned.
-
-## Existing Goals (do NOT re-add these)
-{chr(10).join(f"- {d}" for d in existing_descriptions) if existing_descriptions else "(none yet)"}
+        days = [f"- Day {d.get('dayNumber')}: " + ", ".join(w.get("name", "") for w in d.get("workouts", []))
+                for d in (self.current_plan or {}).get("days", [])]
+        prompt = f"""Summarise this weekly coaching session as continuity notes for next week's coach.
 
 ## Conversation
 {conversation}
 
-## Instructions
-Extract ONLY goals or events that are:
-1. Explicitly stated by the athlete (not implied or suggested by the coach)
-2. Not already covered by an existing goal above
-3. Specific enough to be actionable (not vague like "get fitter")
+## Plan just saved (week of {plan_start_date})
+{chr(10).join(days)}
 
-Return a JSON array of new goals. Each goal object:
-{{
-  "description": "concise description of the goal",
-  "category": "event|power|endurance|technical|consistency",
-  "priority": 1-3,
-  "target_date": "YYYY-MM-DD or null",
-  "progress_notes": ["any relevant detail the athlete mentioned"]
-}}
+Return ONLY a JSON object:
+{{"key_observations": [...], "progression_notes": [...], "areas_to_monitor": [...], "next_week_priorities": [...]}}
+Each list: 1-4 short, specific items (numbers, workouts, constraints the athlete stated). No markdown."""
+        text, _ = self._coach._call_api(prompt, temperature=0.1, max_tokens=2000)
+        notes = _extract_json(text)
+        if isinstance(notes, dict):
+            save_continuity(self.week_start_date, notes, self._db.db_path)
 
-If no new goals were mentioned, return an empty array: []
-Return ONLY the JSON array, no other text."""
-
-        result_text = ""
-        for chunk in self._coach._call_api_streaming(extract_prompt, temperature=0.1, max_tokens=1000):
-            result_text += chunk
-
-        # Parse the response
-        new_goals = _extract_json(result_text)
-        if not isinstance(new_goals, list):
-            return
-
-        for g in new_goals:
-            if not isinstance(g, dict) or not g.get('description'):
-                continue
-            # Final dedup check
-            if g['description'].lower() in existing_descriptions:
-                continue
-            mgr.add_goal(
-                description=g['description'],
-                category=g.get('category', 'event'),
-                priority=int(g.get('priority', 1)),
-                target_date=g.get('target_date'),
-                progress_notes=g.get('progress_notes', []),
-            )
-            print(f"✅ New goal saved: {g['description']}")
-
-    def _extract_and_update_goals(self) -> None:
-        """
-        After saving a plan, scan the conversation for any goals the athlete
-        mentioned completing, abandoning, or pausing, and update their status
-        in coaching_notes.json accordingly.
-        """
-        from utils.coaching_notes import CoachingNotesManager
+    def _extract_and_save_goals(self) -> None:
+        """Prompt-only flow (no tools): pull NEW goals the athlete stated into the goals table."""
+        from src.storage import goals as goals_store
 
         conversation = _messages_to_text(self.messages)
-
-        # Append workout titles and athlete comments from this week's data
-        weekly_workouts = (self._weekly_summary or {}).get('qualitative_feedback', [])
-        if weekly_workouts:
-            workout_lines = []
-            for w in weekly_workouts:
-                title = w.get('title', '')
-                comment = (w.get('feedback') or {}).get('athlete_comments', '')
-                if title or comment:
-                    workout_lines.append(f"- {title}" + (f": {comment}" if comment else ""))
-            if workout_lines:
-                conversation += "\n\n## Workout Log This Week\n" + "\n".join(workout_lines)
-
         if not conversation.strip():
             return
+        existing = goals_store.list_goals(include_inactive=True, db_path=self._db.db_path)
+        existing_descriptions = [g["description"].lower() for g in existing]
 
-        mgr = CoachingNotesManager()
-        active_goals = [g for g in mgr.goals if g.status == 'active']
-        if not active_goals:
+        prompt = f"""Identify NEW training goals or events the athlete explicitly stated in this conversation.
+
+## Existing goals (do NOT re-add)
+{chr(10).join(f"- {d}" for d in existing_descriptions) or "(none)"}
+
+## Conversation
+{conversation}
+
+Return ONLY a JSON array (possibly empty) of objects:
+{{"description": "...", "category": "event|power|endurance|technical|consistency", "priority": 1-3,
+  "target_date": "YYYY-MM-DD or null", "note": "detail the athlete gave"}}"""
+        text, _ = self._coach._call_api(prompt, temperature=0.1, max_tokens=1500)
+        new_goals = _extract_json_array(text)
+        if not isinstance(new_goals, list):
             return
+        for g in new_goals:
+            if isinstance(g, dict) and g.get("description") and g["description"].lower() not in existing_descriptions:
+                goals_store.add_goal(g["description"], g.get("category", "event"), int(g.get("priority", 2)),
+                                     g.get("target_date"), g.get("note"), self._db.db_path)
 
-        goal_list = "\n".join(f"- {g.description}" for g in active_goals)
+    def _extract_and_update_goals(self) -> None:
+        """Prompt-only flow (no tools): apply completed/abandoned/paused statements to goals."""
+        from src.storage import goals as goals_store
 
-        update_prompt = f"""You are reviewing a coaching conversation to detect whether the athlete reported completing, abandoning, or pausing any of their existing training goals.
+        active = goals_store.list_goals(db_path=self._db.db_path)
+        conversation = _messages_to_text(self.messages)
+        if not active or not conversation.strip():
+            return
+        goal_list = "\n".join(f"- #{g['id']}: {g['description']}" for g in active)
+        prompt = f"""Did the athlete EXPLICITLY say they completed, abandoned or paused any of these goals?
 
-## Active Goals
+## Active goals
 {goal_list}
 
 ## Conversation
 {conversation}
 
-## Instructions
-For each active goal above, determine if the athlete EXPLICITLY stated they:
-- completed / finished / did / achieved it  → status: "completed"
-- gave up on it / no longer pursuing it     → status: "abandoned"
-- are putting it on hold                    → status: "paused"
-
-Only include goals where there is a clear, explicit statement from the athlete. Do NOT infer from vague hints.
-
-Return a JSON array of updates. Each object:
-{{
-  "description_match": "partial or full text that matches the goal description",
-  "new_status": "completed|abandoned|paused",
-  "progress_note": "brief quote or summary of what the athlete said"
-}}
-
-If no status changes were mentioned, return an empty array: []
-Return ONLY the JSON array, no other text."""
-
-        result_text = ""
-        for chunk in self._coach._call_api_streaming(update_prompt, temperature=0.1, max_tokens=1500):
-            result_text += chunk
-
-        # Strip markdown code fences, then try to parse as JSON array or object
-        import re as _re
-        _stripped = _re.sub(r"```(?:json)?\s*", "", result_text).replace("```", "").strip()
-        try:
-            updates = json.loads(_stripped)
-        except json.JSONDecodeError:
-            updates = _extract_json(result_text)
+Return ONLY a JSON array (possibly empty) of {{"goal_id": <id>, "new_status": "completed|abandoned|paused",
+"note": "what they said"}}. Do not infer from vague hints."""
+        text, _ = self._coach._call_api(prompt, temperature=0.1, max_tokens=1500)
+        updates = _extract_json_array(text)
         if not isinstance(updates, list):
             return
-
+        valid_ids = {g["id"] for g in active}
         for u in updates:
-            if not isinstance(u, dict) or not u.get('description_match') or not u.get('new_status'):
-                continue
-            updated = mgr.update_goal_status(
-                goal_description=u['description_match'],
-                new_status=u['new_status'],
-                progress_note=u.get('progress_note', ''),
-            )
-            if updated:
-                print(f"✅ Goal status updated → {u['new_status']}: {u['description_match']}")
-            else:
-                print(f"⚠️  Goal update: no match found for '{u['description_match']}'")
+            if isinstance(u, dict) and u.get("goal_id") in valid_ids and u.get("new_status") in goals_store.VALID_STATUSES:
+                goals_store.update_goal(u["goal_id"], status=u["new_status"], progress_note=u.get("note"),
+                                        db_path=self._db.db_path)
 
     def persist(self) -> None:
         """Write current session state to the database."""
@@ -685,6 +715,20 @@ Return ONLY a JSON object with a single \"days\" array containing exactly those 
 Match the exact same format as the existing days above.
 No markdown, no extra text — pure JSON:
 {{\"days\": [<the missing day objects here>]}}"""
+
+
+def _extract_json_array(text: str) -> Optional[List]:
+    """Extract a JSON array (``_extract_json`` only finds objects)."""
+    import re
+    stripped = re.sub(r"```(?:json)?", "", text).replace("```", "").strip()
+    start = stripped.find("[")
+    if start == -1:
+        return None
+    try:
+        value, _ = json.JSONDecoder().raw_decode(stripped, start)
+    except json.JSONDecodeError:
+        return None
+    return value if isinstance(value, list) else None
 
 
 def _extract_json(text: str) -> Optional[Dict]:
