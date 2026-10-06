@@ -71,6 +71,11 @@ then `docker compose up -d`.
 
 ## Keeping Docker stable on Windows
 
+The 22:30 `FitnessTrackerNightlySync` task runs `scripts\beelink_nightly_sync.ps1`: pulls the
+last 3 days from TrainingPeaks, links ride files and analyzes new workouts against the Review
+step's suggestion (nothing is confirmed; that's still the Sunday review). Log:
+`logs\nightly_sync.log`. Run by hand: `schtasks /run /tn FitnessTrackerNightlySync`.
+
 The 05:00 `ZwiftSyncToMac` task runs `scripts\beelink_sync_zwift_to_mac.ps1` (shipped by every
 deploy). It regenerates today's workout with fresh news inside the container, copies that plan
 week's `Week_<n>` folder out of the volume and scp's it to the Mac. Log:
@@ -81,7 +86,8 @@ Already in place: Docker Desktop auto-start tasks, `restart: unless-stopped`, he
 (Streamlit and the web app wait for a healthy API), container log rotation (10 MB × 3),
 image pruning after each deploy, sleep disabled, and the network watchdog task.
 
-Recommended WSL settings (`C:\Users\rakej\.wslconfig`). The machine has 20 GB RAM and 16
+WSL settings (`C:\Users\rakej\.wslconfig`, applied 2026-10-06; previous file kept as
+`.wslconfig.bak-20261006`). The machine has 20 GB RAM and 16
 cores; a 2 GB cap leaves Docker very little headroom once Chromium runs a TrainingPeaks sync:
 
 ```ini
@@ -95,7 +101,9 @@ vmIdleTimeout=60000
 autoMemoryReclaim=gradual   # returns idle memory to Windows (the original vmmem problem)
 ```
 
-Apply with `wsl --shutdown` (Docker Desktop restarts; the containers come back on their own).
+To apply changes: quit Docker Desktop, `wsl --shutdown`, then `schtasks /run /tn "Start Docker Desktop"`
+(the `DockerDesktopAutoStart` task's background mode doesn't start it over SSH). The containers
+come back on their own.
 
 If the stack is down: start Docker Desktop, wait for it to say "running", then
 `docker compose up -d`. Check `GET /health`. The Streamlit sidebar shows any recorded
