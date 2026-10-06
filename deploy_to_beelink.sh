@@ -96,6 +96,7 @@ scp -q docker-compose.yml "$BEELINK:$REMOTE_DIR_FWD/docker-compose.yml"
 scp -q docker-compose.legacy.yml "$BEELINK:$REMOTE_DIR_FWD/docker-compose.legacy.yml"
 # The 05:00 ZwiftSyncToMac task runs this from the Beelink's disk.
 scp -q scripts/beelink_sync_zwift_to_mac.ps1 "$BEELINK:$REMOTE_DIR_FWD/scripts/beelink_sync_zwift_to_mac.ps1"
+scp -q scripts/beelink_nightly_sync.ps1 "$BEELINK:$REMOTE_DIR_FWD/scripts/beelink_nightly_sync.ps1"
 if [[ ${#ENV_KEYS[@]} -gt 0 ]]; then
   for key in "${ENV_KEYS[@]}"; do
     grep -q "^$key=" .env || { echo "❌ $key not found in local .env"; exit 1; }

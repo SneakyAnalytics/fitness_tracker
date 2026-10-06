@@ -42,8 +42,12 @@ def _load_workout(db: WorkoutDatabase, workout_id: int) -> Optional[Dict[str, An
 
 
 def reanalyze_workout(workout_id: int, db: Optional[WorkoutDatabase] = None,
-                      analyzer=None) -> Optional[Dict[str, Any]]:
-    """Analyze one workout against its manual match and persist the result."""
+                      analyzer=None, suggested_plan_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+    """Analyze one workout against its manual match and persist the result.
+
+    `suggested_plan_id` is used only when the athlete hasn't confirmed a match
+    yet (nightly runs); a confirmed match always wins.
+    """
     from src.utils.fit_file_analyzer import FitFileAnalyzer  # heavy import (Gemini SDK)
 
     db = db or WorkoutDatabase()
@@ -56,6 +60,8 @@ def reanalyze_workout(workout_id: int, db: Optional[WorkoutDatabase] = None,
     fit_data["workout_date"] = workout["day"]
 
     match = db.get_workout_match(workout_id)
+    if match["match_source"] != "manual" and suggested_plan_id:
+        match = {"proposed_workout_id": suggested_plan_id, "proposed_workout_name": None, "match_source": None}
     ftp = (db.get_athlete_settings() or {}).get("ftp")
     analyzer = analyzer or FitFileAnalyzer(use_dynamic_models=True)
     analysis = analyzer.analyze_workout_from_parsed_data(
