@@ -81,3 +81,11 @@ Week_*/
 
 # Large data files (adjust as needed)
 data/trainingpeaks_downloads/*.zip
+
+# React app has its own image (frontend/Dockerfile)
+frontend/
+
+# Runtime data, logs and local tooling never go into images
+data/
+logs/
+frontend/node_modules/
