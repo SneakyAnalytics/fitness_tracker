@@ -147,15 +147,6 @@ To confirm what will appear in Zwift for today:
 docker exec fitness-tracker-api python /app/src/utils/preview_news_today.py
 ```
 
-## Daily Email (Links to Stories)
-
-If `EMAIL_TO` is configured in `.env`, the sync script sends a short email with
-links to the top stories used that morning:
-
-```
-python C:\Users\rakej\fitness_tracker\scripts\email_daily_news.py
-```
-
 ## Local Summary Fallback (Ollama)
 
 If Gemini is rate-limited, summaries fall back to a local Ollama model.

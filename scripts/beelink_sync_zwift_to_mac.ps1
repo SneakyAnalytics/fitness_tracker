@@ -2,7 +2,6 @@
 #
 # 1. Regenerate today's Zwift workout with fresh news text (inside the container).
 # 2. Copy this plan week's Week_<n> folder out of the Docker volume and scp it to the Mac.
-# 3. Optionally email the daily news (inside the container).
 #
 # Everything runs through the container: the Beelink has no host Python, and the
 # Zwift files live in the fitness_tracker_shareable volume (not the host folder).
@@ -45,11 +44,6 @@ ssh -o BatchMode=yes -o ConnectTimeout=15 "${MacUser}@${MacHost}" "mkdir -p '$Ma
 $src = ("$staging\$week") -replace '\\', '/'
 scp -r -o BatchMode=yes -o ConnectTimeout=15 "$src" "${MacUser}@${MacHost}:$MacZwiftDir/" 2>&1 | ForEach-Object { Add-Content $log "  scp: $_" }
 if ($LASTEXITCODE -eq 0) { Log "Synced $week ($((Get-ChildItem "$staging\$week").Count) files)" }
-else { Log "ERROR: scp failed (exit $LASTEXITCODE) - is the Mac awake and on Tailscale?"; $failed = $true }
-
-# Daily news email only if SMTP is configured in .env (SMTP_HOST etc.).
-if ($env:EMAIL_TO -and $env:SMTP_HOST) {
-    docker exec $container python scripts/email_daily_news.py 2>&1 | ForEach-Object { Add-Content $log "  $_" }
-}
+else { Log "ERROR: scp failed (exit $LASTEXITCODE) - Mac awake and on Tailscale? Remote Login has Full Disk Access?"; $failed = $true }
 
 if ($failed) { exit 1 }
