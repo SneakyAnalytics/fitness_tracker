@@ -24,12 +24,11 @@ class FitFileAnalyzer:
     
     # Static fallback models (used if dynamic discovery fails)
     FALLBACK_MODELS = [
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
         'gemini-1.5-flash-002',
-        'gemini-1.5-flash',
-        'gemini-1.5-flash-8b',
-        'gemini-2.0-flash-exp',
+        'gemini-2.5-pro',
         'gemini-1.5-pro',
-        'gemini-pro',
     ]
     
     def __init__(self, gemini_api_key: Optional[str] = None, use_dynamic_models: bool = True):
@@ -165,7 +164,8 @@ class FitFileAnalyzer:
     
     def analyze_workout_from_parsed_data(self, parsed_data: Dict[str, Any], 
                                         athlete_ftp: Optional[float] = None,
-                                        athlete_notes: Optional[str] = None) -> Optional[Dict[str, Any]]:
+                                        athlete_notes: Optional[str] = None,
+                                        matched_proposed_workout_name: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """
         Analyze a workout from already-parsed FIT data (useful when database stores JSON)
         
@@ -173,6 +173,7 @@ class FitFileAnalyzer:
             parsed_data: Already-parsed workout data (dict from JSON)
             athlete_ftp: Optional FTP value for power calculations  
             athlete_notes: Optional notes from the athlete about the workout
+            matched_proposed_workout_name: Optional manual match to specific proposed workout by name
             
         Returns:
             Dictionary containing parsed metrics, AI analysis, and detected personal bests
@@ -186,7 +187,7 @@ class FitFileAnalyzer:
             parsed_data['duration_seconds'] = parsed_data['duration_hours'] * 3600
         
         # Ensure metrics.duration is in minutes if present
-        if 'metrics' not in parsed_data:
+        if not parsed_data.get('metrics'):
             parsed_data['metrics'] = {}
         if 'duration' not in parsed_data['metrics'] and 'duration_hours' in parsed_data:
             parsed_data['metrics']['duration'] = parsed_data['duration_hours'] * 60
@@ -198,13 +199,21 @@ class FitFileAnalyzer:
         if csv_tss and csv_tss > 0:
             # Use CSV TSS - most reliable
             print(f"✓ Using CSV TSS: {csv_tss:.1f}")
-            if 'power_metrics' not in parsed_data:
-                parsed_data['power_metrics'] = {}
-            parsed_data['power_metrics']['tss'] = csv_tss
-            parsed_data['metrics']['tss'] = csv_tss
+            _pm = parsed_data.get('power_metrics')
+            if not isinstance(_pm, dict):
+                print(f"DEBUG: power_metrics was {type(_pm).__name__}={_pm!r}, resetting to {{}}")
+                _pm = {}
+            _pm['tss'] = csv_tss
+            parsed_data['power_metrics'] = _pm
+
+            _m = parsed_data.get('metrics')
+            if not isinstance(_m, dict):
+                _m = {}
+            _m['tss'] = csv_tss
+            parsed_data['metrics'] = _m
         else:
             # Fall back to FIT TSS only if reasonable (> 10)
-            power_metrics = parsed_data.get('power_metrics', {})
+            power_metrics = parsed_data.get('power_metrics') or {}
             fit_tss = power_metrics.get('tss', 0)
             
             if fit_tss > 10:
@@ -217,7 +226,8 @@ class FitFileAnalyzer:
                 parsed_data['metrics']['tss'] = None
         
         # Detect sport type
-        sport = parsed_data.get('sport', 'cycling').lower()
+        sport_raw = parsed_data.get('sport') or parsed_data.get('type') or parsed_data.get('workout_type') or 'cycling'
+        sport = str(sport_raw).lower()
         is_cycling = sport in ['cycling', 'bike', 'biking']
         
         # Non-cycling workouts get simpler analysis (no power metrics, just basic summary)
@@ -226,8 +236,9 @@ class FitFileAnalyzer:
             # Create basic analysis for non-cycling
             duration_hours = parsed_data.get('duration_hours', 0)
             distance = parsed_data.get('distance_km', 0)
-            avg_hr = parsed_data.get('heart_rate_data', {}).get('average_hr', 0)
-            max_hr = parsed_data.get('heart_rate_data', {}).get('max_hr', 0)
+            heart_rate_data = parsed_data.get('heart_rate_data') or {}
+            avg_hr = heart_rate_data.get('average_hr', 0)
+            max_hr = heart_rate_data.get('max_hr', 0)
             
             ai_analysis = f"""### {sport.title()} Workout Summary
 
@@ -268,8 +279,23 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
             else:
                 workout_date = datetime.now().strftime('%Y-%m-%d')
         
-        # Try to find best matching proposed workout (allows for timezone issues)
-        proposed_workout = self._find_best_matching_workout(parsed_data, workout_date)
+        # Try to find proposed workout
+        # Priority 1: Use manually matched workout name if provided
+        # Priority 2: Fall back to date-based matching (for legacy/auto-matched workouts)
+        proposed_workout = None
+        if matched_proposed_workout_name:
+            print(f"🎯 Using manually matched workout: {matched_proposed_workout_name}")
+            proposed_workout = self._load_proposed_workout_by_name(matched_proposed_workout_name, workout_date)
+            if proposed_workout:
+                print(f"✅ Loaded manual match: {proposed_workout.get('name')} (date: {proposed_workout.get('date')})")
+            else:
+                print(f"⚠️ Manual match '{matched_proposed_workout_name}' not found in database, falling back to date lookup")
+        
+        # Fall back to date-based matching if no manual match or manual match not found
+        if not proposed_workout:
+            proposed_workout = self._find_best_matching_workout(parsed_data, workout_date)
+            if proposed_workout:
+                print(f"📅 Using date-based match: {proposed_workout.get('name')} for {workout_date}")
         
         # Continue with analysis even if no proposed workout found
         # (historical workouts may not have proposed workouts)
@@ -387,6 +413,76 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
                 peak_efforts[label] = effort_data
         
         return peak_efforts
+    
+    def _load_proposed_workout_by_name(self, workout_name: str, workout_date: str) -> Optional[Dict[str, Any]]:
+        """
+        Load a proposed workout by exact name match.
+        Used when user manually matches a workout to specific proposed workout.
+        
+        Args:
+            workout_name: Exact name of proposed workout to load
+            workout_date: Date to help narrow search (week context)
+            
+        Returns:
+            Proposed workout dict or None
+        """
+        from pathlib import Path
+        import json
+        import sqlite3
+        from datetime import timedelta
+        
+        try:
+            # Connect to database
+            db_path = Path(__file__).parent.parent.parent / 'data' / 'fitness_data.db'
+            
+            # Try to find the workout by name within reasonable date range
+            # (±7 days to handle week boundaries and rescheduling)
+            conn = sqlite3.connect(str(db_path))
+            c = conn.cursor()
+            
+            # Calculate date range (±7 days)
+            workout_dt = datetime.strptime(workout_date, '%Y-%m-%d')
+            start_date = (workout_dt - timedelta(days=7)).strftime('%Y-%m-%d')
+            end_date = (workout_dt + timedelta(days=7)).strftime('%Y-%m-%d')
+            
+            c.execute('''
+                SELECT 
+                    pw.id, pw.name, pw.workout_type as type, 
+                    pw.planned_duration as plannedDuration,
+                    pw.planned_tss_min, pw.planned_tss_max,
+                    pw.target_rpe_min, pw.target_rpe_max,
+                    pw.description, pw.notes, pw.intervals,
+                    dp.date
+                FROM proposed_workouts pw
+                JOIN daily_plans dp ON pw.daily_plan_id = dp.id
+                WHERE pw.name = ?
+                AND dp.date BETWEEN ? AND ?
+                ORDER BY ABS(JULIANDAY(dp.date) - JULIANDAY(?)) ASC
+                LIMIT 1
+            ''', (workout_name, start_date, end_date, workout_date))
+            
+            row = c.fetchone()
+            conn.close()
+            
+            if row:
+                intervals = json.loads(row[10]) if row[10] else []
+                return {
+                    'id': row[0],
+                    'name': row[1],
+                    'type': row[2],
+                    'plannedDuration': row[3],
+                    'plannedTSS': {'min': row[4], 'max': row[5]},
+                    'targetRPE': {'min': row[6], 'max': row[7]},
+                    'description': row[8],
+                    'notes': row[9],
+                    'intervals': intervals,
+                    'date': row[11]
+                }
+            return None
+            
+        except Exception as e:
+            print(f"Error loading proposed workout by name: {e}")
+            return None
     
     def _load_proposed_workout(self, workout_date: str) -> Optional[Dict[str, Any]]:
         """
@@ -542,9 +638,9 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
         
         try:
             # Extract actual workout characteristics
-            actual_tss = parsed_data.get('power_metrics', {}).get('tss', 0)
+            actual_tss = (parsed_data.get('power_metrics') or {}).get('tss', 0)
             actual_duration_min = parsed_data.get('duration_seconds', 0) / 60
-            actual_np = parsed_data.get('power_metrics', {}).get('normalized_power', 0)
+            actual_np = (parsed_data.get('power_metrics') or {}).get('normalized_power', 0)
             
             if not actual_tss or not actual_duration_min:
                 print("⚠️  Missing TSS or duration - cannot match workout")
@@ -785,8 +881,8 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
         if not proposed_workout or 'intervals' not in proposed_workout:
             return ""
         
-        power_metrics = parsed_data.get('power_metrics', {})
-        hr_metrics = parsed_data.get('hr_metrics', {})
+        power_metrics = parsed_data.get('power_metrics') or {}
+        hr_metrics = parsed_data.get('hr_metrics') or {}
         time_series = parsed_data.get('time_series', {})
         
         power_series = power_metrics.get('power_series', [])
@@ -871,7 +967,202 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
         if analysis_lines:
             return "\n📊 INTERVAL-BY-INTERVAL EXECUTION:\n" + "".join(analysis_lines) + "\n"
         return ""
-    
+
+    def _extract_erg_interval_actuals(self, proposed_workout: Dict, parsed_data: Dict, ftp: float) -> Optional[str]:
+        """
+        For ERG/structured workouts, compute per-interval actual vs target power.
+
+        Three-tier alignment strategy (most to least accurate):
+
+        1. FIT lap messages — Zwift stamps a lap at every ZWO interval boundary and
+           pre-computes avg_power per lap. If the lap count matches the ZWO interval
+           count, use lap avg_power directly (no slicing needed, exact alignment).
+
+        2. Time-series alignment — use the `time_series.timestamps` array (wall-clock
+           per record) to find exact sample indices for each ZWO time window.
+
+        3. Sample-rate fallback — estimate 1 sample ≈ 1 sec adjusted by the ratio
+           of FIT recording samples to total recorded duration.  Used when timestamps
+           are unavailable; approximate but adequate for 1-Hz Zwift recordings.
+
+        Note: the ZWO 'duration' field is always in SECONDS.
+        """
+        intervals = proposed_workout.get('intervals', [])
+        if not intervals:
+            return None
+
+        power_metrics = parsed_data.get('power_metrics') or {}
+        power_series = power_metrics.get('power_series', [])
+        if not power_series or len(power_series) < 30:
+            return None
+
+        lines = ["\n\n📊 ERG INTERVAL EXECUTION (ZWO prescribed vs FIT file actuals):\n"]
+        work_count = 0
+        compliance_symbols = []
+
+        # ── Tier 1: Use FIT lap data ──────────────────────────────────────────
+        laps = parsed_data.get('laps', [])
+        # Filter laps that have avg_power set (warmup laps may be None)
+        useful_laps = [lap for lap in laps if lap.get('avg_power') is not None]
+        use_laps = len(useful_laps) == len(intervals)
+        if useful_laps and not use_laps:
+            # Partial match — still use if counts are close (off-by-one from auto-laps)
+            use_laps = abs(len(useful_laps) - len(intervals)) <= 1
+        if use_laps:
+            lines.append(f"  Source: FIT lap markers ({len(useful_laps)} laps matched to {len(intervals)} ZWO intervals)\n\n")
+
+        # ── Tier 2 / 3 prep: build elapsed-second index for time-series slicing ─
+        # time_series.timestamps has one ISO string per FIT record
+        ts_list = parsed_data.get('time_series', {}).get('timestamps', [])
+        use_timestamps = len(ts_list) > 30
+        if use_timestamps:
+            from datetime import datetime as _dt
+            t0 = _dt.fromisoformat(ts_list[0])
+            elapsed_sec = [(_dt.fromisoformat(t) - t0).total_seconds() for t in ts_list]
+            # power_series (filtered) length may differ from ts_list length.
+            # Build a time→power lookup using the raw power from time_series which
+            # preserves ALL samples (including the pre-ride zeros) at the correct times.
+            ts_power_raw = parsed_data.get('time_series', {}).get('power', [])
+            has_ts_power = len(ts_power_raw) == len(ts_list)
+            lines.append(f"  Source: FIT time-series alignment ({len(ts_list)} samples over {elapsed_sec[-1]:.0f}s)\n\n")
+        else:
+            # Tier 3: approximate sample rate
+            fit_duration = parsed_data.get('duration_seconds', len(power_series))
+            samples_per_sec = len(power_series) / fit_duration if fit_duration > 0 else 1.0
+            # Estimate pre-ride offset: ZWO total vs FIT total; workout always ends
+            # at cooldown finish, extra recording is at the start
+            zwo_total = sum(int(iv.get('duration', 0)) for iv in intervals)
+            pre_offset_sec = max(0, fit_duration - zwo_total)
+            pre_offset_samples = int(pre_offset_sec * samples_per_sec)
+            lines.append(
+                f"  Source: sample-rate estimate ({len(power_series)} samples, "
+                f"rate≈{samples_per_sec:.3f}/s, pre-ride offset≈{pre_offset_sec:.0f}s)\n\n"
+            )
+
+        cursor_sec = 0.0
+        lap_idx = 0
+
+        for i, interval in enumerate(intervals):
+            duration_sec = int(interval.get('duration', 0))
+            if duration_sec <= 0:
+                continue
+
+            name = interval.get('name', f'Interval {i+1}')
+            power_target = interval.get('powerTarget', {})
+
+            # Resolve target watts
+            target_watts = None
+            target_str = "—"
+            if power_target:
+                if power_target.get('type') == 'range':
+                    lo = float(power_target.get('min', 0))
+                    hi = float(power_target.get('max', 0))
+                    target_watts = (lo + hi) / 2
+                    target_str = f"{lo:.0f}-{hi:.0f}W"
+                elif 'start' in power_target and 'end' in power_target:
+                    s, e = power_target['start'], power_target['end']
+                    if s.get('type') == 'percent_ftp':
+                        s_w = round(s.get('value', 0) / 100 * ftp)
+                        e_w = round(e.get('value', 0) / 100 * ftp)
+                        target_watts = (s_w + e_w) / 2
+                        target_str = f"{s.get('value')}→{e.get('value')}% FTP ({s_w}→{e_w}W ramp)"
+                    else:
+                        sv, ev = float(s.get('value', 0)), float(e.get('value', 0))
+                        target_watts = (sv + ev) / 2
+                        target_str = f"{sv:.0f}→{ev:.0f}W ramp"
+                elif power_target.get('type') == 'percent_ftp':
+                    pct = float(power_target.get('value', 0))
+                    target_watts = round(pct / 100 * ftp)
+                    target_str = f"{pct:.0f}% FTP ({target_watts}W)"
+                elif power_target.get('type') == 'watts':
+                    target_watts = float(power_target.get('value', 0)) or None
+                    target_str = f"{int(target_watts)}W" if target_watts else "—"
+                else:
+                    v = power_target.get('value')
+                    if v is not None:
+                        target_watts = float(v)
+                        target_str = f"{int(target_watts)}W"
+
+            # Classify interval label
+            name_lower = name.lower()
+            if any(x in name_lower for x in ['warmup', 'warm up', 'warm-up']):
+                label = "WARMUP"
+            elif any(x in name_lower for x in ['cooldown', 'cool down', 'cool-down']):
+                label = "COOLDOWN"
+            elif any(x in name_lower for x in ['recovery', 'rest', 'easy']):
+                label = "RECOVERY"
+            else:
+                label = "WORK"
+                work_count += 1
+
+            mins = duration_sec // 60
+            secs_rem = duration_sec % 60
+            actual_avg = None
+
+            # ── Get actual power by tier ──────────────────────────────────────
+            if use_laps and lap_idx < len(useful_laps):
+                lap = useful_laps[lap_idx]
+                actual_avg = float(lap['avg_power'])
+                lap_idx += 1
+
+            elif use_timestamps and has_ts_power:
+                # Slice by actual elapsed time
+                import bisect
+                start_idx = bisect.bisect_left(elapsed_sec, cursor_sec)
+                end_idx   = bisect.bisect_left(elapsed_sec, cursor_sec + duration_sec)
+                segment   = ts_power_raw[start_idx:end_idx]
+                valid = [p for p in segment if p and p > 0]
+                if valid:
+                    actual_avg = sum(valid) / len(valid)
+
+            elif use_timestamps:
+                # timestamps available but power array length mismatch; use scaled indices
+                import bisect
+                start_idx = bisect.bisect_left(elapsed_sec, cursor_sec)
+                end_idx   = bisect.bisect_left(elapsed_sec, cursor_sec + duration_sec)
+                scale = len(power_series) / len(ts_list)
+                ps_start = int(start_idx * scale)
+                ps_end   = int(end_idx * scale)
+                segment  = power_series[ps_start:ps_end]
+                valid = [p for p in segment if p and p > 0]
+                if valid:
+                    actual_avg = sum(valid) / len(valid)
+
+            else:
+                # Tier 3: sample-rate fallback with pre-ride offset correction
+                ps_start = pre_offset_samples + int(cursor_sec * samples_per_sec)
+                ps_end   = pre_offset_samples + int((cursor_sec + duration_sec) * samples_per_sec)
+                segment  = power_series[ps_start:min(ps_end, len(power_series))]
+                valid = [p for p in segment if p and p > 0]
+                if valid:
+                    actual_avg = sum(valid) / len(valid)
+
+            cursor_sec += duration_sec
+
+            # ── Format output line ────────────────────────────────────────────
+            if actual_avg is not None:
+                if target_watts and target_watts > 0:
+                    deviation = (actual_avg - target_watts) / target_watts * 100
+                    status = "✓" if abs(deviation) <= 5 else ("~" if abs(deviation) <= 10 else ("✗LOW" if deviation < 0 else "↑HIGH"))
+                    if label not in ('WARMUP', 'COOLDOWN'):
+                        compliance_symbols.append(status)
+                    line = (f"  {i+1:2d}. [{label}] {name}: {mins}:{secs_rem:02d}"
+                            f" | Target: {target_str} | Actual: {actual_avg:.0f}W | {status} ({deviation:+.0f}%)\n")
+                else:
+                    line = (f"  {i+1:2d}. [{label}] {name}: {mins}:{secs_rem:02d}"
+                            f" | Target: {target_str} | Actual: {actual_avg:.0f}W\n")
+            else:
+                line = (f"  {i+1:2d}. [{label}] {name}: {mins}:{secs_rem:02d}"
+                        f" | Target: {target_str} | no power data\n")
+
+            lines.append(line)
+
+        lines.append(f"\n  Work intervals executed: {work_count}\n")
+        lines.append("  Compliance key: ✓=within 5%  ~=within 10%  ✗LOW=under  ↑HIGH=over\n")
+        if compliance_symbols:
+            lines.append(f"  Work interval compliance: {' '.join(compliance_symbols)}\n")
+        return "".join(lines)
+
     def _generate_ai_analysis(self, parsed_data: Dict[str, Any], 
                              peak_efforts: Dict[str, Dict[str, float]],
                              athlete_notes: Optional[str] = None,
@@ -887,8 +1178,8 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
             intervals_data: Optional detected intervals data
             proposed_workout: Optional matched proposed workout to use in prompt
         """
-        power_metrics = parsed_data.get('power_metrics', {})
-        hr_metrics = parsed_data.get('hr_metrics', {})
+        power_metrics = parsed_data.get('power_metrics') or {}
+        hr_metrics = parsed_data.get('hr_metrics') or {}
         duration_hours = parsed_data.get('duration_hours', 0)
         
         # Format peak efforts for prompt
@@ -945,26 +1236,76 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
                 'work': 'Work'
             }
 
+            # Separate warmup/cooldown from work intervals for clearer analysis
+            warmup_intervals = []
+            work_intervals = []
+            cooldown_intervals = []
+            
             for interval in intervals_data['intervals']:
-                mins = interval['duration_sec'] // 60
-                secs = interval['duration_sec'] % 60
                 raw_type = interval['type']
-                interval_type = label_map.get(raw_type, raw_type.replace('_', ' ').title())
-                
-                detected_intervals_text += (
-                    f"  • {interval_type}: {mins}:{secs:02d} @ "
-                    f"{int(interval['avg_power'])}W ({interval['intensity_zone']}, "
-                    f"{interval['percent_ftp']:.0f}% FTP)"
-                )
-                
-                if interval.get('avg_hr'):
-                    detected_intervals_text += f", HR: {int(interval['avg_hr'])}bpm"
-                
+                if raw_type == 'warmup':
+                    warmup_intervals.append(interval)
+                elif raw_type == 'cooldown':
+                    cooldown_intervals.append(interval)
+                else:
+                    work_intervals.append(interval)
+            
+            # Format warmup
+            if warmup_intervals:
+                detected_intervals_text += "WARMUP:\n"
+                for interval in warmup_intervals:
+                    mins = interval['duration_sec'] // 60
+                    secs = interval['duration_sec'] % 60
+                    detected_intervals_text += (
+                        f"  • Warmup: {mins}:{secs:02d} @ "
+                        f"{int(interval['avg_power'])}W ({interval['intensity_zone']}, "
+                        f"{interval['percent_ftp']:.0f}% FTP)"
+                    )
+                    if interval.get('avg_hr'):
+                        detected_intervals_text += f", HR: {int(interval['avg_hr'])}bpm"
+                    detected_intervals_text += "\n"
+                detected_intervals_text += "\n"
+            
+            # Format work intervals (these are what should be analyzed for execution quality)
+            if work_intervals:
+                detected_intervals_text += "MAIN WORKOUT INTERVALS (analyze these for execution quality):\n"
+                for interval in work_intervals:
+                    mins = interval['duration_sec'] // 60
+                    secs = interval['duration_sec'] % 60
+                    raw_type = interval['type']
+                    interval_type = label_map.get(raw_type, raw_type.replace('_', ' ').title())
+                    
+                    detected_intervals_text += (
+                        f"  • {interval_type}: {mins}:{secs:02d} @ "
+                        f"{int(interval['avg_power'])}W ({interval['intensity_zone']}, "
+                        f"{interval['percent_ftp']:.0f}% FTP)"
+                    )
+                    
+                    if interval.get('avg_hr'):
+                        detected_intervals_text += f", HR: {int(interval['avg_hr'])}bpm"
+                    
+                    detected_intervals_text += "\n"
+                detected_intervals_text += "\n"
+            
+            # Format cooldown
+            if cooldown_intervals:
+                detected_intervals_text += "COOLDOWN:\n"
+                for interval in cooldown_intervals:
+                    mins = interval['duration_sec'] // 60
+                    secs = interval['duration_sec'] % 60
+                    detected_intervals_text += (
+                        f"  • Cooldown: {mins}:{secs:02d} @ "
+                        f"{int(interval['avg_power'])}W ({interval['intensity_zone']}, "
+                        f"{interval['percent_ftp']:.0f}% FTP)"
+                    )
+                    if interval.get('avg_hr'):
+                        detected_intervals_text += f", HR: {int(interval['avg_hr'])}bpm"
+                    detected_intervals_text += "\n"
                 detected_intervals_text += "\n"
             
             # Add summary
             summary = intervals_data.get('summary', {})
-            detected_intervals_text += f"\nSummary: {summary.get('work_intervals', 0)} work intervals, "
+            detected_intervals_text += f"Summary: {summary.get('work_intervals', 0)} work intervals, "
             detected_intervals_text += f"{summary.get('rest_intervals', 0)} recovery periods\n"
         
         # ENHANCED: Analyze trends throughout the workout
@@ -976,7 +1317,37 @@ This {sport} workout has been logged. Detailed AI analysis is currently only ava
         
         if proposed_workout is None and workout_date:
             proposed_workout = self._load_proposed_workout(workout_date)
+            if proposed_workout:
+                print(f"📅 AI Analysis: Loaded proposed workout by date: {proposed_workout.get('name')}")
+
+        # When a proposed workout is available, use the ZWO interval structure to slice
+        # the actual FIT power stream at prescribed boundaries. This gives per-interval
+        # actual vs target power — far more reliable than auto-detection for ERG workouts
+        # where flat-top power prevents the detector from finding segment boundaries.
+        # This overrides auto-detected intervals (which may be missing or wrong for ERG).
+        if proposed_workout and proposed_workout.get('intervals'):
+            ftp_for_calc = float((power_metrics or {}).get('ftp', 300))
+            erg_text = self._extract_erg_interval_actuals(proposed_workout, parsed_data, ftp_for_calc)
+            if erg_text:
+                detected_intervals_text = erg_text
+                print("📊 ERG interval extraction: using ZWO boundaries on FIT power stream")
+
+        # Fallback note when both detector and ERG extraction produced nothing
+        if not detected_intervals_text and proposed_workout:
+            avg_pwr = power_metrics.get('average_power', 0)
+            np_pwr = power_metrics.get('normalized_power', 0)
+            detected_intervals_text = (
+                f"\n\n⚠️  AUTO-DETECTED INTERVALS: None detected.\n"
+                f"This is expected for ERG/smart-trainer workouts where power holds flat within each "
+                f"interval — the interval classifier requires power variation to segment efforts.\n"
+                f"Interpretation: assume the prescribed structure above was executed as written.\n"
+                f"Use Normalized Power ({np_pwr:.0f}W) as the work-effort benchmark; "
+                f"Average Power ({avg_pwr:.0f}W) is lower due to warmup/cooldown dilution.\n"
+            )
+
+
         if proposed_workout:
+            print(f"📊 AI Analysis: Using proposed workout '{proposed_workout.get('name')}' for comparison")
             # Format the intervals from the proposed workout with detailed targets
             intervals_text = ""
             workout_type = "UNKNOWN"
@@ -1115,13 +1486,15 @@ ATHLETE NOTES:
 You must use the AUTO-DETECTED INTERVAL STRUCTURE above as the PRIMARY SOURCE OF TRUTH for what actually happened in the workout. The planned workout is provided only for REFERENCE to understand the athlete's intent.
 
 **IMPORTANT GUIDELINES:**
-1. The detected intervals show ACTUAL execution - trust these classifications (work, recovery, vo2max, threshold, etc.)
-2. Intervals labeled "vo2max" or "threshold" in detected intervals ARE work intervals that were executed
-3. Intervals labeled "recovery" or "rest" ARE actual recovery periods at low power
-4. DO NOT assume the athlete failed to execute work intervals - check the detected intervals first
-5. Power execution within ±5-10% of targets is NORMAL and GOOD (not a failure)
-6. Athletes often modify workouts slightly (shorter warmup, different interval count) - this is acceptable
-7. Focus on the QUALITY of execution for the intervals that were actually performed
+1. Focus your execution analysis on the "MAIN WORKOUT INTERVALS" section - these are the work intervals
+2. Warmup and cooldown intervals are shown for context but should NOT be analyzed as if they were work efforts
+3. Intervals labeled "vo2max" or "threshold" in the MAIN WORKOUT section ARE work intervals that were executed
+4. Intervals labeled "recovery" or "rest" ARE actual recovery periods at low power
+5. DO NOT criticize warmup intervals for being "too easy" - they are supposed to be easy
+6. DO NOT analyze cooldown intervals for work quality - they are meant to be easy
+7. Power execution within ±5-10% of targets is NORMAL and GOOD (not a failure)
+8. Athletes often modify workouts slightly (shorter warmup, different interval count) - this is acceptable
+9. Focus on the QUALITY of execution for the work intervals that were actually performed
 
 **SCORING RUBRIC (Rate 1-10):**
 - 9-10: Exceptional execution, hit all targets, perfect pacing
@@ -1133,30 +1506,31 @@ You must use the AUTO-DETECTED INTERVAL STRUCTURE above as the PRIMARY SOURCE OF
 **ANALYSIS STRUCTURE:**
 
 1. **EXECUTION SCORE (Rate 1-10 using rubric above)**
-   - Based on the AUTO-DETECTED INTERVALS, did athlete complete appropriate work?
+   - Based on the MAIN WORKOUT INTERVALS (not warmup/cooldown), did athlete complete appropriate work?
    - Were work intervals (vo2max, threshold, tempo, etc.) executed at proper intensity?
    - Were recovery intervals truly easy to allow adaptation?
    - Was overall TSS close to planned {proposed_workout.get('plannedTSS', {}).get('min', 'N/A')}-{proposed_workout.get('plannedTSS', {}).get('max', 'N/A')}?
 
 2. **WHAT WENT WELL**
    - Identify 2-3 positive aspects of the execution
-   - Reference specific intervals from the detected intervals that were executed well
+   - Reference specific WORK intervals from the MAIN WORKOUT section that were executed well
    - Mention good pacing, appropriate power delivery, or smart execution decisions
 
 3. **INTERVAL EXECUTION QUALITY**
-   - Review the detected intervals and assess quality
+   - Review the MAIN WORKOUT intervals and assess quality
    - For work intervals: Was power appropriate for the interval type? (e.g., vo2max = Z5/Z6, threshold = Z4)
    - For recovery intervals: Was power actually low (~50-60% FTP) to allow recovery?
    - Comment on progression through the workout (did athlete fade or maintain quality?)
+   - Do NOT analyze warmup or cooldown intervals for execution quality
 
 4. **POWER & HEART RATE RELATIONSHIP**
-   - Did HR respond appropriately to power output?
+   - Did HR respond appropriately to power output during WORK intervals?
    - Any signs of HR drift (HR climbing at steady power = fatigue/heat)?
    - Recovery quality: Did HR drop during rest intervals?
    - Indoor workouts typically run 10-15 bpm higher - factor this in
 
 5. **CONSTRUCTIVE FEEDBACK (1-2 items maximum)**
-   - If there are areas for improvement, mention them constructively
+   - If there are areas for improvement in the MAIN WORKOUT, mention them constructively
    - Focus on actionable insights (pacing, recovery discipline, warmup adequacy)
    - Frame as opportunities for optimization, not failures
 
@@ -1165,7 +1539,7 @@ You must use the AUTO-DETECTED INTERVAL STRUCTURE above as the PRIMARY SOURCE OF
    - Recommended recovery time before next hard session
    - Type of workout that would complement this one well
 
-Be specific and reference actual numbers from the detected intervals. Use an encouraging, professional coaching tone. Response should be 400-600 words."""
+Be specific and reference actual numbers from the MAIN WORKOUT intervals. Use an encouraging, professional coaching tone. Response should be 400-600 words."""
         else:
             # Build the prompt WITHOUT proposed workout - analyze as standalone session
             prompt = f"""You are an expert cycling coach analyzing this workout. Since there was no planned workout for this session, provide an objective analysis of what the athlete accomplished and how their body responded.
@@ -1303,8 +1677,8 @@ Be specific with numbers from the detected intervals and power data. Use an obje
         trend_text = "\n🔍 WORKOUT TRENDS ANALYSIS:\n"
         
         # Get time series data
-        power_series = parsed_data.get('power_metrics', {}).get('power_series', [])
-        hr_series = parsed_data.get('hr_metrics', {}).get('hr_series', [])
+        power_series = (parsed_data.get('power_metrics') or {}).get('power_series', [])
+        hr_series = (parsed_data.get('hr_metrics') or {}).get('hr_series', [])
         time_series = parsed_data.get('time_series', {})
         cadence_series = time_series.get('cadence', []) if time_series else []
         

@@ -1,12 +1,5 @@
 """
-🏆 Achievements & Milestones Tab
-=================================
-Visualize athlete achievements and goals over time.
-
-**NEW: Milestone Visualization Enhancement**
-- Timeline view of categorized achievements
-- Goal tracking with progress
-- Pattern insights display
+� Goals & Power PRs Tab
 """
 
 import streamlit as st
@@ -18,41 +11,20 @@ import pandas as pd
 
 
 def render_achievements_tab():
-    """
-    Render the achievements and milestones visualization tab.
-    
-    Shows:
-    - Achievement timeline (by category)
-    - Active goals with priorities
-    - Multi-week pattern insights
-    - Sentiment trends
-    """
+    """Render goals and power PRs tab."""
     from src.utils.coaching_notes import CoachingNotesManager
-    
-    st.header("🏆 Achievements & Milestones")
-    st.markdown("*Track your progress, celebrate wins, and stay focused on goals*")
-    
-    # Load coaching notes
+
+    st.header("🎯 Goals & Power PRs")
+
     manager = CoachingNotesManager()
-    
-    # Create tabs for different views
-    viz_tabs = st.tabs(["📅 Achievement Timeline", "⚡ Power PRs", "🎯 Active Goals", "📊 Pattern Insights"])
-    
-    # Tab 1: Achievement Timeline
+
+    viz_tabs = st.tabs(["🎯 Active Goals", "⚡ Power PRs"])
+
     with viz_tabs[0]:
-        render_achievement_timeline(manager)
-    
-    # Tab 2: Power PRs
+        render_active_goals(manager)
+
     with viz_tabs[1]:
         render_power_achievements()
-    
-    # Tab 3: Active Goals
-    with viz_tabs[2]:
-        render_active_goals(manager)
-    
-    # Tab 4: Pattern Insights
-    with viz_tabs[3]:
-        render_pattern_insights(manager)
 
 
 def render_achievement_timeline(manager: 'CoachingNotesManager'):

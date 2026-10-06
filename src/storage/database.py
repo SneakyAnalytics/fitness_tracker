@@ -181,6 +181,19 @@ class WorkoutDatabase:
             ON personal_bests(athlete_id, effort_type, effort_value DESC)
         ''')
 
+        # Create coach_chat_sessions table for persisting AI coach conversations
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS coach_chat_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                week_start_date TEXT NOT NULL UNIQUE,
+                messages TEXT NOT NULL DEFAULT '[]',
+                current_plan TEXT,
+                phase TEXT NOT NULL DEFAULT 'ANALYSIS',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         conn.commit()
         conn.close()
         
@@ -581,16 +594,20 @@ class WorkoutDatabase:
         c = conn.cursor()
         
         try:
-            c.execute('SELECT workout_data, qualitative_data, athlete_comments FROM workouts ORDER BY workout_day DESC')
+            c.execute('SELECT workout_data, qualitative_data, athlete_comments, workout_title, proposed_workout_name FROM workouts ORDER BY workout_day DESC')
             rows = c.fetchall()
             
             workouts = []
             for row in rows:
-                workout_data, qualitative_data, athlete_comments = row
+                workout_data, qualitative_data, athlete_comments, workout_title, proposed_workout_name = row
                 workout = json.loads(workout_data)
                 if qualitative_data:
                     workout.update(json.loads(qualitative_data))
                 workout['athlete_comments'] = athlete_comments
+                # Add workout_name field, preferring proposed_workout_name over workout_title
+                workout['workout_name'] = proposed_workout_name if proposed_workout_name else workout_title
+                workout['workout_title'] = workout_title
+                workout['proposed_workout_name'] = proposed_workout_name
                 workouts.append(workout)
             
             return workouts
@@ -1706,6 +1723,89 @@ class WorkoutDatabase:
             'power_zones': [165, 225, 270, 315, 9999]
         }
 
+    def load_chat_session(self, week_start_date: str) -> Optional[Dict[str, Any]]:
+        """Load a coach chat session for a given week start date."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                c = conn.cursor()
+                c.execute('''
+                    SELECT messages, current_plan, phase, created_at, updated_at
+                    FROM coach_chat_sessions
+                    WHERE week_start_date = ?
+                ''', (week_start_date,))
+                row = c.fetchone()
+                if row:
+                    return {
+                        'week_start_date': week_start_date,
+                        'messages': json.loads(row[0]) if row[0] else [],
+                        'current_plan': json.loads(row[1]) if row[1] else None,
+                        'phase': row[2],
+                        'created_at': row[3],
+                        'updated_at': row[4],
+                    }
+                return None
+        except Exception as e:
+            print(f"Error loading chat session: {e}")
+            return None
+
+    def save_chat_session(self, week_start_date: str, messages: list,
+                          current_plan: Optional[Dict] = None,
+                          phase: str = 'ANALYSIS') -> bool:
+        """Save or update a coach chat session."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                c = conn.cursor()
+                c.execute('''
+                    INSERT INTO coach_chat_sessions
+                        (week_start_date, messages, current_plan, phase, updated_at)
+                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(week_start_date) DO UPDATE SET
+                        messages = excluded.messages,
+                        current_plan = excluded.current_plan,
+                        phase = excluded.phase,
+                        updated_at = CURRENT_TIMESTAMP
+                ''', (
+                    week_start_date,
+                    json.dumps(messages),
+                    json.dumps(current_plan) if current_plan else None,
+                    phase,
+                ))
+                conn.commit()
+                return True
+        except Exception as e:
+            print(f"Error saving chat session: {e}")
+            return False
+
+    def load_prior_chat_sessions(self, before_date: str, n: int = 2) -> list:
+        """
+        Load the N most recent completed chat sessions before a given date.
+        Returns a list of dicts with week_start_date, messages, and plan notes.
+        """
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                c = conn.cursor()
+                c.execute('''
+                    SELECT week_start_date, messages, current_plan
+                    FROM coach_chat_sessions
+                    WHERE week_start_date < ? AND phase = 'SAVED'
+                    ORDER BY week_start_date DESC
+                    LIMIT ?
+                ''', (before_date, n))
+                rows = c.fetchall()
+                results = []
+                for row in rows:
+                    plan = json.loads(row[2]) if row[2] else {}
+                    results.append({
+                        'week_start_date': row[0],
+                        'messages': json.loads(row[0]) if False else (json.loads(row[1]) if row[1] else []),
+                        'plan_notes': plan.get('notes', ''),
+                        'plan_week_number': plan.get('weekNumber'),
+                    })
+                return results
+        except Exception as e:
+            print(f"Error loading prior chat sessions: {e}")
+            return []
+
     def delete_weekly_plan_cascade(self, weekNumber: int) -> bool:
         """Delete a weekly plan and all associated daily plans and proposed workouts"""
         try:
@@ -2406,13 +2506,15 @@ class WorkoutDatabase:
                 print(f"Updating existing analysis {existing_id} for workout_id={workout_id}")
                 c.execute('''
                     UPDATE workout_analyses 
-                    SET analysis_text = ?, 
+                    SET workout_id = ?,
+                        fit_file_id = ?,
+                        analysis_text = ?, 
                         analysis_data = ?,
                         peak_efforts = ?,
                         model_used = ?,
                         analyzed_at = CURRENT_TIMESTAMP
                     WHERE id = ?
-                ''', (analysis_text, analysis_data_json, peak_efforts_json, model_used, existing_id))
+                ''', (workout_id, fit_file_id, analysis_text, analysis_data_json, peak_efforts_json, model_used, existing_id))
                 analysis_id = existing_id
             else:
                 # Insert new analysis

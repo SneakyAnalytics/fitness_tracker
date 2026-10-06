@@ -1,13 +1,14 @@
 """
-🏋️ AI Coach Configuration Module
-=================================
+AI Coach Configuration Module
+
 Manages AI model selection, API credentials, and cost tracking
 for the automated coaching system.
 
-🎯 Supports multiple AI models:
+Supported models:
 - Google Gemini (FREE tier available)
-- Claude Haiku (cheap ~$0.25/week)
-- Claude Sonnet 4 (high quality ~$1.00/week)
+- Claude Haiku 4.5 (fast, ~$0.025/week)
+- Claude Sonnet 4.6 (best quality, ~$0.27/week) RECOMMENDED
+- GitHub GPT-4o (FREE via GitHub token)
 """
 
 import os
@@ -24,29 +25,29 @@ load_dotenv(dotenv_path=env_path)
 
 
 class AIModel(Enum):
-    """Available AI models for coaching (Dec 2025)"""
+    """Available AI models for coaching (refreshed Sept 2026)"""
     # Google Gemini (FREE tier available, recommended for cost-conscious use)
-    GEMINI_FREE = "gemini-1.5-flash-002"  # Stable production, free tier
-    GEMINI_FLASH = "gemini-1.5-flash"     # Stable fallback
-    GEMINI_FLASH_8B = "gemini-1.5-flash-8b"  # Lightweight, fast
-    GEMINI_PRO = "gemini-1.5-pro"         # Higher quality
-    GEMINI_2_FLASH = "gemini-2.0-flash-exp"  # Latest experimental
-    
-    # Claude 3 series (older, being deprecated)
-    CLAUDE_3_HAIKU = "claude-3-haiku-20240307"
-    CLAUDE_3_5_HAIKU = "claude-3-5-haiku-20241022"
-    
+    # Uses Google's rolling "-latest" aliases so this never goes stale again;
+    # verified live against the Gemini API (see data/gemini_models_cache.json).
+    GEMINI_FREE = "gemini-flash-latest"   # Rolling latest Flash, free tier
+    GEMINI_FLASH_LITE = "gemini-flash-lite-latest"  # Lightweight, fastest/cheapest
+    GEMINI_PRO = "gemini-pro-latest"      # Rolling latest Pro, higher quality
+
     # Claude 4 series (current generation)
     CLAUDE_HAIKU_4_5 = "claude-haiku-4-5-20251001"  # Fastest, cheapest
-    CLAUDE_SONNET_4 = "claude-sonnet-4-20250514"    # Balanced
-    CLAUDE_SONNET_4_5 = "claude-sonnet-4-5-20250929"  # Best quality/price
-    CLAUDE_OPUS_4 = "claude-opus-4-20250514"        # Highest quality
-    CLAUDE_OPUS_4_1 = "claude-opus-4-1-20250805"    # Latest flagship
-    
-    # Aliases for convenience
-    CLAUDE_HAIKU = "claude-haiku-4-5-20251001"  # Latest Haiku
-    CLAUDE_SONNET = "claude-sonnet-4-5-20250929"  # Latest Sonnet (RECOMMENDED)
-    CLAUDE_OPUS = "claude-opus-4-1-20250805"    # Latest Opus
+    CLAUDE_SONNET_4_6 = "claude-sonnet-4-6"          # Latest Sonnet (Mar 2026)
+    CLAUDE_OPUS_4_6 = "claude-opus-4-6"             # Latest Opus (Mar 2026)
+
+    # Aliases for convenience — always point to the latest released version
+    CLAUDE_HAIKU = "claude-haiku-4-5-20251001"  # Latest Haiku (4.5)
+    CLAUDE_SONNET = "claude-sonnet-4-6"          # Latest Sonnet (4.6) — RECOMMENDED
+    CLAUDE_OPUS = "claude-opus-4-6"              # Latest Opus (4.6)
+
+    # GitHub Models (FREE via GitHub Copilot / PAT token)
+    # Uses OpenAI-compatible endpoint: https://models.inference.ai.azure.com
+    # Note: Anthropic Claude is NOT available on GitHub Models — uses Azure OpenAI GPT-4o
+    GITHUB_GPT4O_MINI = "github-gpt4o-mini"   # GPT-4o mini via GitHub Models (fast, free)
+    GITHUB_GPT4O      = "github-gpt4o"        # GPT-4o via GitHub Models (best, free)
 
 
 @dataclass
@@ -80,48 +81,31 @@ MODEL_COSTS = {
         output_cost=0.0,
         provider="google"
     ),
+    AIModel.GEMINI_FLASH_LITE: ModelCosts(
+        input_cost=0.0,
+        output_cost=0.0,
+        provider="google"
+    ),
     AIModel.GEMINI_PRO: ModelCosts(
         input_cost=1.25,  # $1.25 per million
         output_cost=5.00,  # $5.00 per million
         provider="google"
     ),
-    
-    # Claude 3 series (older, being deprecated)
-    AIModel.CLAUDE_3_HAIKU: ModelCosts(
-        input_cost=0.25,  # $0.25 per million
-        output_cost=1.25,  # $1.25 per million
-        provider="anthropic"
-    ),
-    AIModel.CLAUDE_3_5_HAIKU: ModelCosts(
-        input_cost=0.80,  # $0.80 per million
-        output_cost=4.00,  # $4.00 per million
-        provider="anthropic"
-    ),
-    
+
     # Claude 4 series (current generation)
     AIModel.CLAUDE_HAIKU_4_5: ModelCosts(
         input_cost=0.40,  # $0.40 per million (50% cheaper than 3.5!)
         output_cost=2.00,  # $2.00 per million
         provider="anthropic"
     ),
-    AIModel.CLAUDE_SONNET_4: ModelCosts(
+    AIModel.CLAUDE_SONNET_4_6: ModelCosts(
         input_cost=3.00,  # $3.00 per million
         output_cost=15.00,  # $15.00 per million
         provider="anthropic"
     ),
-    AIModel.CLAUDE_SONNET_4_5: ModelCosts(
-        input_cost=3.00,  # $3.00 per million (same as Sonnet 4!)
-        output_cost=15.00,  # $15.00 per million
-        provider="anthropic"
-    ),
-    AIModel.CLAUDE_OPUS_4: ModelCosts(
-        input_cost=15.00,  # $15.00 per million
-        output_cost=75.00,  # $75.00 per million
-        provider="anthropic"
-    ),
-    AIModel.CLAUDE_OPUS_4_1: ModelCosts(
-        input_cost=15.00,  # $15.00 per million
-        output_cost=75.00,  # $75.00 per million
+    AIModel.CLAUDE_OPUS_4_6: ModelCosts(
+        input_cost=5.00,   # $5.00 per million
+        output_cost=25.00,  # $25.00 per million
         provider="anthropic"
     ),
     
@@ -132,14 +116,26 @@ MODEL_COSTS = {
         provider="anthropic"
     ),
     AIModel.CLAUDE_SONNET: ModelCosts(
-        input_cost=3.00,  # $3.00 per million (BEST VALUE!)
+        input_cost=3.00,   # $3.00 per million — Sonnet 4.6 (BEST VALUE!)
         output_cost=15.00,  # $15.00 per million
         provider="anthropic"
     ),
     AIModel.CLAUDE_OPUS: ModelCosts(
-        input_cost=15.00,  # $15.00 per million
-        output_cost=75.00,  # $75.00 per million
+        input_cost=5.00,   # $5.00 per million — Opus 4.6
+        output_cost=25.00,  # $25.00 per million
         provider="anthropic"
+    ),
+
+    # GitHub Models — no direct token cost (covered by Copilot subscription)
+    AIModel.GITHUB_GPT4O_MINI: ModelCosts(
+        input_cost=0.0,
+        output_cost=0.0,
+        provider="github"
+    ),
+    AIModel.GITHUB_GPT4O: ModelCosts(
+        input_cost=0.0,
+        output_cost=0.0,
+        provider="github"
     ),
 }
 
@@ -151,9 +147,14 @@ class AICoachConfig:
         # Check for both naming conventions
         self.gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         self.claude_api_key = os.getenv("CLAUDE_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
-        
-        # Default to free model for testing
-        self.default_model = AIModel.GEMINI_FREE
+        self.github_token   = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
+
+        # Default: prefer GitHub Copilot (free) when a token is available,
+        # otherwise fall back to Gemini free tier.
+        if self.github_token:
+            self.default_model = AIModel.GITHUB_GPT4O
+        else:
+            self.default_model = AIModel.GEMINI_FREE
         
     def get_api_key(self, model: AIModel) -> Optional[str]:
         """Get API key for specified model"""
@@ -163,7 +164,9 @@ class AICoachConfig:
             return self.gemini_api_key
         elif costs.provider == "anthropic":
             return self.claude_api_key
-        
+        elif costs.provider == "github":
+            return self.github_token
+
         return None
     
     def validate_model_access(self, model: AIModel) -> tuple[bool, str]:

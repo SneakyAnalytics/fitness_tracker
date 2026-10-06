@@ -15,6 +15,20 @@ import sqlite3
 import re
 import os
 
+# On Windows Docker Desktop bind mounts, the data/ directory itself is not writable
+# for new file creation, so SQLite cannot create journal/WAL sidecar files.
+# Patch sqlite3.connect to set journal_mode=MEMORY on every connection so that
+# journaling is done in-memory and no sidecar files are ever written to disk.
+_sqlite3_connect_orig = sqlite3.connect
+def _sqlite3_connect_patched(*args, **kwargs):
+    conn = _sqlite3_connect_orig(*args, **kwargs)
+    try:
+        conn.execute("PRAGMA journal_mode=MEMORY")
+    except Exception:
+        pass
+    return conn
+sqlite3.connect = _sqlite3_connect_patched
+
 
 from ..storage.database import WorkoutDatabase
 from ..utils.helpers import format_value, clean_float, clean_workout_data
@@ -233,11 +247,13 @@ async def get_workouts_with_analyses():
     db_path = "data/fitness_data.db"
     conn = sqlite3.connect(db_path)
     
+    # Use proposed_workout_name if available (from AI matching), otherwise fall back to workout_title
     query = """
     SELECT 
         w.id,
         w.workout_day,
         w.workout_title,
+        COALESCE(w.proposed_workout_name, w.workout_title) as workout_name,
         w.workout_data,
         wa.analysis_text,
         wa.analysis_data
@@ -315,39 +331,72 @@ async def upload_workouts(file: UploadFile = File(...)):
         # Delete existing workouts in date range (will be re-inserted with merged FIT data)
         conn = sqlite3.connect(db.db_path)
         c = conn.cursor()
+        
+        # Delete existing workouts in date range to avoid duplicates
         try:
             c.execute('DELETE FROM workouts WHERE workout_day >= ? AND workout_day <= ?', (min_date, max_date))
-            deleted_count = c.rowcount
+            deleted_workouts = c.rowcount
             conn.commit()
-            print(f"Deleted {deleted_count} existing workouts in date range")
+            print(f"Deleted {deleted_workouts} existing workouts in date range")
         except Exception as e:
             print(f"Error deleting existing workouts: {e}")
         
+        # Note: We do NOT delete FIT files here - they are managed by save_fit_data() 
+        # which updates existing entries based on filename to avoid duplicates
+        
         # Build a map of existing FIT files to merge with CSV workouts
-        # Match by date only (since FIT filenames != CSV workout titles)
-        existing_fit_data_by_date = {}  # date -> parsed_fit_data
+        # Match by date - store as LIST to handle multiple workouts per day
+        existing_fit_data_by_date = {}  # date -> [parsed_fit_data, ...]
         try:
+            # Query FIT files using DATE() to match date-only values from CSV
             c.execute('''
-                SELECT workout_day, fit_data 
+                SELECT id, workout_day, fit_data, file_name
                 FROM fit_files 
-                WHERE workout_day >= ? AND workout_day <= ?
+                WHERE DATE(workout_day) >= DATE(?) AND DATE(workout_day) <= DATE(?)
+                ORDER BY workout_day, id
             ''', (min_date, max_date))
             
-            for day, fit_data_str in c.fetchall():
+            for fit_id, day, fit_data_str, filename in c.fetchall():
                 try:
                     fit_data = json.loads(fit_data_str)
-                    # Check if this FIT file has power_series (cycling workout)
-                    if fit_data.get('power_metrics', {}).get('power_series'):
-                        # Store by date for matching with CSV workouts
-                        existing_fit_data_by_date[day] = fit_data
+                    
+                    # Calculate duration_minutes for matching
+                    if 'duration_minutes' not in fit_data:
+                        if 'duration_seconds' in fit_data:
+                            fit_data['duration_minutes'] = fit_data['duration_seconds'] / 60
+                        elif 'duration_hours' in fit_data:
+                            fit_data['duration_minutes'] = fit_data['duration_hours'] * 60
+                        elif 'metrics' in fit_data and 'duration' in fit_data['metrics']:
+                            fit_data['duration_minutes'] = fit_data['metrics']['duration']
+                    
+                    # Normalize day to date-only format (YYYY-MM-DD) to match CSV workout_day
+                    day_only = day.split(' ')[0] if ' ' in day else day
+                    
+                    # Store as list to handle multiple workouts per day (include ALL FIT files, not just cycling)
+                    if day_only not in existing_fit_data_by_date:
+                        existing_fit_data_by_date[day_only] = []
+                    fit_data['_fit_id'] = fit_id  # Track ID for matching
+                    fit_data['_filename'] = filename  # Track filename for matching
+                    existing_fit_data_by_date[day_only].append(fit_data)
+                    
+                    # Log with appropriate detail based on FIT file type
+                    has_power = fit_data.get('power_metrics', {}).get('power_series')
+                    if has_power:
                         ps_len = len(fit_data['power_metrics']['power_series'])
-                        print(f"Found FIT data for {day} with {ps_len} power points")
+                        dur_str = f", {fit_data.get('duration_minutes', 0):.0f}min" if fit_data.get('duration_minutes') else ""
+                        print(f"Found FIT data for {day_only} (ID:{fit_id}, {filename}{dur_str}) with {ps_len} power points")
+                    else:
+                        dur_str = f", {fit_data.get('duration_minutes', 0):.0f}min" if fit_data.get('duration_minutes') else ""
+                        print(f"Found FIT data for {day_only} (ID:{fit_id}, {filename}{dur_str}) [no power data]")
                 except Exception as e:
                     print(f"Error parsing FIT data: {e}")
         except Exception as e:
             print(f"Error querying FIT files: {e}")
         finally:
             conn.close()
+        
+        # Track which FIT files have been used to avoid reusing them
+        used_fit_ids = set()
         
         # Now insert all workouts from CSV, merging with FIT data where available
         workouts = []
@@ -400,34 +449,89 @@ async def upload_workouts(file: UploadFile = File(...)):
                 'athlete_comments': str(row.get('AthleteComments')) if pd.notna(row.get('AthleteComments')) else None
             }
             
-            # Check if there's FIT data for this date (match by date only, not title)
+            # Check if there's FIT data for this date (match intelligently with multiple workouts per day)
             if workout['workout_day'] in existing_fit_data_by_date and workout['type'] in ['Bike', 'Cycling', 'Biking']:
-                fit_data = existing_fit_data_by_date[workout['workout_day']]
-                print(f"  Merging FIT data for {workout['workout_day']} cycling workout")
+                available_fits = existing_fit_data_by_date[workout['workout_day']]
+                fit_data = None
                 
-                # Transform power_metrics (FIT format) to power_data (workout format)
-                if 'power_metrics' in fit_data and 'power_series' in fit_data['power_metrics']:
-                    if workout['power_data'] is None:
-                        workout['power_data'] = {}
+                # Try to find the best match:
+                # 1. Match by sport type (Zwift vs Garmin)
+                # 2. Match by duration (within 5 minutes)
+                # 3. Use first unused FIT file
+                
+                workout_duration = workout['metrics'].get('actual_duration')
+                workout_title_lower = workout['title'].lower()
+                
+                # First pass: Look for intelligent matches
+                for candidate in available_fits:
+                    if candidate['_fit_id'] in used_fit_ids:
+                        continue  # Already used
                     
-                    # Add power_series and time_series from FIT
-                    workout['power_data']['power_series'] = fit_data['power_metrics']['power_series']
-                    if 'time_series' in fit_data:
-                        workout['power_data']['time_series'] = fit_data['time_series']
+                    # Check if title hints at type (e.g., "Strength" should not match Zwift FIT)
+                    candidate_filename = candidate.get('_filename', '').lower()
                     
-                    print(f"    Added power_series: {len(workout['power_data']['power_series'])} points")
+                    # If CSV workout is clearly Zwift, prefer FIT file with "zwift" in filename
+                    if 'zwift' in workout_title_lower and 'zwift' in candidate_filename:
+                        fit_data = candidate
+                        print(f"  Matched by Zwift title: {candidate_filename}")
+                        break
+                    
+                    # If CSV workout has "strength" in title, skip FIT files from Zwift
+                    if 'strength' in workout_title_lower and 'zwift' in candidate_filename:
+                        print(f"  Skipping Zwift FIT {candidate_filename} for Strength workout")
+                        continue
+                    
+                    # Match by duration (within 10% or 5 minutes)
+                    if workout_duration:
+                        fit_duration = candidate.get('duration_minutes')
+                        if fit_duration:
+                            duration_diff = abs(workout_duration - fit_duration)
+                            if duration_diff < 5 or duration_diff / workout_duration < 0.1:
+                                fit_data = candidate
+                                print(f"  Matched by duration: CSV {workout_duration}min ≈ FIT {fit_duration}min")
+                                break
                 
-                # Transform hr_metrics to heart_rate_data format
-                if 'hr_metrics' in fit_data and 'hr_series' in fit_data['hr_metrics']:
-                    if workout['heart_rate_data'] is None:
-                        workout['heart_rate_data'] = {}
-                    workout['heart_rate_data']['hr_series'] = fit_data['hr_metrics']['hr_series']
-                    print(f"    Added hr_series: {len(workout['heart_rate_data']['hr_series'])} points")
+                # Second pass: If no intelligent match, use first unused FIT file
+                if not fit_data:
+                    for candidate in available_fits:
+                        if candidate['_fit_id'] not in used_fit_ids:
+                            fit_data = candidate
+                            print(f"  Using first unused FIT file: {candidate.get('_filename')}")
+                            break
                 
-                # Preserve sport classification from FIT file
-                if 'sport' in fit_data:
-                    workout['sport'] = fit_data['sport']
-                    print(f"    Set sport: {workout['sport']}")
+                # If we found a match, merge the data and mark as used
+                if fit_data:
+                    used_fit_ids.add(fit_data['_fit_id'])
+                    workout['fit_file_id'] = fit_data['_fit_id']  # Link workout row to fit_files row
+                    print(f"  Merging FIT data (ID:{fit_data['_fit_id']}) for {workout['workout_day']} {workout['title']}")
+                
+                    # Transform power_metrics (FIT format) to power_data (workout format)
+                    power_metrics = fit_data.get('power_metrics') or {}
+                    if power_metrics and 'power_series' in power_metrics:
+                        if workout['power_data'] is None:
+                            workout['power_data'] = {}
+                        
+                        # Add power_series and time_series from FIT
+                        workout['power_data']['power_series'] = power_metrics['power_series']
+                        if 'time_series' in fit_data:
+                            workout['power_data']['time_series'] = fit_data['time_series']
+                        
+                        print(f"    Added power_series: {len(workout['power_data']['power_series'])} points")
+                    
+                    # Transform hr_metrics to heart_rate_data format
+                    hr_metrics = fit_data.get('hr_metrics') or {}
+                    if hr_metrics and 'hr_series' in hr_metrics:
+                        if workout['heart_rate_data'] is None:
+                            workout['heart_rate_data'] = {}
+                        workout['heart_rate_data']['hr_series'] = hr_metrics['hr_series']
+                        print(f"    Added hr_series: {len(workout['heart_rate_data']['hr_series'])} points")
+                    
+                    # Preserve sport classification from FIT file
+                    if 'sport' in fit_data:
+                        workout['sport'] = fit_data['sport']
+                        print(f"    Set sport: {workout['sport']}")
+                else:
+                    print(f"  No unused FIT file available for {workout['title']}")
             
             # Clean workout data
             cleaned_workout = clean_workout_data(workout)
@@ -980,8 +1084,28 @@ async def upload_fit(file: UploadFile = File(...)):
                     date_part = None
             
             if date_part:
-                date = date_part[:10]  # Extract YYYY-MM-DD
-                print(f"Extracted date from GarminPing filename: {date}")
+                # GarminPing timestamps are UTC (Z suffix), e.g. "2026-05-03-00-54-17-559Z"
+                # A UTC timestamp like 00:54 on May 3 is actually May 2 in Pacific time (UTC-7/PDT)
+                # so we must convert to local time before extracting the date.
+                try:
+                    import re as _re
+                    ts_match = _re.match(r'(\d{4})-(\d{2})-(\d{2})-(\d{2})-(\d{2})-(\d{2})', date_part)
+                    if ts_match:
+                        utc_dt = datetime(
+                            int(ts_match.group(1)), int(ts_match.group(2)), int(ts_match.group(3)),
+                            int(ts_match.group(4)), int(ts_match.group(5)), int(ts_match.group(6)),
+                            tzinfo=pytz.UTC
+                        )
+                        la_tz = pytz.timezone('America/Los_Angeles')
+                        local_dt = utc_dt.astimezone(la_tz)
+                        date = local_dt.strftime('%Y-%m-%d')
+                        print(f"Extracted date from GarminPing filename (UTC→local): utc={utc_dt.date()} → local={date}")
+                    else:
+                        date = date_part[:10]
+                        print(f"Extracted date from GarminPing filename: {date}")
+                except Exception as _tz_err:
+                    date = date_part[:10]
+                    print(f"Extracted date from GarminPing filename (fallback): {date} ({_tz_err})")
         elif filename.endswith('.fit') or filename.endswith('.FIT'):
             # Handle standard Garmin FIT files - try to extract date from filename
             # Common patterns: YYYY-MM-DD_HH-MM-SS.fit, Activity_YYYY-MM-DD.fit, etc.
@@ -1213,7 +1337,9 @@ async def upload_proposed_workouts(file: UploadFile = File(...)):
                 end_date = max(dp.date for dp in date_filtered_plans)
                 
                 # Generate Zwift workouts for these dates
-                zwift_output_dir = os.getenv('ZWIFT_WORKOUTS_DIR', "~/Documents/Zwift/Workouts/6870291")
+                # Guard against .env overriding ZWIFT_WORKOUTS_DIR to a Windows path
+                _zwd = os.getenv('ZWIFT_WORKOUTS_DIR', '')
+                zwift_output_dir = _zwd if _zwd and not _zwd.startswith('C:') else '/app/shareable/zwift_workouts'
                 
                 # Extract FTP from weekly plan - try explicit FTP field first, then notes as fallback
                 ftp = 258  # Default FTP
@@ -1327,7 +1453,9 @@ async def generate_zwift_workouts(start_date: str, end_date: str, output_dir: Op
         
         # Set default output directory to the Zwift workouts directory if not specified
         if not output_dir:
-            output_dir = os.getenv('ZWIFT_WORKOUTS_DIR', "~/Documents/Zwift/Workouts/6870291")
+            # Guard against .env overriding ZWIFT_WORKOUTS_DIR to a Windows path
+            _zwd = os.getenv('ZWIFT_WORKOUTS_DIR', '')
+            output_dir = _zwd if _zwd and not _zwd.startswith('C:') else '/app/shareable/zwift_workouts'
         
         # Extract FTP from weekly plan - try explicit FTP field first, then notes as fallback
         extracted_ftp = ftp  # Use provided FTP as ultimate fallback

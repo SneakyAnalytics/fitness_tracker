@@ -1,30 +1,33 @@
-import React from 'react';
-import { Bike, Run, Dumbbell, Activity, Clock, Zap } from 'lucide-react';
-import './WorkoutCard.css';
+import React from "react";
+import { Bike, Footprints, Dumbbell, Activity, Clock, Zap } from "lucide-react";
+import "./WorkoutCard.css";
 
 function WorkoutCard({ workout, onClick, isSelected }) {
   const getWorkoutIcon = (type) => {
-    const typeLC = type?.toLowerCase() || '';
-    if (typeLC.includes('bike') || typeLC.includes('cycling')) return Bike;
-    if (typeLC.includes('run')) return Run;
-    if (typeLC.includes('strength') || typeLC.includes('routine')) return Dumbbell;
+    const typeLC = type?.toLowerCase() || "";
+    if (typeLC.includes("bike") || typeLC.includes("cycling")) return Bike;
+    if (typeLC.includes("run")) return Footprints;
+    if (typeLC.includes("strength") || typeLC.includes("routine"))
+      return Dumbbell;
     return Activity;
   };
 
   const getWorkoutBadgeClass = (type) => {
-    const typeLC = type?.toLowerCase() || '';
-    if (typeLC.includes('bike') || typeLC.includes('cycling')) return 'badge-cycling';
-    if (typeLC.includes('run')) return 'badge-running';
-    if (typeLC.includes('strength') || typeLC.includes('routine')) return 'badge-strength';
-    return 'badge-other';
+    const typeLC = type?.toLowerCase() || "";
+    if (typeLC.includes("bike") || typeLC.includes("cycling"))
+      return "badge-cycling";
+    if (typeLC.includes("run")) return "badge-running";
+    if (typeLC.includes("strength") || typeLC.includes("routine"))
+      return "badge-strength";
+    return "badge-other";
   };
 
   const Icon = getWorkoutIcon(workout.type);
   const badgeClass = getWorkoutBadgeClass(workout.type);
 
   return (
-    <div 
-      className={`workout-card ${isSelected ? 'selected' : ''} ${workout.completed ? 'completed' : 'planned'}`}
+    <div
+      className={`workout-card ${isSelected ? "selected" : ""} ${workout.completed ? "completed" : "planned"}`}
       onClick={onClick}
     >
       <div className="workout-card-header">
@@ -37,7 +40,9 @@ function WorkoutCard({ workout, onClick, isSelected }) {
         )}
       </div>
 
-      <h4 className="workout-title">{workout.name || workout.title || 'Workout'}</h4>
+      <h4 className="workout-title">
+        {workout.name || workout.title || "Workout"}
+      </h4>
 
       <div className="workout-stats">
         {workout.duration && (
@@ -62,12 +67,12 @@ function WorkoutCard({ workout, onClick, isSelected }) {
 }
 
 function formatDuration(seconds) {
-  if (!seconds) return '';
+  if (!seconds) return "";
   if (seconds < 60) return `${seconds}s`;
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
-  
+
   if (hours > 0) {
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   }

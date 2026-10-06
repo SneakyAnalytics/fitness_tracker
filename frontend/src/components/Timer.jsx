@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, RotateCcw, Timer as TimerIcon } from 'lucide-react';
-import './Timer.css';
+import React, { useState, useEffect, useRef } from "react";
+import { Play, Pause, RotateCcw, Timer as TimerIcon } from "lucide-react";
+import "./Timer.css";
 
 function Timer({ workDuration = 45, restDuration = 15, rounds = 1 }) {
   const [timeLeft, setTimeLeft] = useState(workDuration);
@@ -20,19 +20,22 @@ function Timer({ workDuration = 45, restDuration = 15, rounds = 1 }) {
 
   const playBeep = (frequency = 800, duration = 200) => {
     if (!audioRef.current) return;
-    
+
     const oscillator = audioRef.current.createOscillator();
     const gainNode = audioRef.current.createGain();
-    
+
     oscillator.connect(gainNode);
     gainNode.connect(audioRef.current.destination);
-    
+
     oscillator.frequency.value = frequency;
-    oscillator.type = 'sine';
-    
+    oscillator.type = "sine";
+
     gainNode.gain.setValueAtTime(0.3, audioRef.current.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioRef.current.currentTime + duration / 1000);
-    
+    gainNode.gain.exponentialRampToValueAtTime(
+      0.01,
+      audioRef.current.currentTime + duration / 1000,
+    );
+
     oscillator.start(audioRef.current.currentTime);
     oscillator.stop(audioRef.current.currentTime + duration / 1000);
   };
@@ -44,7 +47,7 @@ function Timer({ workDuration = 45, restDuration = 15, rounds = 1 }) {
           if (prev <= 1) {
             // Time's up for current phase
             playBeep(1000, 300);
-            
+
             if (isWorkPhase) {
               // Switch to rest phase
               setIsWorkPhase(false);
@@ -64,12 +67,12 @@ function Timer({ workDuration = 45, restDuration = 15, rounds = 1 }) {
               }
             }
           }
-          
+
           // Warning beep at 3 seconds
           if (prev === 3) {
             playBeep(600, 150);
           }
-          
+
           return prev - 1;
         });
       }, 1000);
@@ -84,11 +87,22 @@ function Timer({ workDuration = 45, restDuration = 15, rounds = 1 }) {
         clearInterval(intervalRef.current);
       }
     };
-  }, [isRunning, isWorkPhase, currentRound, rounds, workDuration, restDuration]);
+  }, [
+    isRunning,
+    isWorkPhase,
+    currentRound,
+    rounds,
+    workDuration,
+    restDuration,
+  ]);
 
   const handleStartPause = () => {
     setIsRunning(!isRunning);
-    if (!isRunning && audioRef.current && audioRef.current.state === 'suspended') {
+    if (
+      !isRunning &&
+      audioRef.current &&
+      audioRef.current.state === "suspended"
+    ) {
       audioRef.current.resume();
     }
   };
@@ -103,51 +117,43 @@ function Timer({ workDuration = 45, restDuration = 15, rounds = 1 }) {
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const progress = isWorkPhase 
+  const progress = isWorkPhase
     ? ((workDuration - timeLeft) / workDuration) * 100
     : ((restDuration - timeLeft) / restDuration) * 100;
 
   return (
-    <div className={`timer-container ${isWorkPhase ? 'work-phase' : 'rest-phase'}`}>
+    <div
+      className={`timer-container ${isWorkPhase ? "work-phase" : "rest-phase"}`}
+    >
       <div className="timer-header">
         <TimerIcon size={24} />
         <h3>Workout Timer</h3>
       </div>
 
       <div className="timer-display">
-        <div className="timer-phase">
-          {isWorkPhase ? '💪 WORK' : '😌 REST'}
-        </div>
-        <div className="timer-time">
-          {formatTime(timeLeft)}
-        </div>
+        <div className="timer-phase">{isWorkPhase ? "💪 WORK" : "😌 REST"}</div>
+        <div className="timer-time">{formatTime(timeLeft)}</div>
         <div className="timer-round">
           Round {currentRound} of {rounds}
         </div>
       </div>
 
       <div className="timer-progress">
-        <div 
-          className="timer-progress-bar"
-          style={{ width: `${progress}%` }}
-        />
+        <div className="timer-progress-bar" style={{ width: `${progress}%` }} />
       </div>
 
       <div className="timer-controls">
-        <button 
+        <button
           className="btn btn-primary timer-btn"
           onClick={handleStartPause}
         >
           {isRunning ? <Pause size={20} /> : <Play size={20} />}
-          <span>{isRunning ? 'Pause' : 'Start'}</span>
+          <span>{isRunning ? "Pause" : "Start"}</span>
         </button>
-        <button 
-          className="btn btn-outline timer-btn"
-          onClick={handleReset}
-        >
+        <button className="btn btn-outline timer-btn" onClick={handleReset}>
           <RotateCcw size={20} />
           <span>Reset</span>
         </button>

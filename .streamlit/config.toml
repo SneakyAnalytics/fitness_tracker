@@ -1,0 +1,24 @@
+[server]
+# Enable CORS for mobile access
+enableCORS = false
+enableXsrfProtection = false
+
+# Allow connections from any origin (safe on Tailscale private network)
+enableWebsocketCompression = true
+
+# Headless mode
+headless = true
+
+[browser]
+# Don't try to open browser on startup
+gatherUsageStats = false
+serverAddress = "0.0.0.0"
+serverPort = 8501
+
+[theme]
+# Optional: Custom theme
+primaryColor = "#FF4B4B"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#262730"
+font = "sans serif"

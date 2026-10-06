@@ -314,8 +314,27 @@ class WorkoutTypeAnalyzer:
                 interval_powers = [i.get('avg_power') for i in target_intervals if i.get('avg_power')]
                 if interval_powers:
                     return sum(interval_powers) / len(interval_powers)
-        except Exception:
+            
+            # Fallback: Try to extract from summary if intervals didn't work
+            summary = analysis_data.get('intervals', {}).get('summary', {})
+            by_type = summary.get('by_type', {})
+            
+            # Look for work intervals in summary
+            if workout_type == 'Threshold':
+                for interval_type in ['threshold', 'threshold_long', 'work']:
+                    if interval_type in by_type and by_type[interval_type].get('avg_power'):
+                        return by_type[interval_type]['avg_power']
+            elif workout_type == 'VO2max':
+                if 'vo2max' in by_type and by_type['vo2max'].get('avg_power'):
+                    return by_type['vo2max']['avg_power']
+            elif workout_type == 'Tempo':
+                for interval_type in ['tempo', 'sweetspot', 'work']:
+                    if interval_type in by_type and by_type[interval_type].get('avg_power'):
+                        return by_type[interval_type]['avg_power']
+                        
+        except Exception as e:
             # If interval extraction fails, return None to use whole workout average
+            # print(f"Debug: Interval extraction failed: {e}")
             pass
             
         return None
@@ -334,16 +353,30 @@ class WorkoutTypeAnalyzer:
             w.workout_day,
             w.workout_title,
             w.id as workout_id,
-            json_extract(w.workout_data, '$.TSS') as tss,
-            json_extract(w.workout_data, '$.TimeTotalInHours') as hours,
+            w.proposed_workout_name,
+            w.match_source,
+            COALESCE(
+                json_extract(w.workout_data, '$.metrics.actual_tss'),
+                json_extract(w.workout_data, '$.TSS')
+            ) as tss,
+            COALESCE(
+                json_extract(w.workout_data, '$.metrics.actual_duration') / 60.0,
+                json_extract(w.workout_data, '$.TimeTotalInHours')
+            ) as hours,
             json_extract(w.workout_data, '$.power_data.average') as avg_power,
-            json_extract(w.workout_data, '$.power_data.normalized_power') as normalized_power,
+            -- NP: prefer workout_data (rarely populated from TP CSV), fall back to
+            -- the FIT-derived value which is always available when a FIT file is linked.
+            COALESCE(
+                json_extract(w.workout_data, '$.power_data.normalized_power'),
+                json_extract(ff.fit_data, '$.power_metrics.normalized_power')
+            ) as normalized_power,
             json_extract(w.workout_data, '$.power_data.intensity_factor') as intensity_factor,
             json_extract(w.workout_data, '$.heart_rate_data.average_hr') as avg_hr,
             w.workout_data,
             wa.analysis_data
         FROM workouts w
         LEFT JOIN workout_analyses wa ON w.id = wa.workout_id
+        LEFT JOIN fit_files ff ON ff.id = w.fit_file_id
         WHERE json_extract(w.workout_data, '$.type') = 'Bike'
         ORDER BY w.workout_day DESC
         """
@@ -371,11 +404,24 @@ class WorkoutTypeAnalyzer:
                 avg_hr = float(workout['avg_hr']) if workout['avg_hr'] else None
                 
                 # For interval-based workouts, extract work interval average power
+                interval_power = None
                 if workout['analysis_data']:
                     interval_power = self.extract_interval_power(workout['analysis_data'], classified_type)
-                    if interval_power is not None:
-                        avg_power = interval_power
-                
+
+                if classified_type in interval_based_types and workout['normalized_power']:
+                    # NP is the most consistent trend metric across ERG structured workouts.
+                    # Different VO2max/Threshold workout files target different %FTP (e.g.
+                    # 110% vs 117%), so interval_power alone creates false trend signals.
+                    # NP naturally weights harder efforts and is stable (~275W) across all
+                    # VO2max designs, making it the right metric for multi-week trend analysis.
+                    avg_power = float(workout['normalized_power'])
+                elif interval_power is not None:
+                    # Fall back to interval power only when NP is unavailable (e.g. outdoor
+                    # rides without a FIT file, or workouts pre-dating FIT file imports).
+                    avg_power = interval_power
+
+                is_structured = bool(workout.get('proposed_workout_name'))
+
                 typed_workouts.append({
                     'date': workout['workout_day'],
                     'title': workout['workout_title'],
@@ -383,9 +429,15 @@ class WorkoutTypeAnalyzer:
                     'duration_hours': float(workout['hours']) if workout['hours'] else None,
                     'avg_power': avg_power,
                     'normalized_power': float(workout['normalized_power']) if workout['normalized_power'] else None,
+                    # interval_power is the avg watts specifically during work intervals
+                    # (e.g. VO2max: ~333W @ 110% FTP). Separate from NP (avg_power) which
+                    # is used for trend analysis. Both are surfaced in the AI prompt so the
+                    # coach can distinguish "fitness trend" from "workout stimulus intensity".
+                    'interval_power': interval_power,
                     'intensity_factor': if_val,
                     'avg_hr': avg_hr,
-                    'interval_based': classified_type in interval_based_types  # Flag for context
+                    'interval_based': classified_type in interval_based_types,
+                    'is_structured': is_structured
                 })
                 
                 if len(typed_workouts) >= num_workouts:
@@ -394,7 +446,7 @@ class WorkoutTypeAnalyzer:
         return typed_workouts
     
     def analyze_workout_type_trends(self, workout_type: str, 
-                                     weeks_back: int = 12) -> Dict:
+                                     weeks_back: int = 8) -> Dict:
         """
         Analyze trends for a specific workout type over time.
         
@@ -403,6 +455,9 @@ class WorkoutTypeAnalyzer:
         - Average metrics (power, IF, TSS, duration)
         - Progression indicators (improving, stable, declining)
         - Week-by-week breakdown
+        
+        Note: Default changed to 8 weeks for better recency focus.
+        Filters out incomplete workouts (missing key metrics) for data quality.
         """
         workouts = self.get_workout_history_by_type(workout_type, num_workouts=100)
         
@@ -410,6 +465,20 @@ class WorkoutTypeAnalyzer:
         cutoff_date = (datetime.now() - timedelta(weeks=weeks_back)).strftime('%Y-%m-%d')
         recent_workouts = [w for w in workouts if w['date'] >= cutoff_date]
         
+        # Filter out incomplete workouts (missing critical data)
+        # These can skew trend analysis with artificially low values
+        complete_workouts = [
+            w for w in recent_workouts 
+            if w.get('tss') and w.get('duration_hours') and w.get('avg_power')
+        ]
+        
+        # Use complete workouts for analysis, track filtered count
+        filtered_count = len(recent_workouts) - len(complete_workouts)
+        recent_workouts = complete_workouts
+
+        # Count structured/ERG workouts (matched to AI plan, trainer enforces power)
+        structured_count = sum(1 for w in recent_workouts if w.get('is_structured'))
+
         if not recent_workouts:
             return {
                 'workout_type': workout_type,
@@ -420,6 +489,7 @@ class WorkoutTypeAnalyzer:
         # Calculate averages
         metrics_with_values = {
             'avg_power': [w['avg_power'] for w in recent_workouts if w['avg_power']],
+            'interval_power': [w['interval_power'] for w in recent_workouts if w.get('interval_power')],
             'normalized_power': [w['normalized_power'] for w in recent_workouts if w['normalized_power']],
             'intensity_factor': [w['intensity_factor'] for w in recent_workouts if w['intensity_factor']],
             'tss': [w['tss'] for w in recent_workouts if w['tss']],
@@ -432,20 +502,40 @@ class WorkoutTypeAnalyzer:
         
         for metric, values in metrics_with_values.items():
             if values:
-                averages[metric] = sum(values) / len(values)
+                # Use median instead of mean for more outlier-resistant average
+                import statistics
+                averages[metric] = statistics.median(values)
                 
-                # Calculate trend (compare first half vs second half)
+                # Calculate trend using linear regression for more robust trend detection
                 if len(values) >= 4:
-                    mid = len(values) // 2
-                    recent_avg = sum(values[:mid]) / mid
-                    earlier_avg = sum(values[mid:]) / (len(values) - mid)
+                    # Create time indices (newer = lower index since DESC order)
+                    # Weight recent workouts more heavily
+                    x = list(range(len(values)))
+                    y = values
                     
-                    change_pct = ((recent_avg - earlier_avg) / earlier_avg * 100) if earlier_avg > 0 else 0
+                    # Simple linear regression
+                    n = len(values)
+                    x_mean = sum(x) / n
+                    y_mean = sum(y) / n
                     
-                    if change_pct > 2:
-                        trends[metric] = 'improving'
-                    elif change_pct < -2:
-                        trends[metric] = 'declining'
+                    numerator = sum((x[i] - x_mean) * (y[i] - y_mean) for i in range(n))
+                    denominator = sum((x[i] - x_mean) ** 2 for i in range(n))
+                    
+                    if denominator != 0:
+                        slope = numerator / denominator
+                        # Negative slope = improving (since x=0 is most recent)
+                        # Convert slope to percentage change per workout
+                        avg_value = statistics.median(values)
+                        slope_pct_per_workout = (slope / avg_value * 100) if avg_value > 0 else 0
+                        
+                        # A slope of -0.5% per workout or more = improving
+                        # A slope of +0.5% per workout or more = declining
+                        if slope_pct_per_workout < -0.5:
+                            trends[metric] = 'improving'
+                        elif slope_pct_per_workout > 0.5:
+                            trends[metric] = 'declining'
+                        else:
+                            trends[metric] = 'stable'
                     else:
                         trends[metric] = 'stable'
                 else:
@@ -462,6 +552,7 @@ class WorkoutTypeAnalyzer:
             'workout_type': workout_type,
             'count': len(recent_workouts),
             'weeks_analyzed': weeks_back,
+            'structured_count': structured_count,
             'averages': averages,
             'trends': trends,
             'weekly_breakdown': dict(weekly_breakdown),
@@ -545,7 +636,7 @@ class WorkoutTypeAnalyzer:
         }
     
     def compare_workout_types(self, type1: str, type2: str, 
-                              weeks_back: int = 12) -> Dict:
+                              weeks_back: int = 8) -> Dict:
         """
         Compare two workout types side-by-side.
         

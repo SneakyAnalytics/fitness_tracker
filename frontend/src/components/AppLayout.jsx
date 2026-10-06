@@ -12,7 +12,10 @@ import {
 import UserProfile from "./UserProfile";
 import "./AppLayout.css";
 
+console.log("AppLayout component loaded");
+
 function AppLayout({ children }) {
+  console.log("AppLayout rendering");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
@@ -31,8 +34,8 @@ function AppLayout({ children }) {
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? "open" : "closed"}`}>
         <div className="sidebar-header gradient-forest">
-          <Mountain className="sidebar-logo" size={32} />
-          <h1 className="sidebar-title">PNW Fitness</h1>
+          <Brain className="sidebar-logo" size={32} />
+          <h1 className="sidebar-title">Coach Claude</h1>
         </div>
 
         <nav className="sidebar-nav">

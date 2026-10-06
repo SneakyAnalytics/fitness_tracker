@@ -19,7 +19,9 @@ fitparse==1.2.0
 
 # AI APIs
 google-generativeai>=0.3.0
+google-genai>=0.4.0  # Updated version
 anthropic>=0.7.0
+openai>=1.50.0  # Used for GitHub Models (OpenAI-compatible endpoint)
 
 # Browser automation
 playwright==1.55.0
