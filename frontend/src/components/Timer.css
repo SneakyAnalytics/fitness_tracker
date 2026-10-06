@@ -14,7 +14,11 @@
 
 .timer-container.rest-phase {
   border-color: var(--color-mountain);
-  background: linear-gradient(to bottom, white 0%, rgba(74, 124, 126, 0.05) 100%);
+  background: linear-gradient(
+    to bottom,
+    white 0%,
+    rgba(74, 124, 126, 0.05) 100%
+  );
 }
 
 .timer-header {
@@ -77,13 +81,21 @@
 
 .timer-progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, var(--color-forest) 0%, var(--color-mountain) 100%);
+  background: linear-gradient(
+    90deg,
+    var(--color-forest) 0%,
+    var(--color-mountain) 100%
+  );
   transition: width 1s linear;
   border-radius: 999px;
 }
 
 .rest-phase .timer-progress-bar {
-  background: linear-gradient(90deg, var(--color-mountain) 0%, var(--color-gravel) 100%);
+  background: linear-gradient(
+    90deg,
+    var(--color-mountain) 0%,
+    var(--color-gravel) 100%
+  );
 }
 
 .timer-controls {

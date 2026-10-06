@@ -12,6 +12,9 @@ Designed to run at 10pm PST via cron job.
 """
 
 import os
+import gzip
+import subprocess
+import tempfile
 from pathlib import Path
 from datetime import datetime, date, timedelta
 import time
@@ -45,11 +48,61 @@ class DailyAutoSyncAndAnalyze:
         self.project_root = Path(__file__).parent.parent.parent
         self.downloads_dir = self.project_root / "data" / "trainingpeaks_downloads"
         self.tp_extract_dir = self.project_root / "data" / "trainingpeaks_extracted"
+        self.resource_log_path = self.project_root / "logs" / "daily_resource_usage.log"
         
         # Rate limiting for Gemini API
         self.api_delay = 6  # seconds between analyses
         
+        # Ensure logs directory exists
+        self.resource_log_path.parent.mkdir(parents=True, exist_ok=True)
+        
         logger.info(f"Initialized daily automation with database: {db_path}")
+    
+    def log_docker_stats(self, stage: str) -> None:
+        """
+        Log Docker container resource usage at specific stages of automation.
+        
+        Args:
+            stage: Description of current stage (e.g., 'start', 'after_sync', 'after_analysis')
+        """
+        try:
+            # Get docker stats (one-time snapshot)
+            result = subprocess.run(
+                ['docker', 'stats', '--no-stream', '--format', 
+                 '{{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.NetIO}}'],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if result.returncode == 0:
+                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                
+                # Log to file
+                with open(self.resource_log_path, 'a') as f:
+                    f.write(f"\n[{timestamp}] Stage: {stage}\n")
+                    f.write(f"{'Container':<30} {'CPU%':<10} {'Memory':<20} {'Mem%':<10} {'Network I/O':<20}\n")
+                    f.write("-" * 90 + "\n")
+                    
+                    for line in result.stdout.strip().split('\n'):
+                        if line:
+                            f.write(f"{line}\n")
+                    f.write("\n")
+                
+                # Also log to console for visibility
+                logger.info(f"📊 Resource usage at stage '{stage}':")
+                for line in result.stdout.strip().split('\n'):
+                    if line:
+                        logger.info(f"   {line}")
+            else:
+                logger.warning(f"Failed to collect Docker stats: {result.stderr}")
+                
+        except subprocess.TimeoutExpired:
+            logger.warning("Docker stats command timed out")
+        except FileNotFoundError:
+            logger.warning("Docker command not found - skipping resource monitoring")
+        except Exception as e:
+            logger.warning(f"Error collecting Docker stats: {e}")
     
     def get_today_date_range(self) -> tuple[str, str]:
         """
@@ -156,6 +209,45 @@ class DailyAutoSyncAndAnalyze:
                     logger.info(f"   Found: {fit_file.name} (by mod date)")
         
         logger.info(f"Found {len(fit_files)} FIT file(s) for {target_date}")
+
+        # Also check for gzipped FIT files (.FIT.gz) — common in TrainingPeaks bulk exports
+        # Decompress them to a temp dir so the rest of the pipeline can read them normally
+        gz_files = list(self.tp_extract_dir.rglob('*.[Ff][Ii][Tt].[Gg][Zz]'))
+        if gz_files:
+            tmp_dir = Path(tempfile.gettempdir()) / 'fitness_tracker_fit'
+            tmp_dir.mkdir(exist_ok=True)
+
+        for gz_path in gz_files:
+            # Extract date from the filename — TP names look like:
+            # tp-5350487.2026-03-28-22-38-07-744Z.GarminPing.xxx.FIT.gz
+            # Try to find the YYYY-MM-DD portion anywhere in the stem
+            stem = gz_path.name  # e.g. "...2026-03-28-22-38-07...FIT.gz"
+            matched_date = None
+            import re
+            m = re.search(r'(\d{4})-(\d{2})-(\d{2})', stem)
+            if m:
+                try:
+                    matched_date = date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+                except ValueError:
+                    pass
+
+            if matched_date is None:
+                # Fall back to file modification date
+                matched_date = datetime.fromtimestamp(gz_path.stat().st_mtime).date()
+
+            if matched_date == target_date:
+                # Decompress to temp file, preserving a stable name so we don't
+                # decompress the same file twice across multiple runs
+                tmp_fit = tmp_dir / (gz_path.stem)  # strips the final .gz
+                if not tmp_fit.exists():
+                    logger.info(f"   Decompressing: {gz_path.name}")
+                    with gzip.open(gz_path, 'rb') as gz_in:
+                        tmp_fit.write_bytes(gz_in.read())
+                else:
+                    logger.info(f"   Already decompressed: {tmp_fit.name}")
+                fit_files.append(tmp_fit)
+                logger.info(f"   Found (gz): {gz_path.name} -> {tmp_fit.name}")
+
         return fit_files
     
     def analyze_workouts_from_database(
@@ -340,11 +432,8 @@ class DailyAutoSyncAndAnalyze:
                 except Exception as e:
                     logger.warning(f"   ⚠️  Could not load fit_data for workout_id={workout_id}: {e}")
                 
-                # Skip non-cycling workouts during DB reanalysis
+                # Allow non-cycling workouts (FitFileAnalyzer handles non-cycling with a basic summary)
                 sport = (workout_data.get('sport') or '').lower()
-                if sport and sport not in ['cycling', 'bike', 'biking']:
-                    logger.info(f"   ⏭️  Skipping non-cycling workout (sport: {sport})")
-                    continue
 
                 # Create analyzer
                 analyzer = FitFileAnalyzer(use_dynamic_models=True)
@@ -496,15 +585,64 @@ class DailyAutoSyncAndAnalyze:
             # Lookup workout_id from fit_file if not provided
             # This links the analysis to the workout record for better UI display
             if not workout_id and fit_file_id:
-                import sqlite3
-                conn = sqlite3.connect(self.db.db_path)
+                import sqlite3 as _sqlite3
+                import json as _json
+                conn = _sqlite3.connect(self.db.db_path)
                 c = conn.cursor()
+
+                # Primary: workout directly points to this FIT file
                 c.execute('SELECT id FROM workouts WHERE fit_file_id = ?', (fit_file_id,))
                 result = c.fetchone()
                 if result:
                     workout_id = result[0]
+
+                # Fallback: date + TSS/duration fuzzy match for CSV-imported workouts
+                # (their fit_file_id is NULL because they came from the TrainingPeaks CSV)
+                if not workout_id:
+                    c.execute('SELECT workout_day FROM fit_files WHERE id = ?', (fit_file_id,))
+                    day_row = c.fetchone()
+                    if day_row and day_row[0]:
+                        fit_date = day_row[0]
+                        c.execute('''SELECT id, workout_data FROM workouts
+                                     WHERE workout_day = ?
+                                       AND (fit_file_id IS NULL OR fit_file_id = 0)
+                                     ORDER BY id''', (fit_date,))
+                        candidates = c.fetchall()
+                        if len(candidates) == 1:
+                            # Only one unlinked workout on this date — safe to link
+                            workout_id = candidates[0][0]
+                        elif len(candidates) > 1:
+                            # Multiple candidates: rank by TSS and duration similarity
+                            parsed = analysis.get('parsed_data', {})
+                            fit_tss = float((parsed.get('power_metrics') or {}).get('tss') or 0)
+                            fit_dur_min = float(parsed.get('duration_seconds') or 0) / 60
+                            best_id, best_score = None, 1e9
+                            for cand_id, cand_data_str in candidates:
+                                try:
+                                    cand_data = _json.loads(cand_data_str) if isinstance(cand_data_str, str) else (cand_data_str or {})
+                                    metrics = cand_data.get('metrics', {})
+                                    cand_tss = float(metrics.get('actual_tss') or metrics.get('tss') or cand_data.get('tss_score') or 0)
+                                    cand_dur = float(metrics.get('actual_duration') or metrics.get('duration') or cand_data.get('duration_minutes') or 0)
+                                    score = 0.0
+                                    if fit_tss and cand_tss:
+                                        score += abs(fit_tss - cand_tss)
+                                    if fit_dur_min and cand_dur:
+                                        score += abs(fit_dur_min - cand_dur) * 0.5
+                                    if score < best_score:
+                                        best_score, best_id = score, cand_id
+                                except Exception:
+                                    continue
+                            # Only auto-link when match quality is reasonable
+                            if best_id and best_score < 50:
+                                workout_id = best_id
+
+                        if workout_id:
+                            c.execute('UPDATE workouts SET fit_file_id = ? WHERE id = ?', (fit_file_id, workout_id))
+                            conn.commit()
+                            logger.info(f"   🔗 Auto-linked workout {workout_id} to FIT file {fit_file_id} on {fit_date}")
+
                 conn.close()
-            
+
             # Store the analysis with full data for visualization
             analysis_id = self.db.store_workout_analysis(
                 workout_id=workout_id,
@@ -601,7 +739,87 @@ class DailyAutoSyncAndAnalyze:
             logger.error(f"   ⚠️  Temp dir cleanup error: {str(e)}")
         
         logger.info("✅ Cleanup complete")
-    
+
+    def _import_local_fit_files(self, target_date: date) -> int:
+        """
+        Scan the local TrainingPeaks extraction directory for any FIT / FIT.gz files
+        that match target_date but have not yet been stored in the fit_files table.
+        Each discovered file is parsed and saved directly to the database, bypassing
+        the HTTP upload API.  This covers the common case where a bulk export was placed
+        in the folder after the main Playwright sync already ran (e.g. a long ride that
+        was recorded on a Garmin and synced to TrainingPeaks later in the day).
+
+        Returns:
+            Number of new FIT files imported into the database.
+        """
+        imported = 0
+        fit_paths = self.find_todays_fit_files(target_date)
+        if not fit_paths:
+            logger.info("   No local FIT files found for this date")
+            return 0
+
+        from .fit_parser import FitParser
+        parser = FitParser()
+
+        try:
+            settings = self.db.get_athlete_settings()
+            athlete_ftp = float(settings.get('ftp') or 300)
+        except Exception:
+            athlete_ftp = None
+
+        import re as _re
+
+        for fit_path in fit_paths:
+            fit_name = fit_path.name  # e.g. tp-5350487.2026-03-28...FIT
+
+            # The /upload/fit API saves a date-prefixed copy (YYYY-MM-DD-<original>).
+            # Strip that prefix so deduplication matches the original DB entry.
+            check_name = fit_name
+            parts = check_name.split('-', 3)
+            if len(parts) == 4 and len(parts[0]) == 4 and parts[0].isdigit():
+                check_name = parts[3]  # Strip YYYY-MM-DD- prefix
+
+            # Skip if already in the database (exact or suffix match)
+            if self.db.get_fit_file_id_by_name(check_name) or self.db.get_fit_file_id_by_name(fit_name):
+                logger.info(f"   Already in DB: {fit_name}")
+                continue
+
+            try:
+                with open(fit_path, 'rb') as fh:
+                    file_content = fh.read()
+
+                parsed_data = parser.parse_fit_file(file_content, athlete_ftp=athlete_ftp)
+                if parsed_data is None:
+                    parsed_data = {}
+
+                # Extract date string from filename (YYYY-MM-DD)
+                m = _re.search(r'(\d{4}-\d{2}-\d{2})', fit_name)
+                file_date = m.group(1) if m else str(target_date)
+
+                # Build a short title from the unique ID portion of the filename
+                # e.g. "Garmin-AAAAAGnIWE-dsNVe" for GarminPing files
+                parts = fit_name.split('.')
+                unique_id = None
+                for i, part in enumerate(parts):
+                    if 'GarminPing' in part and i + 1 < len(parts):
+                        candidate = parts[i + 1]
+                        if candidate.upper() not in ('FIT', 'GZ'):
+                            unique_id = candidate
+                        break
+                title = f"Garmin-{unique_id}" if unique_id else fit_name.rsplit('.', 1)[0]
+
+                saved = self.db.save_fit_data(file_date, title, parsed_data, fit_name)
+                if saved:
+                    imported += 1
+                    logger.info(f"   ✅ Imported local FIT: {fit_name}")
+                else:
+                    logger.warning(f"   ⚠️  DB save failed for: {fit_name}")
+
+            except Exception as e:
+                logger.warning(f"   ⚠️  Error importing {fit_name}: {e}")
+
+        return imported
+
     def run_daily_automation(
         self,
         target_date: date = None,
@@ -622,11 +840,16 @@ class DailyAutoSyncAndAnalyze:
         if target_date is None:
             target_date = date.today()
         
+        start_time = time.time()
+        
         logger.info("")
         logger.info("=" * 60)
         logger.info(f"🚀 DAILY AUTOMATION - {target_date}")
         logger.info("=" * 60)
         logger.info("")
+        
+        # Log initial resource usage
+        self.log_docker_stats("start")
         
         results = {
             'date': str(target_date),
@@ -634,7 +857,8 @@ class DailyAutoSyncAndAnalyze:
             'fit_files_downloaded': 0,
             'workouts_analyzed': 0,
             'personal_bests': 0,
-            'errors': []
+            'errors': [],
+            'duration_seconds': 0
         }
         
         # Step 1: Sync TrainingPeaks
@@ -642,29 +866,39 @@ class DailyAutoSyncAndAnalyze:
         logger.info("-" * 60)
         sync_results = self.sync_trainingpeaks(target_date)
         
+        # Log resource usage after sync
+        self.log_docker_stats("after_sync")
+        
         if sync_results and sync_results['fit_files'] > 0:
             results['sync_successful'] = True
             results['fit_files_downloaded'] = sync_results['fit_files']
         else:
-            results['errors'].append("TrainingPeaks sync failed or no files found")
-            logger.warning("⚠️  No FIT files downloaded, skipping analysis")
-            return results
-        
+            results['errors'].append("TrainingPeaks sync returned no new FIT files via Playwright")
+            logger.warning("⚠️  No FIT files from Playwright sync — will scan local disk for unprocessed files")
+
+        # Step 1.5: Scan local disk for any FIT/.FIT.gz not yet in the database.
+        # This handles: Playwright failures, bulk exports placed in the folder manually,
+        # and gz files that existed before this automation was run.
+        logger.info("")
+        logger.info("STEP 1.5: Scan Local FIT Files")
+        logger.info("-" * 60)
+        locally_imported = self._import_local_fit_files(target_date)
+        if locally_imported:
+            logger.info(f"   Imported {locally_imported} local FIT file(s) into database")
+            results['fit_files_downloaded'] = (results.get('fit_files_downloaded') or 0) + locally_imported
+
         # Step 2: Get FIT files from sync results
         logger.info("")
         logger.info("STEP 2: Get FIT Files from Sync")
         logger.info("-" * 60)
-        fit_files = sync_results.get('fit_file_paths', [])
-        
+        fit_files = sync_results.get('fit_file_paths', []) if sync_results else []
+
         if not fit_files:
-            # Fallback: Analyze workouts directly from database
-            logger.info("No FIT file paths in sync results, analyzing from database...")
+            # Fallback: Analyze workouts directly from database.
+            # At this point any local gz files have already been imported (Step 1.5),
+            # so analyze_workouts_from_database will find and link them.
+            logger.info("No FIT file paths in sync results — analyzing from database (includes locally imported files)")
             return self.analyze_workouts_from_database(target_date, ftp_watts, results)
-        
-        if not fit_files:
-            results['errors'].append("No FIT files found after sync")
-            logger.warning("⚠️  No FIT files found")
-            return results
         
         logger.info(f"Found {len(fit_files)} FIT file(s) to analyze")
         
@@ -699,6 +933,9 @@ class DailyAutoSyncAndAnalyze:
                 logger.error(f"   ❌ {error_msg}")
                 results['errors'].append(error_msg)
         
+        # Log resource usage after analysis
+        self.log_docker_stats("after_analysis")
+        
         # Step 4: Cleanup
         if cleanup:
             logger.info("")
@@ -706,12 +943,19 @@ class DailyAutoSyncAndAnalyze:
             logger.info("-" * 60)
             self.cleanup_temp_files(target_date)
         
+        # Log final resource usage
+        self.log_docker_stats("end")
+        
+        # Calculate duration
+        results['duration_seconds'] = int(time.time() - start_time)
+        
         # Final summary
         logger.info("")
         logger.info("=" * 60)
         logger.info("✅ DAILY AUTOMATION COMPLETE")
         logger.info("=" * 60)
         logger.info(f"Date: {results['date']}")
+        logger.info(f"Duration: {results['duration_seconds']}s")
         logger.info(f"FIT Files Downloaded: {results['fit_files_downloaded']}")
         logger.info(f"Workouts Analyzed: {results['workouts_analyzed']}")
         logger.info(f"New Personal Bests: {results['personal_bests']}")
@@ -719,6 +963,7 @@ class DailyAutoSyncAndAnalyze:
             logger.info(f"Errors: {len(results['errors'])}")
             for error in results['errors']:
                 logger.error(f"  - {error}")
+        logger.info(f"Resource Log: {self.resource_log_path}")
         logger.info("=" * 60)
         logger.info("")
         

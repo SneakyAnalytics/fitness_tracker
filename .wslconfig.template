@@ -1,0 +1,34 @@
+# WSL Configuration for Docker Desktop on Windows
+# Place this file at: C:\Users\<YourUsername>\.wslconfig
+# 
+# After creating/editing this file, restart WSL:
+#   wsl --shutdown
+#
+# This configuration prevents WSL/Docker from consuming excessive resources
+# and causing high CPU usage from vmmemWSL process.
+
+[wsl2]
+# Limit memory allocation to 2GB
+# Prevents memory accumulation that causes CPU spikes
+memory=2GB
+
+# Limit CPU cores to 2
+# Prevents runaway processes from maxing out all cores
+processors=2
+
+# Swap file size (helps prevent OOM but increases disk I/O)
+swap=1GB
+
+# Disable page reporting (reduces overhead)
+pageReporting=false
+
+# Amount of time to wait before removing idle VM memory (in seconds)
+# Default is 5 minutes; increase to reduce churn
+vmIdleTimeout=60000
+
+# NOTES:
+# - These are conservative settings suitable for a fitness tracking app
+# - If you see OOM (Out of Memory) errors in Docker, increase memory to 3GB
+# - If containers are slow to respond, increase processors to 3
+# - Monitor with: docker stats
+# - Check WSL memory: wsl -l -v, then: wsl --shutdown to reset

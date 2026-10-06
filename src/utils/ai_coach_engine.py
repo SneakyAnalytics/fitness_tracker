@@ -44,6 +44,7 @@ We use: Sequential + Feedback (generate, validate, fix if needed)
 
 import json
 import time
+import random
 from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 from datetime import datetime
@@ -65,12 +66,34 @@ except ImportError:
 # API clients
 try:
     import google.generativeai as genai
-    from anthropic import Anthropic
+    from anthropic import Anthropic, InternalServerError, APIError, RateLimitError
     APIS_AVAILABLE = True
 except ImportError:
     APIS_AVAILABLE = False
     print("⚠️  Warning: google-generativeai or anthropic not installed")
     print("   Install with: pip install google-generativeai anthropic")
+
+# GitHub Models uses the OpenAI-compatible SDK
+try:
+    from openai import OpenAI as _OpenAIClient
+    _OPENAI_SDK_AVAILABLE = True
+except ImportError:
+    _OPENAI_SDK_AVAILABLE = False
+
+import os as _os_env  # for GITHUB_MODEL env var overrides
+_GITHUB_MODELS_URL = "https://models.inference.ai.azure.com"
+# Actual model IDs on GitHub Models — override via env if needed
+def _github_model_id(model):
+    """Return the upstream model name to pass to the GitHub Models endpoint."""
+    defaults = {
+        "github-gpt4o-mini": "gpt-4o-mini",
+        "github-gpt4o":      "gpt-4o",
+    }
+    env_override = {
+        "github-gpt4o-mini": _os_env.getenv("GITHUB_FAST_MODEL"),
+        "github-gpt4o":      _os_env.getenv("GITHUB_BEST_MODEL"),
+    }
+    return env_override.get(model.value) or defaults.get(model.value, model.value)
 
 
 @dataclass
@@ -153,19 +176,33 @@ class AICoachEngine:
         if not api_key:
             raise ValueError(f"No API key found for {self.model.value}")
         
-        if self.model in [AIModel.GEMINI_FREE, AIModel.GEMINI_PRO]:
-            # Google Gemini - Updated Nov 2024+ model names
+        if self.model in [AIModel.GEMINI_FREE, AIModel.GEMINI_FLASH_LITE, AIModel.GEMINI_PRO]:
+            # Google Gemini — model name comes straight from the enum, which uses
+            # Google's rolling "-latest" aliases so this doesn't go stale again.
             genai.configure(api_key=api_key)
-            # Use latest stable models (Gemini 1.5/2.0 Flash is FREE with 15 RPM limit)
-            model_name = "gemini-1.5-flash-002" if self.model == AIModel.GEMINI_FREE else "gemini-1.5-pro"
+            model_name = self.model.value
             self.client = genai.GenerativeModel(model_name)
             print(f"✅ Configured {model_name}")
-        
+
         elif self.model in [AIModel.CLAUDE_HAIKU, AIModel.CLAUDE_SONNET]:
             # Anthropic Claude
             self.client = Anthropic(api_key=api_key)
             print(f"✅ Configured {self.model.value}")
-        
+
+        elif self.model in [AIModel.GITHUB_GPT4O_MINI, AIModel.GITHUB_GPT4O]:
+            # GitHub Models — OpenAI-compatible endpoint using GitHub token
+            if not _OPENAI_SDK_AVAILABLE:
+                raise ImportError(
+                    "openai package required for GitHub Models. "
+                    "Install with: pip install openai>=1.50.0"
+                )
+            self.client = _OpenAIClient(
+                base_url=_GITHUB_MODELS_URL,
+                api_key=api_key,
+            )
+            self._github_model_name = _github_model_id(self.model)
+            print(f"✅ Configured GitHub Models → {self._github_model_name} (with Anthropic fallback if available)")
+
         else:
             raise ValueError(f"Unsupported model: {self.model}")
     
@@ -199,7 +236,7 @@ class AICoachEngine:
         start_time = time.time()
         
         try:
-            if self.model in [AIModel.GEMINI_FREE, AIModel.GEMINI_PRO]:
+            if self.model in [AIModel.GEMINI_FREE, AIModel.GEMINI_FLASH_LITE, AIModel.GEMINI_PRO]:
                 # Google Gemini API
                 # Set safety settings to allow fitness/health content
                 from google.generativeai.types import HarmCategory, HarmBlockThreshold
@@ -235,36 +272,120 @@ class AICoachEngine:
                         raise ValueError(f"Response blocked. Reason: {finish_reason}, Safety: {safety_ratings}")
                     raise
                 
+                finish_reason = None
+                if response.candidates and response.candidates[0].finish_reason:
+                    finish_reason = str(response.candidates[0].finish_reason)
+
                 # Extract token usage if available
                 metadata = {
                     'model': self.model.value,
                     'latency': time.time() - start_time,
                     'prompt_tokens': len(prompt) // 4,  # Rough estimate
                     'completion_tokens': len(response_text) // 4,
+                    'finish_reason': finish_reason,
                 }
             
             elif self.model in [AIModel.CLAUDE_HAIKU, AIModel.CLAUDE_SONNET]:
-                # Anthropic Claude API
+                # Anthropic Claude API with retry logic for 500 errors
                 model_name = self.model.value
-                
-                response = self.client.messages.create(
-                    model=model_name,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    messages=[
-                        {"role": "user", "content": prompt}
-                    ]
-                )
-                
-                response_text = response.content[0].text
-                
-                metadata = {
-                    'model': self.model.value,
-                    'latency': time.time() - start_time,
-                    'prompt_tokens': response.usage.input_tokens,
-                    'completion_tokens': response.usage.output_tokens,
-                }
-            
+
+                # Retry configuration for transient API errors
+                max_retries = 3
+                base_delay = 2  # seconds
+
+                for attempt in range(max_retries):
+                    try:
+                        response = self.client.messages.create(
+                            model=model_name,
+                            max_tokens=max_tokens,
+                            temperature=temperature,
+                            messages=[
+                                {"role": "user", "content": prompt}
+                            ]
+                        )
+
+                        response_text = response.content[0].text
+                        finish_reason = getattr(response, 'stop_reason', None)
+
+                        metadata = {
+                            'model': self.model.value,
+                            'latency': time.time() - start_time,
+                            'prompt_tokens': response.usage.input_tokens,
+                            'completion_tokens': response.usage.output_tokens,
+                            'finish_reason': finish_reason,
+                            'retries': attempt
+                        }
+
+                        break  # Success, exit retry loop
+
+                    except InternalServerError as e:
+                        if attempt < max_retries - 1:
+                            delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+                            print(f"⚠️  Anthropic API 500 error (attempt {attempt + 1}/{max_retries}), retrying in {delay:.1f}s...")
+                            time.sleep(delay)
+                        else:
+                            print(f"❌ Anthropic API failed after {max_retries} attempts")
+                            raise
+
+                    except (RateLimitError, APIError) as e:
+                        print(f"❌ Anthropic API error: {type(e).__name__}: {str(e)}")
+                        raise
+
+            elif self.model in [AIModel.GITHUB_GPT4O_MINI, AIModel.GITHUB_GPT4O]:
+                # GitHub Models — OpenAI-compatible endpoint, with Anthropic direct fallback
+                # Hard-cap at 4000 tokens (GitHub Models limit for high-tier models)
+                gh_model = self._github_model_name
+                gh_max_tokens = min(max_tokens, 4000)
+                try:
+                    gh_response = self.client.chat.completions.create(
+                        model=gh_model,
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=temperature,
+                        max_tokens=gh_max_tokens,
+                    )
+                    finish_reason = gh_response.choices[0].finish_reason
+                    # Treat a truncated response as a failure — fall through to Anthropic
+                    if finish_reason == "length":
+                        used = gh_response.usage.completion_tokens if gh_response.usage else "?"
+                        raise RuntimeError(
+                            f"GitHub Models response truncated at token limit "
+                            f"(finish_reason=length, {used}/{gh_max_tokens} output tokens). "
+                            f"Falling back to Anthropic for complete response."
+                        )
+                    response_text = gh_response.choices[0].message.content
+                    usage = gh_response.usage
+                    metadata = {
+                        'model': f"github/{gh_model}",
+                        'latency': time.time() - start_time,
+                        'prompt_tokens': usage.prompt_tokens if usage else len(prompt) // 4,
+                        'completion_tokens': usage.completion_tokens if usage else len(response_text) // 4,
+                        'finish_reason': finish_reason,
+                        'provider': 'github',
+                    }
+                except Exception as gh_err:
+                    fallback_key = self.config.claude_api_key
+                    if fallback_key:
+                        print(f"⚠️  GitHub Models failed ({type(gh_err).__name__}: {gh_err}), falling back to direct Anthropic API...")
+                        fb_client = Anthropic(api_key=fallback_key)
+                        fb_model = "claude-sonnet-4-6"
+                        fb_resp = fb_client.messages.create(
+                            model=fb_model,
+                            max_tokens=max_tokens,  # use original uncapped limit
+                            temperature=temperature,
+                            messages=[{"role": "user", "content": prompt}],
+                        )
+                        response_text = fb_resp.content[0].text
+                        metadata = {
+                            'model': f"anthropic-fallback/{fb_model}",
+                            'latency': time.time() - start_time,
+                            'prompt_tokens': fb_resp.usage.input_tokens,
+                            'completion_tokens': fb_resp.usage.output_tokens,
+                            'finish_reason': fb_resp.stop_reason,
+                            'provider': 'anthropic_fallback',
+                        }
+                    else:
+                        raise
+
             else:
                 raise ValueError(f"Unsupported model: {self.model}")
             
@@ -272,7 +393,7 @@ class AICoachEngine:
             # Gemini Flash: Free, Pro: ~$0.00025 per 1K tokens
             # Claude Haiku: ~$0.00025 per 1K tokens, Sonnet: ~$0.003 per 1K tokens
             total_tokens = metadata['prompt_tokens'] + metadata['completion_tokens']
-            if self.model == AIModel.GEMINI_FREE:
+            if self.model in [AIModel.GEMINI_FREE, AIModel.GEMINI_FLASH_LITE]:
                 cost = 0.0  # Free tier
             elif self.model == AIModel.GEMINI_PRO:
                 cost = (total_tokens / 1000) * 0.00025
@@ -329,6 +450,123 @@ Athlete responding well to current training load. Continue progressive approach.
         else:
             return '{"weekNumber": 52, "startDate": "2025-11-18", "ftp": 300, "plannedTSS": {"min": 400, "max": 500}, "notes": {"weekFocus": "Base building", "specialConsiderations": "Monitor recovery"}, "days": []}'
     
+    def _call_api_streaming(self, prompt: str, temperature: float = 0.7,
+                            max_tokens: int = 4000):
+        """
+        Streaming variant of _call_api.  Yields text chunks as a generator so
+        callers can pass it directly to st.write_stream().
+
+        Anthropic: client.messages.stream() context manager
+        Gemini:    generate_content(stream=True)
+        Demo mode: yields the mock response in one chunk
+        """
+        if not self.client:
+            yield self._mock_response(prompt)
+            return
+
+        if self.model in [AIModel.GEMINI_FREE, AIModel.GEMINI_FLASH_LITE, AIModel.GEMINI_PRO]:
+            from google.generativeai.types import HarmCategory, HarmBlockThreshold
+            safety_settings = {
+                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
+            }
+            response = self.client.generate_content(
+                prompt,
+                generation_config=genai.GenerationConfig(
+                    temperature=temperature,
+                    max_output_tokens=max_tokens,
+                ),
+                safety_settings=safety_settings,
+                stream=True,
+            )
+            for chunk in response:
+                try:
+                    text = chunk.text
+                    if text:
+                        yield text
+                except Exception:
+                    pass
+
+        elif self.model in [AIModel.CLAUDE_HAIKU, AIModel.CLAUDE_SONNET]:
+            model_name = self.model.value
+            max_retries = 3
+            base_delay = 2
+            for attempt in range(max_retries):
+                try:
+                    with self.client.messages.stream(
+                        model=model_name,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        messages=[{"role": "user", "content": prompt}],
+                    ) as stream:
+                        for text in stream.text_stream:
+                            yield text
+                    break
+                except InternalServerError:
+                    if attempt < max_retries - 1:
+                        delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+                        print(f"⚠️  Anthropic stream 500 error (attempt {attempt + 1}/{max_retries}), retrying in {delay:.1f}s...")
+                        time.sleep(delay)
+                    else:
+                        raise
+                except (RateLimitError, APIError):
+                    raise
+
+        elif self.model in [AIModel.GITHUB_GPT4O_MINI, AIModel.GITHUB_GPT4O]:
+            # GitHub Models streaming — buffer first to detect truncation before yielding.
+            # If the response is cut off at the token limit we fall back to Anthropic
+            # rather than surfacing a half-formed plan to the UI.
+            gh_model = self._github_model_name
+            gh_max_tokens = min(max_tokens, 4000)  # hard cap at GitHub Models limit
+            fallback_key = self.config.claude_api_key
+            try:
+                stream = self.client.chat.completions.create(
+                    model=gh_model,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=temperature,
+                    max_tokens=gh_max_tokens,
+                    stream=True,
+                )
+                buffered = []
+                finish_reason = None
+                for chunk in stream:
+                    if chunk.choices:
+                        delta = chunk.choices[0].delta.content
+                        if delta:
+                            buffered.append(delta)
+                        if chunk.choices[0].finish_reason:
+                            finish_reason = chunk.choices[0].finish_reason
+
+                if finish_reason == "length":
+                    print(f"⚠️  GitHub Models stream hit token limit (finish_reason=length, "
+                          f"{len(buffered)} chunks buffered). Falling back to Anthropic...")
+                    raise RuntimeError("response_truncated")
+
+                # No truncation — stream out the buffered chunks
+                for text in buffered:
+                    yield text
+
+            except Exception as gh_err:
+                if fallback_key:
+                    print(f"⚠️  GitHub Models stream failed ({type(gh_err).__name__}), falling back to direct Anthropic API...")
+                    fb_client = Anthropic(api_key=fallback_key)
+                    fb_model = "claude-sonnet-4-6"  # always use Sonnet 4.6 for fallback quality
+                    with fb_client.messages.stream(
+                        model=fb_model,
+                        max_tokens=max_tokens,  # use original uncapped limit
+                        temperature=temperature,
+                        messages=[{"role": "user", "content": prompt}],
+                    ) as fb_stream:
+                        for text in fb_stream.text_stream:
+                            yield text
+                else:
+                    raise
+
+        else:
+            raise ValueError(f"Unsupported model for streaming: {self.model}")
+
     def analyze_week(self, weekly_summary: Dict, 
                      comprehensive_context: Optional[Dict] = None,
                      user_context: Optional[Dict] = None) -> Tuple[str, Dict]:
@@ -529,6 +767,16 @@ Return ONLY this JSON structure:
         # Get comprehensive context
         comprehensive_context = self.db_queries.get_comprehensive_context(weeks_back=4)
         
+        # Auto-update training phase based on recent distribution
+        # This ensures phase is current even if analyze_week wasn't called
+        suggested_phase = self._infer_training_phase(comprehensive_context)
+        if suggested_phase:
+            if suggested_phase != self.coaching_notes.current_training_phase:
+                print(f"  📊 Updating training phase: {self.coaching_notes.current_training_phase} → {suggested_phase}")
+                self.coaching_notes.update_training_phase(suggested_phase)
+            else:
+                print(f"  ✓ Training phase confirmed: {suggested_phase}")
+        
         # Calculate next week's number and start date
         from datetime import datetime, timedelta
         import sqlite3
@@ -599,9 +847,28 @@ Return ONLY this JSON structure:
         debug_dir = Path("data/ai_coach_output/debug")
         debug_dir.mkdir(parents=True, exist_ok=True)
         (debug_dir / f"raw_generation_response_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt").write_text(response)
-        
-        # Parse JSON
-        workout_plan = self._extract_json(response)
+
+        # Parse JSON (with continuation fallback for truncation)
+        workout_plan = None
+        full_response = response
+
+        if self._should_continue_json(full_response, metadata):
+            for attempt in range(2):
+                continuation = self._continue_json_response(full_response, attempt + 1)
+                if not continuation:
+                    break
+                full_response += continuation
+                try:
+                    workout_plan = self._extract_json(full_response)
+                    break
+                except ValueError:
+                    continue
+
+            if workout_plan is not None and full_response != response:
+                (debug_dir / f"raw_generation_response_full_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt").write_text(full_response)
+
+        if workout_plan is None:
+            workout_plan = self._extract_json(full_response)
         
         return workout_plan, metadata
     
@@ -641,6 +908,7 @@ Return ONLY this JSON structure:
                 # Try to fix common issues
                 json_str_fixed = json_str.replace("'", '"')  # Single quotes
                 json_str_fixed = re.sub(r',(\s*[}\]])', r'\1', json_str_fixed)  # Trailing commas
+                json_str_fixed = self._repair_truncated_json(json_str_fixed)
                 
                 try:
                     return json.loads(json_str_fixed)
@@ -654,6 +922,99 @@ Return ONLY this JSON structure:
                     raise ValueError(f"Invalid JSON in AI response. Error: {e2.msg} at line {e2.lineno}. Check {debug_file}")
         
         raise ValueError("No valid JSON found in response")
+
+    def _repair_truncated_json(self, json_str: str) -> str:
+        """
+        Attempt to repair truncated JSON by:
+        1) Trimming trailing non-JSON characters
+        2) Balancing any unclosed braces/brackets (ignoring strings)
+        """
+        if not json_str:
+            return json_str
+
+        # Trim trailing garbage after the last closing brace/bracket
+        last_close = max(json_str.rfind('}'), json_str.rfind(']'))
+        if last_close != -1:
+            json_str = json_str[:last_close + 1]
+
+        stack = []
+        in_string = False
+        escape = False
+
+        for ch in json_str:
+            if in_string:
+                if escape:
+                    escape = False
+                elif ch == '\\':
+                    escape = True
+                elif ch == '"':
+                    in_string = False
+                continue
+
+            if ch == '"':
+                in_string = True
+            elif ch in '{[':
+                stack.append(ch)
+            elif ch in '}]':
+                if stack:
+                    stack.pop()
+
+        # Append closing tokens in reverse order
+        if stack:
+            closing = ''.join('}' if opener == '{' else ']' for opener in reversed(stack))
+            json_str = json_str + closing
+
+        return json_str
+
+    def _is_truncated_json(self, text: str) -> bool:
+        """Detect likely truncation by checking for unbalanced braces/brackets."""
+        if not text or '{' not in text:
+            return False
+
+        stack = []
+        in_string = False
+        escape = False
+
+        for ch in text:
+            if in_string:
+                if escape:
+                    escape = False
+                elif ch == '\\':
+                    escape = True
+                elif ch == '"':
+                    in_string = False
+                continue
+
+            if ch == '"':
+                in_string = True
+            elif ch in '{[':
+                stack.append(ch)
+            elif ch in '}]':
+                if stack:
+                    stack.pop()
+
+        return len(stack) > 0
+
+    def _should_continue_json(self, response_text: str, metadata: Dict) -> bool:
+        finish = str(metadata.get('finish_reason', '')).lower()
+        if 'max' in finish or 'length' in finish:
+            return True
+        return self._is_truncated_json(response_text)
+
+    def _continue_json_response(self, partial_response: str, attempt: int) -> str:
+        """Request continuation when JSON output was truncated."""
+        tail = partial_response[-2000:]
+        continuation_prompt = (
+            "You are continuing a JSON document that was cut off. "
+            "Continue EXACTLY where it left off with valid JSON only. "
+            "Do NOT repeat any existing text. Do NOT add any new opening text or markdown. "
+            "Return only the continuation bytes needed to finish the JSON.\n\n"
+            f"Partial JSON tail (for context):\n{tail}\n\n"
+            "Continue JSON now:"
+        )
+
+        response, _ = self._call_api(continuation_prompt, temperature=0.2, max_tokens=4000)
+        return response
     
     def validate_workout_plan(self, plan: Dict) -> Tuple[bool, List[str]]:
         """
@@ -834,15 +1195,41 @@ Return ONLY this JSON structure:
             end_dt = start_dt + timedelta(days=6)
             end_date = end_dt.strftime('%Y-%m-%d')
             
-            # Extract week number from plan or calculate from start date
-            # AI sometimes returns generic weekNumber (e.g., 1), so use ISO week of start_date
-            ai_week_number = workout_plan.get('weekNumber')
-            if ai_week_number and ai_week_number > 1:
-                # AI provided a valid week number, use it
-                week_number = ai_week_number
-            else:
-                # Calculate ISO week from the start date
-                week_number = start_dt.isocalendar()[1]
+            # Determine correct sequential week number.
+            # The AI's weekNumber reflects its internal training-cycle numbering
+            # (e.g., "week 11 of a 12-week block") which is NOT our sequential
+            # folder counter (Week_57, Week_68, Week_69 …).  Always derive the
+            # correct number from the database:
+            #   1. If a weekly plan already exists for this exact startDate, reuse it.
+            #   2. Otherwise use MAX(weekNumber)+1 when our counter has reached ≥50.
+            #   3. Fall back to ISO week only if the DB is truly empty.
+            import sqlite3 as _sqlite3
+            week_number = None
+            try:
+                with _sqlite3.connect(db.db_path) as _wn_conn:
+                    # Check for an existing plan on the same start date
+                    existing_row = _wn_conn.execute(
+                        "SELECT weekNumber FROM weekly_plans WHERE startDate = ?",
+                        (start_date,)
+                    ).fetchone()
+                    if existing_row:
+                        week_number = existing_row[0]
+                    else:
+                        max_row = _wn_conn.execute(
+                            "SELECT MAX(weekNumber) FROM weekly_plans"
+                        ).fetchone()
+                        max_week = max_row[0] if max_row and max_row[0] else 0
+                        if max_week >= 50:
+                            # Sequential counter in use — next slot
+                            week_number = max_week + 1
+            except Exception as _wn_err:
+                print(f"⚠️  Could not query DB for week number: {_wn_err}")
+            if week_number is None:
+                ai_week_number = workout_plan.get('weekNumber')
+                if ai_week_number and ai_week_number > 1:
+                    week_number = ai_week_number
+                else:
+                    week_number = start_dt.isocalendar()[1]
             ftp = workout_plan.get('ftp', 300)
             planned_tss = workout_plan.get('plannedTSS', {})
             notes = workout_plan.get('notes', '')
@@ -971,7 +1358,72 @@ Return ONLY this JSON structure:
                     # Extract intervals and sections
                     intervals = workout.get('intervals', [])
                     sections = workout.get('sections', [])
-                    
+
+                    # Synthesize intervals from structureGuidelines for unstructured
+                    # bike workouts (e.g., long endurance rides with outdoor guidance
+                    # blocks instead of explicit interval lists).
+                    if not intervals and workout_type == 'bike':
+                        struct = workout.get('structureGuidelines', {})
+                        power_guide = workout.get('powerGuidelines', {})
+                        if struct:
+                            import re as _re
+                            def _extract_watts(text):
+                                m = _re.search(r'(\d+)-(\d+)W', str(text))
+                                return (int(m.group(1)), int(m.group(2))) if m else (None, None)
+                            def _extract_minutes(text):
+                                m = _re.search(r'(\d+)\s*minute', str(text))
+                                return int(m.group(1)) if m else 0
+                            warmup_text   = struct.get('warmup', '')
+                            main_text     = struct.get('mainBlock', '')
+                            cooldown_text = struct.get('cooldown', '')
+                            wu_mins  = _extract_minutes(warmup_text)
+                            mn_mins  = _extract_minutes(main_text)
+                            cd_mins  = _extract_minutes(cooldown_text)
+                            total_mins = duration
+                            if not (wu_mins + mn_mins + cd_mins):
+                                wu_mins = max(10, int(total_mins * 0.15))
+                                cd_mins = max(10, int(total_mins * 0.15))
+                                mn_mins = total_mins - wu_mins - cd_mins
+                            base_min, base_max = _extract_watts(
+                                power_guide.get('baseEffort', '')
+                            )
+                            if base_min is None:
+                                base_min, base_max = _extract_watts(main_text)
+                            if base_min is None:
+                                base_min, base_max = 195, 215
+                            wu_min,  wu_max  = _extract_watts(warmup_text)
+                            cd_min,  cd_max  = _extract_watts(cooldown_text)
+                            if wu_min is None:  wu_min,  wu_max  = 140, 160
+                            if cd_min is None:  cd_min,  cd_max  = 140, 160
+                            synth = []
+                            if wu_mins > 0:
+                                synth.append({
+                                    'name': 'Warmup',
+                                    'duration': wu_mins * 60,
+                                    'powerTarget': {'type': 'range', 'min': wu_min,   'max': wu_max,   'unit': 'watts'},
+                                    'cadenceTarget': {'min': 85, 'max': 95}
+                                })
+                            if mn_mins > 0:
+                                main_name = 'Steady Effort'
+                                if ':' in main_text:
+                                    main_name = main_text.split(':')[0].strip()
+                                synth.append({
+                                    'name': main_name,
+                                    'duration': mn_mins * 60,
+                                    'powerTarget': {'type': 'range', 'min': base_min, 'max': base_max, 'unit': 'watts'},
+                                    'cadenceTarget': {'min': 88, 'max': 95}
+                                })
+                            if cd_mins > 0:
+                                synth.append({
+                                    'name': 'Cool Down',
+                                    'duration': cd_mins * 60,
+                                    'powerTarget': {'type': 'range', 'min': cd_min,   'max': cd_max,   'unit': 'watts'},
+                                    'cadenceTarget': {'min': 90, 'max': 100}
+                                })
+                            if synth:
+                                intervals = synth
+                                print(f"  ✅ Synthesized {len(synth)}-interval structure for '{workout_name}' from structureGuidelines")
+
                     # Create workout
                     success = db.create_proposed_workout(
                         dailyPlanId=daily_plan_id,

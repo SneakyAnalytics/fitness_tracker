@@ -25,11 +25,11 @@ class TrainingPeaksSync:
         load_dotenv()
         self.username = os.getenv("TRAININGPEAKS_USERNAME")
         self.password = os.getenv("TRAININGPEAKS_PASSWORD")
-        # Use dedicated project directory for downloads instead of ~/Downloads
-        project_root = Path(__file__).parent.parent.parent
-        self.downloads_dir = project_root / "data" / "trainingpeaks_downloads"
-        self.extract_dir = project_root / "data" / "trainingpeaks_extracted"
-        # Ensure directories exist
+        # Use /tmp for downloads and extraction — avoid bind-mounted Windows filesystem
+        # which has unreliable write permissions in Docker. The ZIPs only need to
+        # survive for one sync run; the DB update is what persists.
+        self.downloads_dir = Path("/tmp/trainingpeaks_downloads")
+        self.extract_dir = Path("/tmp/trainingpeaks_extracted")
         self.downloads_dir.mkdir(parents=True, exist_ok=True)
         self.extract_dir.mkdir(parents=True, exist_ok=True)
         # Use API_URL from environment, fallback to localhost for local development
@@ -54,15 +54,30 @@ class TrainingPeaksSync:
         except:
             pass
         
-        # Click login
+        # Click login - use visible:true to skip hidden nav links
         print("🔐 Logging in...")
-        page.click("a[href*='login']")
+        page.goto("https://home.trainingpeaks.com/login", timeout=30000)
         page.wait_for_selector("input[name='Username']")
-        
+
+        # Accept cookies again on the login page (OneTrust re-appears here)
+        try:
+            page.click("button#onetrust-accept-btn-handler", timeout=3000)
+            time.sleep(0.5)
+        except:
+            pass
+
+        # Forcefully remove OneTrust overlay via JS so it can't block submit
+        try:
+            page.evaluate("const el = document.getElementById('onetrust-consent-sdk'); if (el) el.remove();")
+        except:
+            pass
+
         # Fill credentials
         page.fill("input[name='Username']", self.username)
         page.fill("input[name='Password']", self.password)
-        page.click("button[type='submit']")
+
+        # Click submit via JS to bypass any remaining overlay interception
+        page.evaluate("document.querySelector('button[type=\"submit\"]').click()")
         
         # Wait for potential captcha - give user 60 seconds in containerized environment
         print("⏸️  Waiting for login to complete (solve captcha if it appears)...")
@@ -77,125 +92,66 @@ class TrainingPeaksSync:
         # Add a small delay to ensure page is fully loaded
         time.sleep(2)
         
-        # Navigate to Settings
-        print("⚙️  Navigating to Settings...")
-        
-        # First, click Calendar to go to the main app
+        # Open Settings modal via JS clicks (SPA — no URL change)
+        print("⚙️  Opening Settings...")
+
+        # Step 1: Click user menu (Jake Robinson avatar) via JS
+        page.evaluate("""
+            () => {
+                const els = document.querySelectorAll('p.MuiTypography-root, p, button, span, a');
+                for (let el of els) {
+                    if (el.textContent.includes('Jake Robinson')) {
+                        el.click();
+                        return true;
+                    }
+                }
+                return false;
+            }
+        """)
+        time.sleep(1)  # short wait — dropdown auto-closes if we wait too long
+
+        # Step 2: Click the Settings label in the dropdown via JS
+        result = page.evaluate("""
+            () => {
+                const labels = document.querySelectorAll('label.userSettingsOption');
+                for (let el of labels) {
+                    if (el.textContent.includes('Settings')) {
+                        el.click();
+                        return 'ok';
+                    }
+                }
+                return 'not-found';
+            }
+        """)
+        print(f"   Settings click: {result}")
+        time.sleep(2)  # wait for modal to open
+
+        # Step 3: Click "Export Data" in the settings modal left nav
+        export_result = page.evaluate("""
+            () => {
+                const all = document.querySelectorAll('a, label, button, li, span');
+                for (let el of all) {
+                    if (el.textContent.trim() === 'Export Data') {
+                        el.click();
+                        return 'ok';
+                    }
+                }
+                return 'not-found';
+            }
+        """)
+        print(f"   Export Data click: {export_result}")
+        time.sleep(2)
+
+        # Debug screenshot
         try:
-            page.click("button:has-text('Calendar')", timeout=10000)
-            print("   ✓ Clicked Calendar button")
-            time.sleep(1)  # Wait for navigation
-        except Exception as e:
-            print(f"   ⚠️  Could not find Calendar button: {e}")
-            print("   Trying to continue anyway...")
-            time.sleep(1)
-        
-        # Give the page a moment to load
-        time.sleep(3)
-        
-        # Debug: Take a screenshot to see what's on the page
-        try:
-            screenshot_path = self.downloads_dir / "debug_after_login.png"
+            screenshot_path = self.downloads_dir / "debug_after_settings.png"
             page.screenshot(path=str(screenshot_path))
             print(f"   📸 Screenshot saved to: {screenshot_path}")
         except:
             pass
-        
-        # Click user menu - this is typically your name displayed in the top right
-        print("   Opening user menu (looking for 'Jake Robinson')...")
-        
-        # Try to find and click the user menu by various methods
-        user_menu_clicked = False
-        
-        # Method 1: Try clicking directly on "Jake Robinson"
-        try:
-            page.click("text=Jake Robinson", timeout=3000)
-            user_menu_clicked = True
-            print("   ✓ Clicked on 'Jake Robinson'")
-        except Exception as e:
-            print(f"   ⚠️  Could not click 'Jake Robinson' directly: {e}")
-        
-        # Method 2: Try common user menu patterns
-        if not user_menu_clicked:
-            print("   Trying alternative selectors...")
-            selectors = [
-                "button[class*='userMenu']",
-                "div[class*='userMenu'] button",
-                "button[aria-label*='menu']",
-                "button[aria-label*='account']",
-                "p.MuiTypography-root:has-text('Jake Robinson')",
-            ]
-            
-            for selector in selectors:
-                try:
-                    page.click(selector, timeout=2000)
-                    user_menu_clicked = True
-                    print(f"   ✓ User menu opened with: {selector}")
-                    break
-                except:
-                    continue
-        
-        # Method 3: JavaScript fallback
-        if not user_menu_clicked:
-            print("   Trying JavaScript to find clickable elements...")
-            try:
-                # Log all clickable text elements
-                elements_info = page.evaluate("""
-                    () => {
-                        const elements = document.querySelectorAll('p, button, a, span');
-                        const result = [];
-                        elements.forEach((el) => {
-                            const text = el.textContent.trim();
-                            if (text && text.length > 0 && text.length < 50) {
-                                result.push(text);
-                            }
-                        });
-                        return result.slice(0, 30); // First 30 elements
-                    }
-                """)
-                print(f"   Found {len(elements_info)} clickable elements:")
-                for i, text in enumerate(elements_info[:10]):
-                    print(f"     {i}: '{text}'")
-                
-                # Try to click "Jake Robinson" via JavaScript
-                clicked = page.evaluate("""
-                    () => {
-                        const elements = document.querySelectorAll('p, button, span');
-                        for (let el of elements) {
-                            if (el.textContent.includes('Jake Robinson')) {
-                                console.log('Found and clicking:', el.textContent);
-                                el.click();
-                                return true;
-                            }
-                        }
-                        return false;
-                    }
-                """)
-                if clicked:
-                    user_menu_clicked = True
-                    print("   ✓ Clicked 'Jake Robinson' via JavaScript")
-                    time.sleep(2)
-            except Exception as e:
-                print(f"   ⚠️  JavaScript method failed: {e}")
-        
-        # Click Settings from the dropdown menu (should be visible now)
-        print("   Clicking Settings option...")
-        try:
-            page.click("label.userSettingsOption:has-text('Settings')", timeout=10000)
-            print("   ✓ Settings clicked")
-        except Exception as e:
-            print(f"   ❌ Could not click Settings: {e}")
-            # Take another screenshot to see the menu
-            try:
-                screenshot_path = self.downloads_dir / "debug_after_usermenu.png"
-                page.screenshot(path=str(screenshot_path))
-                print(f"   📸 Screenshot saved to: {screenshot_path}")
-            except:
-                pass
-            raise
-        
-        # Wait for export page
-        page.wait_for_selector("input.datepicker.startDate", timeout=10000)
+
+        # Wait for export page datepickers
+        page.wait_for_selector("input.datepicker.startDate", timeout=15000)
         print("✅ Export page loaded")
     
     def export_data(self, page: Page, start_date: str, end_date: str):
@@ -233,51 +189,48 @@ class TrainingPeaksSync:
         time.sleep(3)
         
         # Hide datepicker overlay
-        print("💾 Starting downloads...")
         page.evaluate("""
             document.getElementById('ui-datepicker-div').style.display = 'none';
         """)
-        
-        # Click all download links (they appear in dialogs, so click first available each time)
-        downloads = []
-        max_attempts = 3  # Try to get 3 downloads
-        
-        for attempt in range(max_attempts):
+
+        # Wait for at least one confirm link to appear
+        print("💾 Waiting for download links...")
+        try:
+            page.wait_for_selector("a#userConfirm", timeout=30000)
+        except Exception:
+            print("   ⚠️ No download links appeared within 30s")
+
+        num_links = page.evaluate("document.querySelectorAll('a#userConfirm').length")
+        print(f"   Found {num_links} download link(s)")
+
+        import shutil
+        saved_files = []
+        for attempt in range(num_links):
             try:
-                # Check if any links are available
-                num_links = page.evaluate("document.querySelectorAll('a#userConfirm').length")
-                if num_links == 0:
-                    print(f"   No more download links available")
-                    break
-                
-                # Always click the first link [0] since the array updates after each download
+                # Click first available link each time (list shrinks after each click)
                 with page.expect_download(timeout=60000) as download_info:
                     page.evaluate("document.querySelectorAll('a#userConfirm')[0].click()")
                 download = download_info.value
-                downloads.append(download)
-                print(f"   📥 Download {attempt+1} started: {download.suggested_filename}")
-                
-                # Small delay to let dialog close before checking for next link
+                filename = download.suggested_filename
+                print(f"   📥 Download {attempt+1} started: {filename}")
+
+                # Wait for download to fully complete and get the temp file path.
+                # download.path() blocks until done; returns None if canceled.
+                temp_path = download.path()
+                if temp_path is None:
+                    print(f"   ⚠️ Download {attempt+1} returned no path (canceled/failed)")
+                    time.sleep(1)
+                    continue
+
+                dest = self.downloads_dir / filename
+                shutil.copy2(temp_path, dest)
+                saved_files.append(dest)
+                print(f"   ✅ Saved: {filename} ({dest.stat().st_size:,} bytes)")
                 time.sleep(0.5)
-                
             except Exception as e:
                 print(f"   ⚠️ Download {attempt+1} failed: {e}")
-                # Continue trying in case there are more links
-        
-        print("⏳ Saving downloads...")
-        
-        # Save downloads with proper filenames
-        saved_files = []
-        for download in downloads:
-            try:
-                suggested_name = download.suggested_filename
-                save_path = self.downloads_dir / suggested_name
-                download.save_as(save_path)
-                saved_files.append(save_path)
-                print(f"   ✅ Saved: {suggested_name}")
-            except Exception as e:
-                print(f"   ❌ Failed to save: {e}")
-        
+                time.sleep(0.5)
+
         print(f"✅ Downloaded and saved {len(saved_files)} files!")
     
     def process_and_upload_files(self, cleanup_fit_files: bool = True, start_date=None, end_date=None):
@@ -467,17 +420,34 @@ class TrainingPeaksSync:
             print(f"   ⚠️  Cleanup warning: {e}")
         
         # Link workouts to fit_files by matching TSS and duration
-        if results['workouts'] and results['fit_files'] > 0 and start_date and end_date:
+        if results['workouts'] and results['fit_files'] > 0:
             print("\n🔗 Linking workouts to FIT files...")
             try:
-                # Convert date strings to expected format if needed
-                if isinstance(start_date, str):
-                    start_str = start_date
-                    end_str = end_date
+                # Try to extract the actual date range from the ZIP filename
+                # e.g. WorkoutFileExport-Robinson-Jake-2026-04-27-2026-05-03.zip
+                match_start_str = None
+                match_end_str = None
+                if workout_files_path:
+                    import re as _re
+                    zip_name = workout_files_path.name if workout_files_path.is_dir() else workout_files_path.stem
+                    date_match = _re.search(r'(\d{4}-\d{2}-\d{2})-(\d{4}-\d{2}-\d{2})', zip_name)
+                    if date_match:
+                        match_start_str, match_end_str = date_match.group(1), date_match.group(2)
+                        print(f"   📅 Using date range from ZIP: {match_start_str} → {match_end_str}")
+
+                # Fall back to passed start_date/end_date if we couldn't parse from filename
+                if not match_start_str:
+                    if start_date and end_date:
+                        if isinstance(start_date, str):
+                            match_start_str, match_end_str = start_date, end_date
+                        else:
+                            match_start_str = start_date.strftime('%Y-%m-%d')
+                            match_end_str = end_date.strftime('%Y-%m-%d')
+
+                if match_start_str and match_end_str:
+                    self._match_workouts_to_fit_files(match_start_str, match_end_str)
                 else:
-                    start_str = start_date.strftime('%Y-%m-%d')
-                    end_str = end_date.strftime('%Y-%m-%d')
-                self._match_workouts_to_fit_files(start_str, end_str)
+                    print("   ⚠️  Could not determine date range for workout-FIT matching")
             except Exception as e:
                 print(f"   ⚠️  Matching warning: {e}")
         
@@ -660,10 +630,11 @@ class TrainingPeaksSync:
         
         try:
             with sync_playwright() as p:
-                # Launch browser in headless mode with custom download path
+                # Launch browser in headless mode
+                # Note: do NOT set downloads_path here — it causes auto-save which makes
+                # download.save_as() fail with 'canceled' (temp file already moved)
                 browser = p.chromium.launch(
-                    headless=True, 
-                    downloads_path=str(self.downloads_dir),
+                    headless=True,
                     args=['--disable-blink-features=AutomationControlled']  # Avoid detection
                 )
                 context = browser.new_context(

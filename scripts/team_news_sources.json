@@ -1,0 +1,117 @@
+[
+  {
+    "label": "Mets - Anthony DiComo",
+    "emoji": "MLB",
+    "rss": "https://news.google.com/rss/search?q=Anthony+DiComo+Mets"
+  },
+  {
+    "label": "Mets - Tim Britton",
+    "emoji": "MLB",
+    "rss": "https://news.google.com/rss/search?q=Tim+Britton+Mets"
+  },
+  {
+    "label": "Mets - Abbey Mastracco",
+    "emoji": "MLB",
+    "rss": "https://news.google.com/rss/search?q=Abbey+Mastracco+Mets"
+  },
+  {
+    "label": "AI Tech News",
+    "emoji": "AI",
+    "rss": "https://news.google.com/rss/search?q=artificial+intelligence+technology"
+  },
+  {
+    "label": "The Oregonian",
+    "emoji": "NEWS",
+    "rss": "https://www.oregonlive.com/arc/outboundfeeds/rss/"
+  },
+  {
+    "label": "Ducks - James Crepea",
+    "emoji": "NCAA",
+    "rss": "https://news.google.com/rss/search?q=James+Crepea+Oregon+Ducks+football"
+  },
+  {
+    "label": "Ducks - Alec Dietz",
+    "emoji": "NCAA",
+    "rss": "https://news.google.com/rss/search?q=Alec+Dietz+Oregon+Ducks+football"
+  },
+  {
+    "label": "Ducks - Zachary Neel",
+    "emoji": "NCAA",
+    "rss": "https://news.google.com/rss/search?q=Zachary+Neel+Oregon+Ducks+football"
+  },
+  {
+    "label": "Ducks - Aaron Fentress",
+    "emoji": "NCAA",
+    "rss": "https://news.google.com/rss/search?q=Aaron+Fentress+Oregon+Ducks+football"
+  },
+  {
+    "label": "Ducks - Ryan Clarke",
+    "emoji": "NCAA",
+    "rss": "https://news.google.com/rss/search?q=Ryan+Clarke+Oregon+Ducks+football"
+  },
+  {
+    "label": "Ducks - Bill Oram",
+    "emoji": "NCAA",
+    "rss": "https://news.google.com/rss/search?q=Bill+Oram+Oregon+Ducks+football"
+  },
+  {
+    "label": "Timbers - Ryan Clarke",
+    "emoji": "MLS",
+    "rss": "https://news.google.com/rss/search?q=Ryan+Clarke+Portland+Timbers"
+  },
+  {
+    "label": "Timbers - Matt Pentz",
+    "emoji": "MLS",
+    "rss": "https://news.google.com/rss/search?q=Matt+Pentz+Portland+Timbers"
+  },
+  {
+    "label": "Timbers - Judah Newby",
+    "emoji": "MLS",
+    "rss": "https://news.google.com/rss/search?q=Judah+Newby+Portland+Timbers"
+  },
+  {
+    "label": "Timbers - Jake Zivin",
+    "emoji": "MLS",
+    "rss": "https://news.google.com/rss/search?q=Jake+Zivin+Portland+Timbers"
+  },
+  {
+    "label": "Chiefs - Nate Taylor",
+    "emoji": "NFL",
+    "rss": "https://news.google.com/rss/search?q=Nate+Taylor+Chiefs"
+  },
+  {
+    "label": "Chiefs - Jesse Newell",
+    "emoji": "NFL",
+    "rss": "https://news.google.com/rss/search?q=Jesse+Newell+Chiefs"
+  },
+  {
+    "label": "Chiefs - Matt Derrick",
+    "emoji": "NFL",
+    "rss": "https://news.google.com/rss/search?q=Matt+Derrick+Chiefs"
+  },
+  {
+    "label": "Official - MLB News",
+    "emoji": "MLB",
+    "rss": "https://www.mlb.com/feeds/news/rss.xml"
+  },
+  {
+    "label": "Official - NFL News",
+    "emoji": "NFL",
+    "rss": "https://www.nfl.com/rss/rsslanding?searchString=news"
+  },
+  {
+    "label": "Official - MLS News",
+    "emoji": "MLS",
+    "rss": "https://www.mlssoccer.com/feeds/news?format=rss"
+  },
+  {
+    "label": "Official - Oregon Ducks Football",
+    "emoji": "NCAA",
+    "rss": "https://goducks.com/rss.aspx?path=football"
+  },
+  {
+    "label": "Official - Portland Timbers",
+    "emoji": "MLS",
+    "rss": "https://www.timbers.com/news/rss"
+  }
+]

@@ -367,17 +367,68 @@ You are an expert cycling coach specializing in endurance training and gravel ra
         
         # Key progressions
         if comp_ctx.get('workout_type_progressions'):
-            sections.append("\n## Workout-Specific Trends (Last 12 Weeks)")
+            # Get weeks analyzed from first progression entry
+            weeks_analyzed = next(iter(comp_ctx['workout_type_progressions'].values())).get('weeks_analyzed', 8)
+            sections.append(f"\n## Workout-Specific Trends (Last {weeks_analyzed} Weeks)")
             for wtype, analysis in comp_ctx['workout_type_progressions'].items():
                 if analysis.get('count', 0) > 0:
                     sections.append(f"\n### {wtype}")
                     sections.append(f"- **Count:** {analysis['count']} workouts")
                     
+                    # Note structured/ERG workouts so the AI understands power = prescribed
+                    structured = analysis.get('structured_count', 0)
+                    total = analysis['count']
+                    if structured > 0:
+                        sections.append(
+                            f"- **ERG/Structured:** {structured}/{total} workouts executed on "
+                            f"smart trainer in ERG mode — power values reflect prescribed targets, "
+                            f"not free-ride effort. Consistent power is expected and correct."
+                        )
+
+                    # Note if any incomplete workouts were filtered
+                    if analysis.get('filtered_incomplete', 0) > 0:
+                        sections.append(f"- **Note:** {analysis['filtered_incomplete']} incomplete workout(s) excluded for data quality")
+                    
                     if analysis.get('averages'):
-                        for metric, value in list(analysis['averages'].items())[:3]:
+                        # For ERG/structured workout types, TSS and duration vary by design
+                        # (different workout recipes each week). Only power trend is meaningful.
+                        # Showing TSS/duration as "declining" misleads the AI into false conclusions.
+                        fully_structured = (structured > 0 and structured == total)
+                        power_types = ['VO2max', 'Threshold', 'Tempo']
+                        suppress_tss_duration = fully_structured and wtype in power_types
+
+                        # Human-readable labels for metric keys
+                        metric_labels = {
+                            'avg_power': 'Normalized Power (NP, fitness trend metric)',
+                            'interval_power': 'Work Interval Power (VO2/threshold zone watts, varies by prescription)',
+                            'normalized_power': None,  # skip — same as avg_power now
+                            'tss': 'TSS',
+                            'duration_hours': 'Duration (hrs)',
+                            'intensity_factor': 'Intensity Factor',
+                            'avg_hr': 'Avg HR',
+                        }
+                        # For ERG workouts, interval_power varies by %FTP prescription
+                        # (e.g. one week targets 110% FTP, next targets 117% FTP) — identical
+                        # to how TSS varies. Trending it misleads the AI into thinking fitness
+                        # is declining when the plan just assigned a lighter prescription.
+                        suppress_no_trend = {'tss', 'duration_hours', 'interval_power'} if suppress_tss_duration else {'tss', 'duration_hours'}
+
+                        shown = 0
+                        for metric, value in analysis['averages'].items():
+                            label = metric_labels.get(metric, metric)
+                            if label is None:
+                                continue  # skip redundant metrics
+                            if metric in suppress_no_trend:
+                                # Show value but omit the trend label to avoid misleading the AI
+                                sections.append(f"- **{label}:** {value:.1f} [varies by workout design — not a fitness indicator]")
+                                shown += 1
+                                continue
                             trend = analysis['trends'].get(metric, 'stable')
                             trend_emoji = {'improving': '📈', 'declining': '📉', 'stable': '➡️'}.get(trend, '')
-                            sections.append(f"- **{metric}:** {value:.1f} [{trend} {trend_emoji}]")
+                            sections.append(f"- **{label}:** {value:.1f}W [{trend} {trend_emoji}]")
+                            shown += 1
+                            if shown >= 4:
+                                break
         
         # Power trends
         if comp_ctx.get('power_trends'):
@@ -466,36 +517,205 @@ You are an expert cycling coach specializing in endurance training and gravel ra
             sections.append(coaching_notes['next_week_focus'])
         
         return "\n".join(sections)
+
+    def _build_goals_context(self, goals: List[Dict]) -> str:
+        """
+        Format athlete goals with urgency/timeline so the coach can naturally
+        reference upcoming events, prioritise relevant training, and avoid
+        re-asking about things the athlete has already stated.
+        """
+        from datetime import date as _date
+
+        today = _date.today()
+
+        active = [g for g in goals if g.get('status', 'active') == 'active']
+        if not active:
+            return ""
+
+        sections = ["# Training Goals & Event Timeline\n"]
+        sections.append(
+            "Use this context to proactively reference the athlete's events and goals "
+            "without asking them to re-explain them. Build each week's plan with event "
+            "proximity and goal priority in mind.\n"
+        )
+
+        # Bucket goals
+        imminent, upcoming, later, ongoing = [], [], [], []
+        for g in active:
+            td = g.get('target_date')
+            if td:
+                try:
+                    target = _date.fromisoformat(td)
+                    days_away = (target - today).days
+                    if days_away < 0:
+                        days_away = 0  # already past — show as 0
+                    g['_days_away'] = days_away
+                    if days_away <= 28:
+                        imminent.append(g)
+                    elif days_away <= 84:
+                        upcoming.append(g)
+                    else:
+                        later.append(g)
+                except ValueError:
+                    ongoing.append(g)
+            else:
+                ongoing.append(g)
+
+        def _fmt_goal(g: Dict, show_urgency: bool = True) -> List[str]:
+            lines = []
+            days = g.get('_days_away')
+            if show_urgency and days is not None:
+                if days == 0:
+                    urgency = "⚠️ **PAST DUE / THIS WEEK**"
+                elif days <= 14:
+                    urgency = f"🔥 **{days} days away**"
+                elif days <= 28:
+                    urgency = f"⚡ **{days} days away** (~{days // 7} weeks)"
+                else:
+                    urgency = f"📅 {days} days away (~{days // 7} weeks)"
+                lines.append(f"- **{g['description']}** — {urgency}")
+            else:
+                prefix = "🎯" if g.get('priority', 3) <= 1 else "⭐"
+                lines.append(f"- {prefix} **{g['description']}**")
+            notes = g.get('progress_notes') or []
+            for note in notes[-2:]:  # most recent 2
+                lines.append(f"  - _{note}_")
+            return lines
+
+        if imminent:
+            sections.append("## 🔥 Imminent Events (within 4 weeks)")
+            for g in sorted(imminent, key=lambda x: x['_days_away']):
+                sections.extend(_fmt_goal(g))
+            sections.append("")
+
+        if upcoming:
+            sections.append("## ⚡ Upcoming Events (4–12 weeks)")
+            for g in sorted(upcoming, key=lambda x: x['_days_away']):
+                sections.extend(_fmt_goal(g))
+            sections.append("")
+
+        if later:
+            sections.append("## 📅 Later This Season (>12 weeks)")
+            for g in sorted(later, key=lambda x: x['_days_away']):
+                sections.extend(_fmt_goal(g))
+            sections.append("")
+
+        if ongoing:
+            sections.append("## 🏋️ Ongoing Performance Goals")
+            for g in sorted(ongoing, key=lambda x: x.get('priority', 3)):
+                sections.extend(_fmt_goal(g, show_urgency=False))
+            sections.append("")
+
+        return "\n".join(sections)
+
+    def _build_tss_baseline_guidance(self, weekly_summaries: List[Dict]) -> str:
+        """
+        Provide AI with multi-week TSS context to establish proper baseline.
+        Helps avoid using anomaly weeks (travel, illness) as baseline.
+        """
+        sections = []
+        sections.append("# Multi-Week TSS Baseline (for Load Planning)\n")
+        sections.append("**CRITICAL:** Use this data to establish realistic TSS target for next week.\n")
+        sections.append("**DO NOT** base next week's TSS solely on last week if it was an anomaly (travel, illness, etc.)\n")
+        
+        if weekly_summaries and len(weekly_summaries) > 0:
+            sections.append("\n## Last 4 Weeks TSS History:")
+            
+            tss_values = []
+            for i, week in enumerate(weekly_summaries[:4], 1):
+                week_tss = week.get('total_tss', 0)
+                week_workouts = week.get('total_workouts', 0)
+                week_start = week.get('week_start', 'Unknown')
+                
+                # Identify potential anomaly weeks (very low TSS or very few workouts)
+                is_anomaly = week_tss < 250 or week_workouts < 4
+                anomaly_flag = " ⚠️ LIKELY ANOMALY (travel/illness/off-week)" if is_anomaly else ""
+                
+                sections.append(f"  {i}. Week of {week_start}: {week_tss:.0f} TSS ({week_workouts} workouts){anomaly_flag}")
+                
+                # Only include non-anomaly weeks in average calculation
+                if not is_anomaly:
+                    tss_values.append(week_tss)
+            
+            # Calculate baseline from non-anomaly weeks
+            if tss_values:
+                avg_tss = sum(tss_values) / len(tss_values)
+                sections.append(f"\n**BASELINE (excluding anomaly weeks):** {avg_tss:.0f} TSS/week (average of {len(tss_values)} normal weeks)")
+                sections.append(f"**RECOMMENDED NEXT WEEK TSS RANGE:** {avg_tss*0.9:.0f}-{avg_tss*1.15:.0f} TSS")
+                sections.append("  - Lower end (-10%): Coming off hard block or need recovery")
+                sections.append("  - Mid range: Maintain current load")
+                sections.append("  - Upper end (+15%): Progressive overload, building fitness")
+            else:
+                sections.append("\n⚠️ All recent weeks appear to be anomalies - use 400-500 TSS as default baseline")
+        
+        sections.append("\n**NEVER blindly copy last week's TSS if it was an anomaly week!**")
+        
+        return "\n".join(sections)
     
     def _build_user_context_section(self, user_context: Dict) -> str:
         """
         Format user-provided weekly context (schedule, focus, feedback).
         
         This is the interactive element where users provide weekly input:
-        - Schedule constraints (races, work conflicts, heat chamber, etc.)
+        - Schedule constraints (races, work conflicts, travel, etc.)
         - Training focus for upcoming week
         - Feedback on how they're feeling
+        
+        CRITICAL: This input has TWO contexts depending on when it was entered:
+        1. ANALYSIS MODE: Athlete is describing "the week that just finished" (retrospective)
+        2. GENERATION MODE: Athlete is describing "next week's upcoming schedule" (prospective)
+        
+        The function caller must clarify which context applies!
         """
         sections = []
-        sections.append("# Athlete's Weekly Context\n")
-        sections.append("The athlete has provided the following context for this week:\n")
+        
+        # Determine if this is for analysis (past week) or generation (upcoming week)
+        is_upcoming_week = user_context.get('context_type') == 'upcoming_week' if user_context else False
+        
+        if is_upcoming_week:
+            sections.append("# Athlete's Context for UPCOMING WEEK (Next Week)\n")
+            sections.append("**IMPORTANT:** The athlete provided this information about NEXT WEEK (the week you're planning for), NOT the past week.\n")
+            sections.append("This describes upcoming constraints, travel, races, and availability for THE WEEK YOU ARE ABOUT TO PLAN.\n\n")
+        else:
+            sections.append("# Athlete's Context for THE WEEK JUST COMPLETED\n")
+            sections.append("**IMPORTANT:** The athlete provided this information about THE PAST WEEK (the week being analyzed), NOT next week.\n")
+            sections.append("This describes how they felt, what happened, and any issues during THE WEEK YOU ARE ANALYZING.\n\n")
         
         if user_context.get('schedule_constraints'):
-            sections.append("## Schedule & Constraints")
+            if is_upcoming_week:
+                sections.append("## Schedule & Constraints (FOR NEXT WEEK)")
+                sections.append("*These are UPCOMING constraints - schedule workouts AROUND these:*\n")
+            else:
+                sections.append("## Schedule & Constraints (FROM PAST WEEK)")
+                sections.append("*These were constraints during the completed week:*\n")
             sections.append(user_context['schedule_constraints'])
             sections.append("")
         
         if user_context.get('training_focus'):
-            sections.append("## Training Focus & Goals")
+            if is_upcoming_week:
+                sections.append("## Training Focus & Goals (FOR NEXT WEEK)")
+                sections.append("*Athlete wants to emphasize this in the upcoming plan:*\n")
+            else:
+                sections.append("## Training Focus & Goals (FROM PAST WEEK)")
+                sections.append("*This was what athlete was focusing on during completed week:*\n")
             sections.append(user_context['training_focus'])
             sections.append("")
         
         if user_context.get('week_feedback'):
-            sections.append("## Week Feedback & Feelings")
+            if is_upcoming_week:
+                sections.append("## Current Feelings & Readiness (FOR NEXT WEEK)")
+                sections.append("*Athlete's current state going into next week:*\n")
+            else:
+                sections.append("## Week Feedback & Feelings (FROM PAST WEEK)")
+                sections.append("*How athlete felt during the completed week:*\n")
             sections.append(user_context['week_feedback'])
             sections.append("")
         
-        sections.append("**Important:** Factor this athlete input into your analysis and recommendations.")
+        if is_upcoming_week:
+            sections.append("**CRITICAL:** Do NOT schedule hard workouts on days the athlete said they're traveling, racing, or unavailable!")
+            sections.append("**CRITICAL:** If athlete mentions 'Friday-Sunday travel', do NOT schedule workouts on Friday, Saturday, OR Sunday!")
+        else:
+            sections.append("**CRITICAL:** Do NOT confuse this past week's context with next week's planning!")
         
         return "\n".join(sections)
     
@@ -536,9 +756,12 @@ You are an expert cycling coach specializing in endurance training and gravel ra
         sections.append(self._build_coaching_observations(context.coaching_notes))
         sections.append("\n" + "="*80 + "\n")
         
-        # User context (weekly input)
+        # User context (weekly input) - FOR ANALYSIS, this is about the PAST week
         if context.user_context:
-            sections.append(self._build_user_context_section(context.user_context))
+            # Mark this as past week context for clarity
+            user_context_with_type = dict(context.user_context)
+            user_context_with_type['context_type'] = 'past_week'
+            sections.append(self._build_user_context_section(user_context_with_type))
             sections.append("\n" + "="*80 + "\n")
         
         # Task
@@ -757,7 +980,7 @@ Be specific, reference actual numbers from the data, and explain your reasoning.
         
         # RAG knowledge (generation-focused topics)
         gen_topics = context.focus_topics or {'intervals', 'periodization', 'json', 'format'}
-        knowledge_chunks = self.rag_loader.retrieve(query_topics=gen_topics, max_tokens=12000)
+        knowledge_chunks = self.rag_loader.retrieve(query_topics=gen_topics, max_tokens=6000)
         sections.append(self.rag_loader.format_for_prompt(knowledge_chunks))
         sections.append("\n" + "="*80 + "\n")
         
@@ -776,6 +999,11 @@ Be specific, reference actual numbers from the data, and explain your reasoning.
         # Training context
         sections.append(self._build_training_context(context))
         sections.append("\n" + "="*80 + "\n")
+        
+        # Multi-week TSS baseline for load planning
+        if context.comprehensive_context and context.comprehensive_context.get('weekly_summary'):
+            sections.append(self._build_tss_baseline_guidance(context.comprehensive_context['weekly_summary']))
+            sections.append("\n" + "="*80 + "\n")
         
         # Previous AI analyses for coaching continuity
         if context.comprehensive_context and 'previous_ai_analyses' in context.comprehensive_context:
@@ -796,9 +1024,12 @@ Be specific, reference actual numbers from the data, and explain your reasoning.
             sections.append(analysis_output)
             sections.append("\n" + "="*80 + "\n")
         
-        # User context (weekly input)
+        # User context (weekly input) - FOR GENERATION, this is about the UPCOMING week
         if context.user_context:
-            sections.append(self._build_user_context_section(context.user_context))
+            # Mark this as upcoming week context for clarity
+            user_context_with_type = dict(context.user_context)
+            user_context_with_type['context_type'] = 'upcoming_week'
+            sections.append(self._build_user_context_section(user_context_with_type))
             sections.append("\n" + "="*80 + "\n")
         
         # Constraints
@@ -811,17 +1042,32 @@ Be specific, reference actual numbers from the data, and explain your reasoning.
         # Task
         sections.append("""# Your Task: Generate Next Week's Training Plan
 
+**CRITICAL WEEK STRUCTURE:**
+- Training weeks run **MONDAY (Day 1) through SUNDAY (Day 7)**
+- Monday is ALWAYS the first day of the week
+- Sunday is ALWAYS the last day of the week
+- You MUST create exactly 7 days in this order: Mon, Tue, Wed, Thu, Fri, Sat, Sun
+
 Create a 7-day workout plan based on your analysis and the athlete's context.
 
 ## Critical Requirements
 
-1. **Output must be valid JSON** following the exact schema in the knowledge base
-2. **Include FTP value** at top level (current: {ftp}W)
-3. **All durations in proper units:**
+1. **Week Structure (MANDATORY):**
+   - Day 1: Monday (start of week)
+   - Day 2: Tuesday
+   - Day 3: Wednesday  
+   - Day 4: Thursday
+   - Day 5: Friday
+   - Day 6: Saturday
+   - Day 7: Sunday (end of week)
+
+2. **Output must be valid JSON** following the exact schema in the knowledge base
+3. **Include FTP value** at top level (current: {ftp}W)
+4. **All durations in proper units:**
    - Intervals: SECONDS
    - Workout totals: MINUTES
-4. **Use date format:** YYYY-MM-DD (starting Monday)
-5. **Progressive structure:** Build through week, lighter on recovery days
+5. **Use date format:** YYYY-MM-DD (starting Monday)
+6. **Progressive structure:** Build through week, lighter on recovery days
 
 ## Planning Process (Think Step-by-Step)
 
@@ -829,24 +1075,65 @@ Create a 7-day workout plan based on your analysis and the athlete's context.
    - Where is athlete in periodization cycle?
    - What should be emphasized this week?
 
-2. **Calculate Weekly Load**
-   - Target TSS range (consider last week's load ± 10-20%)
-   - Distribution across 7 days
+2. **Calculate Weekly Load (CRITICAL - READ TSS BASELINE SECTION!)**
+   - **FIRST:** Check \"Multi-Week TSS Baseline\" section above
+   - **IDENTIFY:** Was last week an anomaly (travel, illness, low TSS)?
+   - **BASELINE:** Use 4-week average of NORMAL weeks, NOT last week if anomaly
+   - **TARGET:** Stay within recommended range from baseline section
+   - **DISTRIBUTION:** Spread TSS across 7 days (hard days 70-120 TSS, easy days 20-50 TSS)
+   
+   **EXAMPLES:**
+   - If baseline shows 450 TSS average (Build phase): Target 400-500 TSS
+   - If last week was 300 TSS (travel week): IGNORE IT, use baseline instead
+   - If returning from illness: Start at baseline -20%, ramp back up
 
-3. **Select Workout Types**
-   - Which energy systems to target?
+3. **Select Workout Types (MAXIMIZE VARIETY!)**
+   - **CRITICAL:** Don't repeat same workout types every week!
+   - **ROTATE THROUGH:** Threshold, VO2max, Tempo, Sweet Spot, Over/Unders, Endurance, Recovery
+   - **CHECK RECENT HISTORY:** What did athlete do last 2-3 weeks? Choose DIFFERENT types
+   - **AVOID PATTERNS:** Don't always do \"Tuesday Threshold, Wednesday Endurance, Thursday VO2max\"
    - Balance intensity vs volume
-   - Include appropriate recovery
+   - Include appropriate recovery (1-2 easy days minimum)
+   
+   **WORKOUT TYPE EXAMPLES TO USE:**
+   - Threshold: Steady 2x15min or 2x20min @ FTP
+   - Sweet Spot: 3x12min @ 88-93% FTP (great for building)
+   - Over/Unders: 4x8min alternating 95%/105% FTP (race simulation)
+   - Tempo: Long 30-60min @ 76-85% FTP
+   - VO2max: Classic 5x5min or progressive 4x4min
+   - Endurance: Long 2-4 hour Zone 2 (60-74% FTP)
+   - Pyramids: 3-5-7-5-3min @ threshold with equal rest
 
 4. **Design Specific Workouts**
    - Interval structure (duration, intensity, rest)
-   - Warm-up and cool-down
-   - Progressive difficulty through sets
+   - Warm-up (15-20min progressive) and cool-down (10-15min)
+   - Progressive difficulty through sets (e.g., increasing power or decreasing rest)
+   - Include coaching notes explaining workout purpose
 
-5. **Sequence Workouts**
-   - Hard days properly spaced
+5. **Vary Workout Days (CRITICAL - AVOID RIGID PATTERNS!)**
+   - **DON'T:** Always put threshold on Tuesday, VO2max on Thursday, etc.
+   - **DO:** Rotate which days get hard workouts week-to-week
+   - **EXAMPLE ROTATION:**
+     - Week 1: Mon Rest, Tue Threshold, Wed Endurance, Thu VO2max, Fri Recovery, Sat Long Ride, Sun Cross-train
+     - Week 2: Mon Recovery, Tue Sweet Spot, Wed Rest, Thu Tempo, Fri Strength, Sat Threshold, Sun Endurance
+     - Week 3: Mon Yoga, Tue VO2max, Wed Endurance, Thu Recovery, Fri Over/Unders, Sat Long Ride, Sun Rest
+   - This prevents adaptation plateaus and maintains training stimulus variety
+
+6. **Sequence Workouts (ATHLETE SCHEDULE FIRST!)**
+   - **FIRST:** Review athlete's constraints (travel, races, work conflicts) in \"Athlete's Context\" section
+   - **THEN:** Place hard days on AVAILABLE days with 48hr spacing
+   - If athlete says \"Friday morning flight\" → Friday = NO hard workout
+   - If athlete says \"traveling Fri-Sun\" → Friday, Saturday, Sunday = light/rest only
+   - If no constraints: Hard days need 48hr between (e.g., Mon/Wed/Fri or Tue/Thu/Sat)
+   - Recovery positioned strategically (day before/after hard efforts)
+
+5. **Sequence Workouts (CRITICAL - CHECK ATHLETE'S SCHEDULE!)**
+   - **FIRST:** Review athlete's constraints (travel, races, work conflicts)
+   - **THEN:** Place hard days on AVAILABLE days with proper spacing
+   - If athlete says \"Friday morning flight\" → Friday = NO hard workout
+   - If athlete says \"traveling Fri-Sun\" → Friday, Saturday, Sunday = light/rest only
    - Recovery positioned strategically
-   - Consider weekly flow
+   - Consider weekly flow: Tuesday/Thursday hard, Monday/Friday medium, Wed/Sat/Sun easy (if no constraints)
 
 6. **Add Context**
    - Workout descriptions
@@ -892,6 +1179,158 @@ Remember: Quality over quantity. Each workout should have clear purpose and prop
         
         return "\n".join(sections)
     
+    def _build_prior_sessions_context(self, prior_sessions: list) -> str:
+        """
+        Format prior chat session transcripts so the coach has memory of what
+        the athlete mentioned in recent weeks (events, goals, schedule, concerns).
+        Only assistant + user turns are included — system overhead is stripped.
+        """
+        sections = ["# Prior Coaching Conversations\n"]
+        sections.append(
+            "The following are transcripts of recent coaching sessions. "
+            "Use them to avoid re-asking questions the athlete has already answered, "
+            "and to maintain continuity on topics like upcoming events, stated goals, "
+            "schedule constraints, and ongoing themes.\n"
+        )
+        for session in reversed(prior_sessions):  # chronological order
+            week = session.get('week_start_date', 'unknown')
+            week_num = session.get('plan_week_number')
+            header = f"## Week starting {week}" + (f" (Week {week_num})" if week_num else "")
+            sections.append(header)
+            messages = session.get('messages', [])
+            if not messages:
+                sections.append("*(no transcript)*\n")
+                continue
+            turn_lines = []
+            for m in messages:
+                role = m.get('role', 'user')
+                content = m.get('content', '').strip()
+                if not content:
+                    continue
+                label = "Athlete" if role == "user" else "Coach"
+                # Truncate very long turns to keep token budget reasonable
+                if len(content) > 600:
+                    content = content[:600] + "…"
+                turn_lines.append(f"**{label}:** {content}")
+            sections.append("\n".join(turn_lines))
+            sections.append("")
+        return "\n".join(sections)
+
+    def build_chat_system_prompt(self, weekly_summary: Dict,
+                                  comprehensive_context: Optional[Dict],
+                                  coaching_notes: Dict,
+                                  prior_sessions: Optional[list] = None) -> str:
+        """
+        Build the one-shot system prompt for the interactive chat coach session.
+
+        The AI receives full DB context upfront and then converses naturally,
+        asking clarifying questions (≤3 turns) before emitting the sentinel
+        token READY_TO_GENERATE when it has enough information.
+        """
+        context = PromptContext(
+            athlete_profile=coaching_notes.get('athlete_profile', {}),
+            coaching_notes=coaching_notes,
+            weekly_summary=weekly_summary,
+            comprehensive_context=comprehensive_context or {},
+        )
+
+        sections = []
+        sections.append(self._build_system_prompt(coaching_notes.get('personality', {})))
+        sections.append("\n" + "=" * 80 + "\n")
+        sections.append(self._build_athlete_context(context))
+        sections.append("\n" + "=" * 80 + "\n")
+
+        # Goals & event timeline — injected here so the coach holds event context
+        # throughout the entire conversation, not just at plan generation time
+        goals = coaching_notes.get('goals', [])
+        if goals:
+            sections.append(self._build_goals_context(goals))
+            sections.append("\n" + "=" * 80 + "\n")
+
+        sections.append(self._build_training_context(context))
+        sections.append("\n" + "=" * 80 + "\n")
+        sections.append(self._build_coaching_observations(coaching_notes))
+        sections.append("\n" + "=" * 80 + "\n")
+
+        # TSS baseline guidance
+        recent_weeks = comprehensive_context.get('recent_weeks', []) if comprehensive_context else []
+        if recent_weeks:
+            sections.append(self._build_tss_baseline_guidance(recent_weeks))
+            sections.append("\n" + "=" * 80 + "\n")
+
+        # Inject prior chat transcripts so the coach remembers what the athlete said
+        if prior_sessions:
+            sections.append(self._build_prior_sessions_context(prior_sessions))
+            sections.append("\n" + "=" * 80 + "\n")
+
+        sections.append("""# Interactive Chat Coaching Instructions
+
+You are now in an interactive chat session with the athlete.  Your goal is to
+gather enough context to build next week's training plan.
+
+## Conversation Flow
+
+1. **Greet & Analyse** – Open by summarising the completed week's highlights
+   in 2-3 sentences (TSS, key workouts, trends you noticed).
+
+2. **Ask Clarifying Questions** – You may ask UP TO 3 rounds of questions to
+   understand:
+   - How the athlete felt / any soreness or fatigue
+   - Upcoming week schedule constraints (races, travel, work)
+   - Any goals or focus they want emphasised
+
+3. **Signal readiness** – Once you have enough context (or after 3 clarifying
+   rounds), end your message with the exact token on its own line:
+
+   READY_TO_GENERATE
+
+   Do NOT include this token until you genuinely have enough context.
+
+## Style Guidelines
+- Be warm, concise, and data-driven
+- Reference specific numbers from the athlete's data
+- Ask at most 2-3 questions per turn (not a wall of questions)
+- Keep each message under 200 words unless the athlete asks for detail
+- Do NOT start generating the plan until you emit READY_TO_GENERATE
+""")
+
+        return "\n".join(sections)
+
+    def build_surgical_edit_prompt(self, current_plan_json: Dict, feedback: str) -> str:
+        """
+        Build a prompt asking the AI to return only the modified day(s) as a
+        JSON delta: {"modified_days": [<day objects matching existing schema>]}
+
+        The caller merges this delta into the stored plan by dayNumber.
+        """
+        import json
+        plan_str = json.dumps(current_plan_json, indent=2)
+
+        return f"""You are a cycling coach reviewing an athlete's training plan.
+The athlete has provided feedback about specific days they want adjusted.
+
+# Current Plan
+```json
+{plan_str}
+```
+
+# Athlete Feedback
+{feedback}
+
+# Your Task
+Apply the athlete's requested changes and return ONLY the affected day objects.
+
+## CRITICAL Output Rules
+- Return EXACTLY this JSON format, nothing else:
+  {{"modified_days": [<array of complete day objects that changed>]}}
+- Each day object must match the EXACT schema from the current plan above
+  (same keys: dayNumber, date, workouts array, etc.)
+- Only include days that actually changed
+- Do NOT include commentary, markdown fences, or any text outside the JSON
+- Preserve all unchanged workouts within a modified day exactly as-is
+- If a day becomes a rest day, set "workouts" to []
+"""
+
     def estimate_prompt_tokens(self, prompt: str) -> int:
         """Estimate tokens in a prompt."""
         return len(prompt) // 4

@@ -305,6 +305,26 @@ class CoachingNotesManager:
         self.current_training_phase = phase
         self.save()
     
+    def add_goal(self,
+                 description: str,
+                 category: str = 'event',
+                 priority: int = 1,
+                 target_date: Optional[str] = None,
+                 progress_notes: Optional[List[str]] = None) -> 'Goal':
+        """Add a new goal and persist immediately."""
+        goal = Goal(
+            description=description,
+            category=category,
+            priority=priority,
+            status='active',
+            added_date=datetime.now().strftime('%Y-%m-%d'),
+            target_date=target_date,
+            progress_notes=progress_notes or [],
+        )
+        self.goals.append(goal)
+        self.save()
+        return goal
+
     def add_coaching_continuity(self,
                                week_start_date: str,
                                week_end_date: str,

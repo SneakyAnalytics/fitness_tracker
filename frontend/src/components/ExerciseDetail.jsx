@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { ExternalLink, Save } from 'lucide-react';
-import './ExerciseDetail.css';
+import React, { useState } from "react";
+import { ExternalLink, Save } from "lucide-react";
+import "./ExerciseDetail.css";
 
 function ExerciseDetail({ exercise, onSave }) {
-  const [reps, setReps] = useState(exercise.reps_completed || '');
-  const [weight, setWeight] = useState(exercise.weight_used || '');
-  const [notes, setNotes] = useState(exercise.notes || '');
+  const [reps, setReps] = useState(exercise.reps_completed || "");
+  const [weight, setWeight] = useState(exercise.weight_used || "");
+  const [notes, setNotes] = useState(exercise.notes || "");
 
   const handleSave = () => {
     if (onSave) {
@@ -16,8 +16,19 @@ function ExerciseDetail({ exercise, onSave }) {
   const getExerciseImageUrl = (exerciseName) => {
     // This would link to exercise demonstration images/videos
     // For now, return a generic exercise lookup URL
-    const searchName = exerciseName.replace(/\s+/g, '+');
+    const searchName = exerciseName.replace(/\s+/g, "+");
     return `https://www.google.com/search?q=${searchName}+exercise+demonstration&tbm=isch`;
+  };
+
+  // Format duration display
+  const formatDuration = (seconds) => {
+    if (!seconds) return null;
+    if (seconds >= 60) {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
+    }
+    return `${seconds}s`;
   };
 
   return (
@@ -25,10 +36,9 @@ function ExerciseDetail({ exercise, onSave }) {
       <div className="exercise-header">
         <div className="exercise-info">
           <h4 className="exercise-name">{exercise.name}</h4>
-          {exercise.target_sets && exercise.target_reps && (
-            <span className="exercise-target">
-              Target: {exercise.target_sets} × {exercise.target_reps}
-              {exercise.target_weight && ` @ ${exercise.target_weight}lbs`}
+          {exercise.section && (
+            <span className="exercise-section">
+              Section: {exercise.section}
             </span>
           )}
         </div>
@@ -37,11 +47,82 @@ function ExerciseDetail({ exercise, onSave }) {
           target="_blank"
           rel="noopener noreferrer"
           className="exercise-link"
-          title="View exercise demonstration"
+          title="🔍 Look up exercise demonstration"
         >
           <ExternalLink size={18} />
         </a>
       </div>
+
+      {/* Display Sets Information */}
+      {exercise.sets &&
+        Array.isArray(exercise.sets) &&
+        exercise.sets.length > 0 && (
+          <div className="exercise-sets">
+            {exercise.sets.map((set, idx) => (
+              <div key={idx} className="set-details">
+                <strong>Set {exercise.sets.length > 1 ? idx + 1 : ""}:</strong>
+                <ul className="set-info-list">
+                  {set.sets && <li>Perform: {set.sets} sets</li>}
+                  {set.reps && (
+                    <li>
+                      Reps: {set.reps}
+                      {set.perSide ? " (each side)" : ""}
+                    </li>
+                  )}
+                  {set.targetReps && (
+                    <li>
+                      Target Reps:{" "}
+                      {typeof set.targetReps === "object"
+                        ? `${set.targetReps.min || set.targetReps.value}-${set.targetReps.max || set.targetReps.value}`
+                        : set.targetReps}
+                      {set.perSide ? " (each side)" : ""}
+                    </li>
+                  )}
+                  {set.duration && (
+                    <li>
+                      Duration: {formatDuration(set.duration)}
+                      {set.perSide &&
+                        ` (${formatDuration(set.duration * 2)} total)`}
+                    </li>
+                  )}
+                  {set.weight && (
+                    <li>
+                      Weight:{" "}
+                      {typeof set.weight === "object"
+                        ? `${set.weight.min || set.weight.value}-${set.weight.max || set.weight.value} ${set.weight.unit || "lbs"}`
+                        : `${set.weight} lbs`}
+                    </li>
+                  )}
+                  {set.workTime && <li>Work: {set.workTime}s</li>}
+                  {set.restTime && <li>Rest: {set.restTime}s</li>}
+                  {set.restBetweenSets && (
+                    <li>Rest Between Sets: {set.restBetweenSets}s</li>
+                  )}
+                </ul>
+                {set.notes && Array.isArray(set.notes) && (
+                  <div className="set-notes">
+                    <strong>Notes:</strong>
+                    <ul>
+                      {set.notes.map((note, noteIdx) => (
+                        <li key={noteIdx}>{note}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {set.cues && Array.isArray(set.cues) && (
+                  <div className="set-cues">
+                    <strong>Cues:</strong>
+                    <ul>
+                      {set.cues.map((cue, cueIdx) => (
+                        <li key={cueIdx}>{cue}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
       {exercise.description && (
         <p className="exercise-description">{exercise.description}</p>
@@ -96,10 +177,7 @@ function ExerciseDetail({ exercise, onSave }) {
         />
       </div>
 
-      <button 
-        className="btn btn-primary btn-sm"
-        onClick={handleSave}
-      >
+      <button className="btn btn-primary btn-sm" onClick={handleSave}>
         <Save size={16} />
         Save Progress
       </button>

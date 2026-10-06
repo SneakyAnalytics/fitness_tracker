@@ -462,10 +462,12 @@ class AICoachDatabaseQueries:
             'recent_workouts': self.get_recent_workouts(15),
             'workout_type_distribution': self.workout_analyzer.get_all_workout_types_summary(weeks_back),
             'workout_type_progressions': {
-                'Threshold': self.workout_analyzer.analyze_workout_type_trends('Threshold', weeks_back * 3),
-                'VO2max': self.workout_analyzer.analyze_workout_type_trends('VO2max', weeks_back * 3),
-                'Endurance': self.workout_analyzer.analyze_workout_type_trends('Endurance', weeks_back * 3),
-                'Tempo': self.workout_analyzer.analyze_workout_type_trends('Tempo', weeks_back * 3)
+                # Changed from weeks_back * 3 (12 weeks) to weeks_back * 2 (8 weeks)
+                # for better recent performance focus and trend accuracy
+                'Threshold': self.workout_analyzer.analyze_workout_type_trends('Threshold', weeks_back * 2),
+                'VO2max': self.workout_analyzer.analyze_workout_type_trends('VO2max', weeks_back * 2),
+                'Endurance': self.workout_analyzer.analyze_workout_type_trends('Endurance', weeks_back * 2),
+                'Tempo': self.workout_analyzer.analyze_workout_type_trends('Tempo', weeks_back * 2)
             },
             'previous_ai_analyses': self.get_recent_ai_analyses(num_analyses=3),
             'achievements': achievements,  # NEW: Categorized achievements

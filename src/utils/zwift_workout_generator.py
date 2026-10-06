@@ -94,7 +94,7 @@ def calculate_power(power_target: Dict[str, Any], ftp: int) -> float:
 
 def generate_zwift_workout(workout_date: str, workout_name: str, intervals: List[Dict[str, Any]], 
                           description: str = "", ftp: int = DEFAULT_FTP, output_dir: Optional[str] = None, 
-                          week_number: Optional[int] = None) -> str:
+                          week_number: Optional[int] = None, zwift_ftp_override: Optional[int] = None) -> str:
     """
     Generate a Zwift .zwo file from intervals data.
     
@@ -103,13 +103,28 @@ def generate_zwift_workout(workout_date: str, workout_name: str, intervals: List
         workout_name: Name of the workout
         intervals: List of interval dictionaries with power and duration data
         description: Optional workout description
-        ftp: FTP value in watts to use for calculations (default: 258)
+        ftp: System FTP for converting watts to FTP fractions (default: 258)
         output_dir: Directory to save the .zwo file (defaults to current working directory)
         week_number: Optional week number for folder naming (defaults to ISO week of year)
+        zwift_ftp_override: Optional FTP override for Zwift (use if Zwift's FTP differs from system FTP)
         
     Returns:
         Path to the generated .zwo file
     """
+    # If zwift_ftp_override not provided but workout has watt-based intervals, use system FTP
+    if zwift_ftp_override is None:
+        # Check if any intervals use watts
+        has_watt_intervals = any(
+            isinstance(i.get('powerTarget'), dict) and 
+            isinstance(i['powerTarget'].get('type'), str) and 
+            i['powerTarget'].get('type') == 'range' and 
+            i['powerTarget'].get('unit') == 'watts'
+            for i in intervals
+        )
+        if has_watt_intervals:
+            zwift_ftp_override = ftp  # Use system FTP to match watt targets
+            print(f"DEBUG: Setting Zwift FTP override to {ftp}W to match watt-based interval targets")
+    
     print(f"DEBUG: Starting workout generation for {workout_name} on {workout_date}")
     print(f"DEBUG: Number of intervals: {len(intervals)}")
     
@@ -141,8 +156,19 @@ def generate_zwift_workout(workout_date: str, workout_name: str, intervals: List
             week_folder = f"Week_{week_of_year}"
         weekly_output_dir = os.path.join(output_dir, week_folder)
         
-        # Create the weekly directory if it doesn't exist
-        os.makedirs(weekly_output_dir, exist_ok=True)
+        # Create the weekly directory if it doesn't exist.
+        # Note: on Windows bind mounts (Beelink) the parent shareable/zwift_workouts
+        # is read-only for new subdirectory creation.  Pre-create the Week_NN folder
+        # on the Windows host first if this raises PermissionError.
+        try:
+            os.makedirs(weekly_output_dir, exist_ok=True)
+        except PermissionError:
+            raise PermissionError(
+                f"Cannot create Zwift week directory '{weekly_output_dir}'. "
+                f"On Beelink, pre-create it with: "
+                f"New-Item -Path 'C:/Users/rakej/fitness_tracker/shareable/zwift_workouts/{week_folder}' -Force; "
+                f"icacls 'C:/Users/rakej/fitness_tracker/shareable/zwift_workouts/{week_folder}' /grant Everyone:F"
+            )
         
         # Full path for the output file
         output_path = os.path.join(weekly_output_dir, filename)
@@ -177,19 +203,34 @@ def generate_zwift_workout(workout_date: str, workout_name: str, intervals: List
             f'  <name>{display_name}</name>',
             f'  <description>{description}</description>',
             '  <sportType>bike</sportType>',
+        ]
+        
+        # Add FTP override if specified (ensures watt-based intervals match targets)
+        if zwift_ftp_override:
+            xml_content.append(f'  <ftpOverride>{zwift_ftp_override}</ftpOverride>')
+            print(f"DEBUG: Added ftpOverride={zwift_ftp_override}W to workout XML")
+        
+        xml_content.extend([
             '  <durationType>time</durationType>',
             '  <tags/>',
             '  <workout>',
             '    <!-- Welcome message -->',
             '    <textevent timeoffset="5" message="' + clean_zwift_text(dynamic_content.get_fresh_content("welcome")) + '"/>'
-        ]
+        ])
+
+        # Weather forecast as first alert (if available)
+        try:
+            weather_message = dynamic_content._get_weather_forecast()
+            if weather_message:
+                xml_content.append('    <textevent timeoffset="15" message="' + clean_zwift_text(weather_message) + '"/>')
+        except Exception:
+            pass
         
         # Calculate total workout duration to space out messages
         total_duration = sum(interval.get('duration', 0) for interval in intervals)
         
-        # Add 20-30 text events throughout the workout (one every ~1-2 minutes)
-        # More frequent = more entertaining and keeps mind occupied
-        num_messages = min(30, max(20, total_duration // 90))  # 1 per 1.5 minutes, 20-30 total
+        # Add text events throughout the workout (mostly news stories, occasional quotes)
+        num_messages = min(30, max(18, total_duration // 100))  # Slightly fewer to allow story summaries
         message_interval = total_duration / (num_messages + 1)  # Space evenly
         
         # Collect all text events first with their absolute time offsets
@@ -198,20 +239,9 @@ def generate_zwift_workout(workout_date: str, workout_name: str, intervals: List
         for i in range(num_messages):
             offset = int((i + 1) * message_interval)
             
-            # Every 5th message is trivia (question + answer back-to-back)
-            if i % 5 == 0:
-                trivia_pair = dynamic_content.get_trivia_pair()
-                if trivia_pair:
-                    question, answer = trivia_pair
-                    # Add question
-                    text_events.append((offset, clean_zwift_text(question)))
-                    # Add answer 45 seconds later (back-to-back, guaranteed)
-                    if offset + 45 < total_duration:
-                        text_events.append((offset + 45, clean_zwift_text(answer)))
-                    continue
-            
-            # Every 6th message is a story with summary (science or news headline + AI explanation)
-            if i % 6 == 0:
+            # Most messages are stories with summaries
+            story_bias = 0.85
+            if random.random() < story_bias:
                 story_pair = dynamic_content.get_story_with_summary()
                 if story_pair:
                     headline, summary_messages = story_pair
@@ -228,10 +258,22 @@ def generate_zwift_workout(workout_date: str, workout_name: str, intervals: List
                         if offset + 60 < total_duration:
                             text_events.append((offset + 60, clean_zwift_text(summary_messages)))
                     continue
-            
-            # Regular varied content (quotes, jokes, fun facts, AI encouragement)
-            message = dynamic_content.get_fresh_content("general")
-            text_events.append((offset, clean_zwift_text(message)))
+
+            # Occasional quote-only message
+            quote_message = dynamic_content.get_quote_message()
+            if quote_message:
+                text_events.append((offset, clean_zwift_text(quote_message)))
+            else:
+                # Fallback to story if quote fails
+                story_pair = dynamic_content.get_story_with_summary()
+                if story_pair:
+                    headline, summary_messages = story_pair
+                    text_events.append((offset, clean_zwift_text(headline)))
+                    if isinstance(summary_messages, list):
+                        for idx, summary_msg in enumerate(summary_messages):
+                            msg_offset = offset + 45 + (idx * 30)
+                            if msg_offset < total_duration:
+                                text_events.append((msg_offset, clean_zwift_text(summary_msg)))
         
         # Add motivational closing message
         chosen_closing = dynamic_content.get_fresh_content("closing")
@@ -328,7 +370,7 @@ def convert_interval_to_zwift(interval: Dict[str, Any], ftp: int, text_events: O
             end_power = calculate_power(power_target['end'], ftp)  # Already a decimal
             xml_element = f'<Ramp Duration="{duration}" PowerLow="{start_power}" PowerHigh="{end_power}" pace="0"'
         elif 'min' in power_target and 'max' in power_target:
-            # Range target - use min for steady state (could be enhanced to ramp if min != max)
+            # Range target - use absolute watts if specified, otherwise FTP percentage
             min_power = float(power_target.get('min', 125))
             max_power = float(power_target.get('max', 125))
             unit = power_target.get('unit', 'percent_ftp')
@@ -336,12 +378,15 @@ def convert_interval_to_zwift(interval: Dict[str, Any], ftp: int, text_events: O
             print(f"DEBUG: convert_interval_to_zwift range - min_power={min_power}, max_power={max_power}, unit={unit}, ftp={ftp}")
             
             if unit == 'watts':
-                # Convert watts to fraction of FTP
+                # Zwift only accepts Power as FTP fraction (0.0-1.0+), no absolute watts supported
+                # NOTE: If Zwift's FTP estimate differs from system FTP, there will be a discrepancy
+                # User should update athlete FTP settings to match Zwift's FTP for accurate power targets
                 min_fraction = min_power / ftp
                 max_fraction = max_power / ftp
-                print(f"DEBUG: watts conversion - {min_power}/{ftp}={min_fraction}, {max_power}/{ftp}={max_fraction}")
+                print(f"DEBUG: watts conversion to FTP fraction - {min_power}/{ftp}={min_fraction}, {max_power}/{ftp}={max_fraction}")
+                print(f"      WARNING: If Zwift FTP differs from system FTP ({ftp}W), actual power will differ from target")
             else:
-                # Assume percentage
+                # Convert percentage to fraction of FTP
                 min_fraction = min_power / 100.0
                 max_fraction = max_power / 100.0
                 print(f"DEBUG: percent conversion - {min_power}/100={min_fraction}, {max_power}/100={max_fraction}")

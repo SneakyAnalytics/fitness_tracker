@@ -14,7 +14,6 @@ Your Mac is configured with:
 ### Method 1: Automated Setup (Recommended)
 
 1. **Copy the setup script to Beelink**
-
    - Use USB drive: Copy `beelink_setup.ps1` to USB
    - Or download: Open PowerShell on Beelink and run:
      ```powershell
@@ -101,6 +100,79 @@ ssh jrobinson@BEELINK_IP "docker logs fitness-tracker-ui"
 scp local_file.py jrobinson@BEELINK_IP:/c/Users/jrobinson/fitness_tracker/
 ```
 
+## Zwift Daily News Refresh (5am)
+
+This system regenerates **today's bike workouts** each morning with fresh news text events and then syncs them to the Mac.
+
+**What runs (Beelink):**
+
+1. `scripts/beelink_sync_zwift_to_mac.ps1`
+2. Inside that script: `python -m src.utils.refresh_daily_zwift_news`
+3. Regenerates **entire** .zwo files for **today only** (bike workouts only)
+4. Syncs to Mac Zwift folder via SCP
+
+**Important behavior:**
+
+- News stories are filtered to **today or yesterday** only
+- Content is **mostly news** + occasional quote
+- Trivia is disabled
+- A **weather forecast** message is inserted near the start of each workout
+- Files are fully regenerated (not placeholder replacement)
+
+**Scheduled Task:**
+
+- Task name: `ZwiftSyncToMac`
+- Time: **05:00** local
+- Command: `powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\rakej\fitness_tracker\scripts\beelink_sync_zwift_to_mac.ps1`
+
+## Weekly vs Daily Flow (How Workouts Update)
+
+**Weekly Plan Generation (manual trigger):**
+
+1. Weekly analysis → new plan in DB
+2. Zwift generator creates .zwo files for the week
+3. These files include **dynamic text events** at generation time
+
+**Daily Refresh (automated at 5am):**
+
+1. If **today has a bike workout**, regenerate its .zwo file
+2. Fresh news text events are inserted for today/yesterday
+3. Updated file is copied to the Mac Zwift folder
+
+## Preview Today's News Content (Beelink)
+
+To confirm what will appear in Zwift for today:
+
+```
+docker exec fitness-tracker-api python /app/src/utils/preview_news_today.py
+```
+
+## Daily Email (Links to Stories)
+
+If `EMAIL_TO` is configured in `.env`, the sync script sends a short email with
+links to the top stories used that morning:
+
+```
+python C:\Users\rakej\fitness_tracker\scripts\email_daily_news.py
+```
+
+## Local Summary Fallback (Ollama)
+
+If Gemini is rate-limited, summaries fall back to a local Ollama model.
+
+**Defaults:**
+
+- `OLLAMA_HOST=http://host.docker.internal:11434`
+- `OLLAMA_MODEL=llama3.1:8b`
+
+To verify Ollama is running on Beelink:
+
+```
+curl http://localhost:11434/api/tags
+```
+
+If the summary looks repetitive, check Gemini API model/key in `.env`.
+
 ## Installing Docker on Beelink (After SSH is working)
 
 ### Via SSH from Mac:
@@ -134,12 +206,10 @@ docker compose up -d
 ### Can't connect via SSH?
 
 1. Check Tailscale is running on both devices:
-
    - Mac: `tailscale status`
    - Beelink: `& "C:\Program Files\Tailscale\tailscale.exe" status`
 
 2. Verify IP address:
-
    - Beelink: `& "C:\Program Files\Tailscale\tailscale.exe" ip -4`
 
 3. Test SSH service on Beelink:

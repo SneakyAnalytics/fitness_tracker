@@ -25,6 +25,21 @@ if (-not $MacUser) { throw "MAC_USER is required" }
 if (-not $MacZwiftDir) { throw "MAC_ZWIFT_DIR is required" }
 if (-not $SourceDir) { $SourceDir = "C:\\Users\\rakej\\fitness_tracker\\shareable\\zwift_workouts" }
 
+Write-Host "Refreshing today's Zwift files with fresh news..." -ForegroundColor Cyan
+try {
+    docker exec fitness-tracker-api python -m src.utils.refresh_daily_zwift_news
+} catch {
+    Write-Host "Refresh failed (continuing sync): $_" -ForegroundColor Yellow
+}
+
+if ($env:EMAIL_TO) {
+    try {
+        python C:\Users\rakej\fitness_tracker\scripts\email_daily_news.py
+    } catch {
+        Write-Host "Daily news email failed: $_" -ForegroundColor Yellow
+    }
+}
+
 Write-Host "Syncing Zwift workouts to macOS..." -ForegroundColor Cyan
 Write-Host "Source: $SourceDir"
 Write-Host "Target: $MacUser@$MacHost:$MacZwiftDir" -ForegroundColor Cyan

@@ -2240,619 +2240,433 @@ if 'notes_saved' not in st.session_state:
     st.session_state.notes_saved = False
 
 def display_ai_coach():
-    """AI Coach page - interactive AI coaching session"""
-    create_section_header("AI Coach - Personalized Training Intelligence", "🤖")
-    
-    st.markdown("""
-    <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                padding: 1.5rem; border-radius: 10px; margin-bottom: 1.5rem; color: white;'>
-        <h3 style='margin: 0 0 0.5rem 0; color: white;'>🧠 AI-Powered Coaching</h3>
-        <p style='margin: 0; opacity: 0.9;'>
-            Get personalized training insights and workout plans based on your actual performance data,
-            sleep quality, and recovery metrics. The AI learns from your training history and maintains
-            week-over-week context.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # How it Works
-    st.markdown("""
-    <div style='background: #f8f9fa; padding: 1.5rem; border-radius: 10px; margin-bottom: 1.5rem; border-left: 5px solid #667eea;'>
-        <h4 style='margin-top: 0; color: #667eea;'>📖 How It Works</h4>
-        <ol style='margin-bottom: 0; padding-left: 1.5rem; color: #333;'>
-            <li style='color: #333;'><strong style='color: #333;'>Select a Completed Week</strong> - Choose dates for a week you've already trained (e.g., last week)</li>
-            <li style='color: #333;'><strong style='color: #333;'>Add Context</strong> - (Optional) Share your upcoming schedule, goals, and feedback from the completed week</li>
-            <li style='color: #333;'><strong style='color: #333;'>Generate Analysis</strong> - AI reviews your actual workout data, performance trends, and recovery metrics</li>
-            <li style='color: #333;'><strong style='color: #333;'>Generate Workout Plan</strong> - AI creates a personalized 7-day plan for the week <em>following</em> your completed week</li>
-            <li style='color: #333;'><strong style='color: #333;'>Save & Train</strong> - Save the plan to your database and automatically generate Zwift workout files</li>
-        </ol>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Initialize session state for AI Coach
-    if 'ai_analysis' not in st.session_state:
-        st.session_state.ai_analysis = None
-    if 'ai_workout_plan' not in st.session_state:
-        st.session_state.ai_workout_plan = None
-    if 'ai_week_selected' not in st.session_state:
-        st.session_state.ai_week_selected = None
-    
-    # Week selection
-    st.markdown("### 📅 Step 1: Select Completed Training Week")
-    st.markdown("*Choose a week you've already trained - AI will analyze this data and plan your next week*")
-    col1, col2 = st.columns(2)
-    
+    """AI Coach page – interactive streaming chat interface."""
+    import sys, os as _os
+    _parent = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    if _parent not in sys.path:
+        sys.path.insert(0, _parent)
+
+    from utils.ai_coach_engine import AICoachEngine, AIModel
+    from storage.database import WorkoutDatabase
+    from utils.ai_chat_session import AIChatSession
+
+    create_section_header("AI Coach", "🤖")
+
+    # ------------------------------------------------------------------
+    # Top bar: week selector + model selector
+    # ------------------------------------------------------------------
+    col_dates, col_model = st.columns([3, 2])
     today = datetime.now().date()
     start_of_week = today - timedelta(days=today.weekday())
     end_of_week = start_of_week + timedelta(days=6)
-    
-    with col1:
-        ai_start_date = st.date_input(
-            "Week Start Date",
-            value=start_of_week,
-            key="ai_start_date"
+
+    with col_dates:
+        dcol1, dcol2 = st.columns(2)
+        with dcol1:
+            ai_start_date = st.date_input("Completed week start", value=start_of_week, key="chat_start_date")
+        with dcol2:
+            ai_end_date = st.date_input("Completed week end", value=end_of_week, key="chat_end_date")
+
+    with col_model:
+        import os as _os
+        _has_github = bool(_os.getenv("GITHUB_TOKEN") or _os.getenv("GH_TOKEN"))
+        _model_options = [
+            "GitHub GPT-4o (Free \u2728)",
+            "Claude Haiku 4.5 (Fast \u00b7 $0.025/wk)",
+            "Claude Sonnet 4.6 (Best \u00b7 $0.27/wk)",
+            "Gemini Flash (Free)",
+            "Gemini Flash-Lite (Free \u00b7 fastest)",
+        ]
+        model_choice = st.selectbox(
+            "AI Model",
+            options=_model_options,
+            index=0 if _has_github else 1,  # default to GitHub GPT-4o if token present
+            key="chat_model_choice",
         )
-    with col2:
-        ai_end_date = st.date_input(
-            "Week End Date",
-            value=end_of_week,
-            key="ai_end_date"
-        )
-    
-    # Normalize dates
+
     ai_start_date = _normalize_date_widget(ai_start_date)
     ai_end_date = _normalize_date_widget(ai_end_date)
-    
     if ai_start_date is None or ai_end_date is None:
         st.warning("Please select valid dates")
         return
-    
-    # User Context Input
-    st.markdown("### 💭 Step 2: Provide Context (Optional but Recommended)")
-    st.markdown("*Help the AI understand your situation better - reference your completed week and upcoming schedule*")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        schedule_constraints = st.text_area(
-            "📅 Upcoming Week Schedule & Constraints",
-            placeholder="e.g., Tuesday evening race, Thursday travel day, Saturday 3-hour ride available, Sunday long run planned...",
-            help="Share your schedule for the UPCOMING week - races, travel, available training times, conflicts",
-            key="ai_schedule",
-            height=120
-        )
-        
-        training_focus = st.text_area(
-            "🎯 Training Focus & Goals",
-            placeholder="e.g., Building base for spring gravel events, improving FTP, preparing for XC skiing season...",
-            help="What are your current training goals and focus areas?",
-            key="ai_focus",
-            height=120
-        )
-    
-    with col2:
-        week_feedback = st.text_area(
-            "🗣️ Completed Week - Feedback & Feelings",
-            placeholder="e.g., Tuesday's intervals felt strong, sleep quality was excellent Mon-Wed, needed extra recovery Friday, ready for harder efforts...",
-            help="How did you feel during the COMPLETED week you selected above? Any notable observations about performance, recovery, or energy levels?",
-            key="ai_feedback",
-            height=120
-        )
-        
-        st.markdown("""
-        <div style='background: #f0f8ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #667eea;'>
-            <strong style='color: #667eea;'>💡 Tip:</strong> <span style='color: #333;'>The more context you provide, the better the AI can tailor its recommendations
-            to your specific situation!</span>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Soreness and Fatigue Assessment
-    st.markdown("---")
-    st.markdown("### 🏥 Soreness & Fatigue Assessment (Optional)")
-    st.markdown("*Help the AI understand your recovery state - especially useful when device metrics don't match how you feel*")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("#### 🦵 Muscle Soreness")
-        
-        # Quick selection for common soreness areas
-        st.markdown("##### Select Sore Areas")
-        soreness_areas = {
-            "Quads": st.checkbox("Quads", key="ai_soreness_quads"),
-            "Hamstrings": st.checkbox("Hamstrings", key="ai_soreness_hamstrings"),
-            "Calves": st.checkbox("Calves", key="ai_soreness_calves"),
-            "Lower Back": st.checkbox("Lower Back", key="ai_soreness_lower_back"),
-            "Upper Back": st.checkbox("Upper Back", key="ai_soreness_upper_back"),
-            "Core": st.checkbox("Core", key="ai_soreness_core"),
-            "Other": st.checkbox("Other", key="ai_soreness_other")
-        }
-        
-        # Soreness severity slider
-        soreness_severity = st.slider(
-            "Overall Soreness Level",
-            min_value=1,
-            max_value=5,
-            value=1,
-            help="1 = No soreness, 5 = Severe soreness",
-            key="ai_soreness_severity"
-        )
-        
-        # Additional soreness details
-        muscle_soreness_details = st.text_area(
-            "Additional Soreness Details",
-            placeholder="e.g., Lower back particularly tight after Wednesday's long ride, felt better after Friday's mobility session...",
-            help="Describe any specific patterns, triggers, or recovery observations",
-            height=100,
-            key="ai_soreness_details"
-        )
-    
-    with col2:
-        st.markdown("#### 😴 Fatigue Assessment")
-        
-        # Energy levels throughout the day
-        st.markdown("##### Energy Pattern")
-        energy_pattern = st.selectbox(
-            "Select your typical energy pattern this week",
-            options=[
-                "Consistent energy throughout the day",
-                "Strong in morning, declining later",
-                "Low in morning, improving later",
-                "Fluctuating throughout the day",
-                "Consistently low energy",
-                "Consistently high energy"
-            ],
-            key="ai_energy_pattern"
-        )
-        
-        # Fatigue impact areas
-        st.markdown("##### Fatigue Impact")
-        fatigue_impacts = {
-            "Sleep Quality": st.checkbox("Affected Sleep Quality", key="ai_fatigue_sleep"),
-            "Workout Performance": st.checkbox("Affected Workout Performance", key="ai_fatigue_workout"),
-            "Daily Activities": st.checkbox("Affected Daily Activities", key="ai_fatigue_daily"),
-            "Mental Focus": st.checkbox("Affected Mental Focus", key="ai_fatigue_mental"),
-            "Recovery Time": st.checkbox("Needed Extra Recovery Time", key="ai_fatigue_recovery")
-        }
-        
-        # Additional fatigue details
-        fatigue_details = st.text_area(
-            "Additional Fatigue Details",
-            placeholder="e.g., Needed 2-hour nap after Saturday's 4-hour ride, Garmin showed 40% energy but felt completely exhausted...",
-            help="Describe any mismatch between device metrics and how you actually felt",
-            height=100,
-            key="ai_fatigue_details"
-        )
-    
-    # Check if week changed
+
     week_key = f"{ai_start_date}_{ai_end_date}"
-    if st.session_state.ai_week_selected != week_key:
-        st.session_state.ai_analysis = None
-        st.session_state.ai_workout_plan = None
-        st.session_state.ai_week_selected = week_key
-    
-    # Step 1: Generate Analysis
-    st.markdown("---")
-    st.markdown("### 📊 Step 3: Generate Weekly Analysis")
-    st.markdown("*AI will analyze your completed week's workout data, performance metrics, and recovery trends*")
-    
-    # Model selection for analysis
-    st.markdown("**Select AI Model:**")
-    analysis_model_choice = st.radio(
-        "Analysis Model",
-        options=["Claude Haiku 4.5 (Fast & Cheap - $0.008/week)", "Claude Sonnet 4.5 (Best Quality - $0.066/week)", "Gemini Flash (Free, Rate Limited)"],
-        index=0,
-        help="Haiku is 8x cheaper than Sonnet and excellent for analysis. Sonnet provides maximum quality. Gemini is free but limited to 10 requests per minute.",
-        horizontal=True,
-        label_visibility="collapsed"
-    )
-    
-    col1, col2, col3 = st.columns([2, 1, 1])
-    with col1:
-        if st.button("🔍 Generate AI Analysis", type="primary", use_container_width=True):
-            with st.spinner("🤖 AI is analyzing your training week... This may take 10-30 seconds..."):
-                try:
-                    # Prepare user context
-                    user_context = {}
-                    if schedule_constraints:
-                        user_context['schedule_constraints'] = schedule_constraints
-                    if training_focus:
-                        user_context['training_focus'] = training_focus
-                    if week_feedback:
-                        user_context['week_feedback'] = week_feedback
-                        
-                        # Auto-update coaching notes from athlete feedback
-                        # This captures milestones, goal changes, FTP updates, etc.
-                        try:
-                            from utils.ai_coach_engine import AICoachEngine
-                            temp_coach = AICoachEngine()
-                            updates = temp_coach.coaching_notes.auto_update_from_feedback(
-                                athlete_feedback=week_feedback,
-                                week_number=None  # Will be set when we have week number
-                            )
-                            if any(updates.values()):
-                                st.info(f"📝 Auto-updated coaching notes from your feedback: "
-                                       f"{len(updates['achievements'])} achievements, "
-                                       f"{len(updates['goals_updated'])} goal updates, "
-                                       f"{len(updates['observations'])} observations")
-                        except Exception as e:
-                            # Don't fail if auto-update has issues
-                            pass
-                    
-                    # Add soreness assessment to user context
-                    sore_areas = [area for area, checked in soreness_areas.items() if checked]
-                    if sore_areas or soreness_severity > 1 or muscle_soreness_details:
-                        muscle_soreness = f"Severity: {soreness_severity}/5\n"
-                        if sore_areas:
-                            muscle_soreness += f"Areas: {', '.join(sore_areas)}\n"
-                        if muscle_soreness_details:
-                            muscle_soreness += f"Details: {muscle_soreness_details}"
-                        user_context['muscle_soreness_patterns'] = muscle_soreness
-                    
-                    # Add fatigue assessment to user context
-                    impact_areas = [area for area, checked in fatigue_impacts.items() if checked]
-                    if energy_pattern != "Consistent energy throughout the day" or impact_areas or fatigue_details:
-                        general_fatigue = f"Energy Pattern: {energy_pattern}\n"
-                        if impact_areas:
-                            general_fatigue += f"Impact Areas: {', '.join(impact_areas)}\n"
-                        if fatigue_details:
-                            general_fatigue += f"Details: {fatigue_details}"
-                        user_context['general_fatigue_level'] = general_fatigue
-                    
-                    # Call analyze API (you'll need to create this endpoint)
-                    import sys, os
-                    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                    if parent_dir not in sys.path:
-                        sys.path.insert(0, parent_dir)
-                    
-                    from utils.ai_coach_engine import AICoachEngine, AIModel
-                    from storage.database import WorkoutDatabase
-                    
-                    # Use selected model for analysis
-                    if "Haiku" in analysis_model_choice:
-                        analysis_model = AIModel.CLAUDE_HAIKU
-                    elif "Sonnet" in analysis_model_choice:
-                        analysis_model = AIModel.CLAUDE_SONNET
-                    else:
-                        analysis_model = AIModel.GEMINI_FREE
-                    
-                    coach = AICoachEngine(model=analysis_model)
-                    db = WorkoutDatabase()
-                    
-                    # Get weekly summary
-                    weekly_summary = db.generate_weekly_summary(
-                        ai_start_date.isoformat(),
-                        ai_end_date.isoformat()
-                    )
-                    
-                    if not weekly_summary:
-                        st.error("No training data found for this week")
-                        return
-                    
-                    # Generate analysis
-                    analysis, metadata = coach.analyze_week(
-                        weekly_summary=weekly_summary,
-                        user_context=user_context if user_context else None
-                    )
-                    
-                    st.session_state.ai_analysis = analysis
-                    st.session_state.ai_metadata = metadata
-                    
-                    # Extract and save continuity
-                    continuity = coach.extract_coaching_continuity(analysis, weekly_summary)
-                    if continuity and all(key in continuity for key in ['key_observations', 'progression_notes', 'areas_to_monitor', 'next_week_priorities']):
-                        coach.coaching_notes.add_coaching_continuity(
-                            week_start_date=continuity.get('week_start_date', ai_start_date),
-                            week_end_date=continuity.get('week_end_date', ai_end_date),
-                            week_number=continuity.get('week_number', 0),
-                            key_observations=continuity['key_observations'],
-                            progression_notes=continuity['progression_notes'],
-                            areas_to_monitor=continuity['areas_to_monitor'],
-                            next_week_priorities=continuity['next_week_priorities'],
-                            recurring_schedule=continuity.get('recurring_schedule')
-                        )
-                    else:
-                        print("⚠️  Continuity extraction incomplete - skipping save")
-                    
-                    st.success("✅ Analysis complete!")
+    week_start_str = ai_start_date.isoformat()
+    week_end_str = ai_end_date.isoformat()
+
+    # ------------------------------------------------------------------
+    # Session state: detect week change
+    # ------------------------------------------------------------------
+    if "chat_week_key" not in st.session_state:
+        st.session_state.chat_week_key = None
+    if st.session_state.chat_week_key != week_key:
+        st.session_state.chat_week_key = week_key
+        st.session_state.pop("chat_session_obj", None)
+
+    # ------------------------------------------------------------------
+    # Select AI model
+    # ------------------------------------------------------------------
+    if "GitHub" in model_choice:
+        ai_model = AIModel.GITHUB_GPT4O
+    elif "Haiku" in model_choice:
+        ai_model = AIModel.CLAUDE_HAIKU
+    elif "Sonnet" in model_choice:
+        ai_model = AIModel.CLAUDE_SONNET
+    elif "Flash-Lite" in model_choice:
+        ai_model = AIModel.GEMINI_FLASH_LITE
+    else:
+        ai_model = AIModel.GEMINI_FREE
+
+    # ------------------------------------------------------------------
+    # Load / create session
+    # ------------------------------------------------------------------
+    if "chat_session_obj" not in st.session_state:
+        db = WorkoutDatabase()
+        coach = AICoachEngine(model=ai_model)
+        session = AIChatSession.load_or_create(week_start_str, db, coach)
+        st.session_state.chat_session_obj = session
+    else:
+        session: AIChatSession = st.session_state.chat_session_obj
+        # Always refresh the coach in case model changed
+        session._coach = AICoachEngine(model=ai_model)
+        if session._db is None:
+            session._db = WorkoutDatabase()
+
+    # ------------------------------------------------------------------
+    # Render past messages + "Start Fresh" option for in-progress sessions
+    # ------------------------------------------------------------------
+    if session.messages:
+        for msg in session.messages:
+            role = msg.get("role", "user")
+            with st.chat_message(role):
+                st.markdown(msg.get("content", ""))
+
+        # Allow resetting an in-progress session that hasn't been saved yet
+        if session.phase not in ("SAVED",):
+            with st.expander("🔄 Start a fresh session for this week"):
+                st.warning("This will clear the current conversation and restart analysis.")
+                if st.button("🗑️ Clear & Restart", key="clear_session_btn"):
+                    session.phase = "ANALYSIS"
+                    session.messages = []
+                    session.current_plan = None
+                    session.persist()
+                    st.session_state.pop("chat_session_obj", None)
                     st.rerun()
-                    
-                except Exception as e:
-                    st.error(f"Error generating analysis: {str(e)}")
-                    import traceback
-                    with st.expander("Error Details"):
-                        st.code(traceback.format_exc())
-    
-    with col2:
-        if st.session_state.ai_analysis:
-            st.markdown(f"""
-            <div style='background: #e8f5e9; padding: 0.5rem; border-radius: 5px; text-align: center;'>
-                <small>✅ Analysis Ready</small>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    with col3:
-        if st.session_state.ai_analysis and 'ai_metadata' in st.session_state:
-            cost = st.session_state.ai_metadata.get('cost', 0)
-            st.markdown(f"""
-            <div style='background: #fff3e0; padding: 0.5rem; border-radius: 5px; text-align: center;'>
-                <small>💰 ${cost:.4f}</small>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    # Display analysis
-    if st.session_state.ai_analysis:
-        st.markdown("#### 📝 AI Analysis")
-        with st.expander("View Full Analysis", expanded=True):
-            st.markdown(st.session_state.ai_analysis)
-        
-        # Step 2: Generate Workout Plan
-        st.markdown("---")
-        st.markdown("### 🏋️ Step 4: Generate Next Week's Workout Plan")
-        st.markdown("*AI will create a personalized 7-day plan for the week following your completed week*")
-        
-        # Model selection for workout generation
-        st.markdown("**Select AI Model for Workout Generation:**")
-        generation_model_choice = st.radio(
-            "Generation Model",
-            options=["Claude Sonnet 4.5 (Recommended - $0.156/week)", "Claude Haiku 4.5 (Budget - $0.021/week)", "Gemini Flash (Free)"],
-            index=0,
-            help="Sonnet 4.5 is best for accurate structured workouts and duration calculations. Haiku is cheaper but still very good. Gemini is free but may have rate limits.",
-            horizontal=True,
-            label_visibility="collapsed"
+    else:
+        pass  # no messages yet — Begin Session button shown below
+
+    # ------------------------------------------------------------------
+    # Begin Session button — shown when no conversation has started yet
+    # (replaces the old auto-trigger so the user controls when to start)
+    # ------------------------------------------------------------------
+    if session.phase == "ANALYSIS" and not session.messages:
+        st.info(
+            "👋 Ready to review your week and plan next week's training. "
+            "Choose your AI model above, then click **Begin Coaching Session**."
         )
-        
-        col1, col2, col3 = st.columns([2, 1, 1])
-        with col1:
-            if st.button("📅 Generate Workout Plan", type="primary", use_container_width=True):
-                with st.spinner("🤖 AI is creating your personalized workout plan... This may take 10-30 seconds..."):
-                    try:
-                        from utils.ai_coach_engine import AICoachEngine, AIModel
-                        from storage.database import WorkoutDatabase
-                        
-                        # Use selected model for generation
-                        if "Haiku" in generation_model_choice:
-                            generation_model = AIModel.CLAUDE_HAIKU
-                        elif "Sonnet" in generation_model_choice:
-                            generation_model = AIModel.CLAUDE_SONNET
-                        else:
-                            generation_model = AIModel.GEMINI_FREE
-                        
-                        coach = AICoachEngine(model=generation_model)
-                        db = WorkoutDatabase()
-                        
-                        # Get weekly summary again
-                        weekly_summary = db.generate_weekly_summary(
-                            ai_start_date.isoformat(),
-                            ai_end_date.isoformat()
-                        )
-                        
-                        # Prepare user context
-                        user_context = {}
-                        if schedule_constraints:
-                            user_context['schedule_constraints'] = schedule_constraints
-                        if training_focus:
-                            user_context['training_focus'] = training_focus
-                        if week_feedback:
-                            user_context['week_feedback'] = week_feedback
-                        
-                        # Generate workout plan
-                        workout_plan, plan_metadata = coach.generate_workout_plan(
-                            weekly_summary=weekly_summary,
-                            analysis=st.session_state.ai_analysis,
-                            user_context=user_context if user_context else None
-                        )
-                        
-                        st.session_state.ai_workout_plan = workout_plan
-                        st.session_state.ai_plan_metadata = plan_metadata
-                        
-                        st.success("✅ Workout plan generated!")
-                        st.rerun()
-                        
-                    except Exception as e:
-                        st.error(f"Error generating workout plan: {str(e)}")
-                        import traceback
-                        with st.expander("Error Details"):
-                            st.code(traceback.format_exc())
-        
-        with col2:
-            if st.session_state.ai_workout_plan:
-                st.markdown(f"""
-                <div style='background: #e8f5e9; padding: 0.5rem; border-radius: 5px; text-align: center;'>
-                    <small>✅ Plan Ready</small>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        with col3:
-            if st.session_state.ai_workout_plan and 'ai_plan_metadata' in st.session_state:
-                cost = st.session_state.ai_plan_metadata.get('cost', 0)
-                st.markdown(f"""
-                <div style='background: #fff3e0; padding: 0.5rem; border-radius: 5px; text-align: center;'>
-                    <small>💰 ${cost:.4f}</small>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        # Display workout plan
-        if st.session_state.ai_workout_plan:
-            st.markdown("#### 📋 7-Day Workout Plan")
-            
-            plan = st.session_state.ai_workout_plan
-            
-            # Display plan overview
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Week", plan.get('weekNumber', 'N/A'))
-            with col2:
-                st.metric("FTP", f"{plan.get('ftp', 0)}W")
-            with col3:
-                # Handle TSS as either number or dict with min/max
-                planned_tss = plan.get('plannedTSS', 'N/A')
-                if isinstance(planned_tss, dict):
-                    tss_min = planned_tss.get('min', 0)
-                    tss_max = planned_tss.get('max', 0)
-                    st.metric("Planned TSS", f"{tss_min}-{tss_max}")
+        if st.button("🚀 Begin Coaching Session", type="primary",
+                     use_container_width=True, key="begin_session_btn"):
+            with st.chat_message("assistant"):
+                collected = []
+
+                def _begin_stream():
+                    for chunk in session.begin_analysis(week_end_str):
+                        collected.append(chunk)
+                        yield chunk
+
+                st.write_stream(_begin_stream())
+
+            session.persist()
+            st.rerun()
+        return
+
+    # ------------------------------------------------------------------
+    # Auto-trigger: plan generation (user already requested this)
+    # ------------------------------------------------------------------
+    if session.phase == "GENERATING":
+        with st.chat_message("assistant"):
+            with st.spinner("Generating your personalised plan…"):
+                collected = []
+
+                def _gen_stream():
+                    for chunk in session.generate_plan(week_end_str):
+                        collected.append(chunk)
+                        yield chunk
+
+                st.write_stream(_gen_stream())
+
+        session.persist()
+        st.rerun()
+
+    # ------------------------------------------------------------------
+    # Render current plan (REVIEWING or SAVED)
+    # ------------------------------------------------------------------
+    if session.current_plan:
+        plan = session.current_plan
+        st.markdown("---")
+        st.markdown("### 📋 Generated Training Plan")
+
+        # Plan header metrics
+        m1, m2, m3 = st.columns(3)
+        with m1:
+            st.metric("Week", plan.get("weekNumber", "N/A"))
+        with m2:
+            st.metric("FTP", f"{plan.get('ftp', 0)}W")
+        with m3:
+            planned_tss = plan.get("plannedTSS", {})
+            if isinstance(planned_tss, dict):
+                st.metric("Planned TSS", f"{planned_tss.get('min', 0)}–{planned_tss.get('max', 0)}")
+            else:
+                st.metric("Planned TSS", str(planned_tss))
+
+        notes = plan.get("notes")
+        if notes:
+            if isinstance(notes, dict):
+                focus = notes.get("weekFocus", "")
+                special = notes.get("specialConsiderations", "")
+                note_str = f"**Focus:** {focus}" + (f"  \n**Notes:** {special}" if special else "")
+            else:
+                note_str = str(notes)
+            st.info(note_str)
+
+        # Day cards
+        days = plan.get("days", [])
+        for day in days:
+            day_num = day.get("dayNumber", 0)
+            day_date = day.get("date", "")
+            workouts = day.get("workouts", [])
+            if not workouts:
+                st.markdown(f"**Day {day_num}** ({day_date})  🧘 Rest / Recovery")
+                continue
+            for wo in workouts:
+                wtype = wo.get("type", "unknown").lower()
+                icon = {"bike": "🚴", "run": "🏃", "strength": "💪",
+                        "yoga": "🧘", "mobility": "🧘", "swim": "🏊"}.get(wtype, "🏋️")
+                wo_name = wo.get("name", "Workout")
+                wo_dur = wo.get("plannedDuration", 0)
+                tss = wo.get("plannedTSS", {})
+                if isinstance(tss, dict):
+                    tss_str = f"{tss.get('min', 0)}–{tss.get('max', 0)} TSS"
                 else:
-                    st.metric("Planned TSS", planned_tss)
-            
-            # Display plan notes
-            if plan.get('notes'):
-                st.info(f"**Week Focus:** {plan['notes']}")
-            
-            # Display daily workouts
-            days = plan.get('days', [])
-            if days:
-                st.markdown("#### Daily Workouts")
-                
-                for day in days:
-                    day_num = day.get('dayNumber', 0)
-                    workouts = day.get('workouts', [])
-                    
-                    if not workouts:
-                        # Rest day
-                        st.markdown(f"**Day {day_num}:** 🧘 Rest")
-                        continue
-                    
-                    # Display each workout for this day
-                    for workout in workouts:
-                        workout_type = workout.get('type', 'unknown')
-                        icon = "🚴" if workout_type == "bike" else "🏃" if workout_type == "run" else "💪" if workout_type == "strength" else "🧘"
-                        
-                        workout_name = workout.get('name', 'Workout')
-                        workout_duration = workout.get('plannedDuration', 0)
-                        
-                        with st.expander(f"{icon} Day {day_num}: {workout_name} - {workout_duration}min"):
-                            col1, col2, col3 = st.columns(3)
-                            with col1:
-                                st.markdown(f"**Type:** {workout_type.title()}")
-                                st.markdown(f"**Duration:** {workout_duration} min")
-                            with col2:
-                                # Handle TSS as dict with min/max
-                                planned_tss = workout.get('plannedTSS', {})
-                                if isinstance(planned_tss, dict):
-                                    tss_min = planned_tss.get('min', 0)
-                                    tss_max = planned_tss.get('max', 0)
-                                    st.markdown(f"**TSS:** {tss_min}-{tss_max}")
+                    tss_str = f"{tss} TSS"
+                label = f"{icon} **Day {day_num}** ({day_date}) · {wo_name} · {wo_dur} min · {tss_str}"
+                with st.expander(label):
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        rpe = wo.get("targetRPE", {})
+                        if isinstance(rpe, dict):
+                            st.markdown(f"**RPE:** {rpe.get('min', 0)}–{rpe.get('max', 0)}/10")
+                        else:
+                            st.markdown(f"**RPE:** {rpe}/10")
+                    with c2:
+                        st.markdown(f"**Type:** {wtype.title()}")
+                    wo_notes = wo.get("notes", [])
+                    if wo_notes:
+                        for n in wo_notes:
+                            st.markdown(f"- {n}")
+                    intervals = wo.get("intervals", [])
+                    if intervals:
+                        st.markdown("**Intervals:**")
+                        for iv in intervals:
+                            iv_name = iv.get("name", "Interval")
+                            iv_dur = iv.get("duration", 0) // 60
+                            pt = iv.get("powerTarget", {})
+                            if isinstance(pt, dict):
+                                if pt.get("type") == "range":
+                                    pt_str = f"{pt.get('min')}–{pt.get('max')}W"
+                                elif "start" in pt and "end" in pt:
+                                    s = pt["start"]
+                                    e = pt["end"]
+                                    if isinstance(s, dict):
+                                        pt_str = f"{s.get('value')}%–{e.get('value')}% FTP"
+                                    else:
+                                        pt_str = f"{s}%–{e}% FTP"
                                 else:
-                                    st.markdown(f"**TSS:** {planned_tss}")
-                                
-                                # Handle RPE as dict with min/max
-                                target_rpe = workout.get('targetRPE', {})
-                                if isinstance(target_rpe, dict):
-                                    rpe_min = target_rpe.get('min', 0)
-                                    rpe_max = target_rpe.get('max', 0)
-                                    st.markdown(f"**RPE:** {rpe_min}-{rpe_max}/10")
-                                else:
-                                    st.markdown(f"**RPE:** {target_rpe}/10")
-                            with col3:
-                                st.markdown(f"**Date:** {day.get('date', 'N/A')}")
-                            
-                            # Display notes
-                            notes = workout.get('notes', [])
-                            if notes:
-                                st.markdown("**Notes:**")
-                                for note in notes:
-                                    st.markdown(f"- {note}")
-                            
-                            # Display intervals if available
-                            intervals = workout.get('intervals', [])
-                            if intervals:
-                                st.markdown("**Intervals:**")
-                                for interval in intervals:
-                                    interval_name = interval.get('name', 'Interval')
-                                    interval_duration = interval.get('duration', 0) // 60  # Convert seconds to minutes
-                                    
-                                    # Handle power target (can be range, percent, or ramp)
-                                    power_target = interval.get('powerTarget', {})
-                                    power_str = "N/A"
-                                    if isinstance(power_target, dict):
-                                        if power_target.get('type') == 'range':
-                                            power_min = power_target.get('min', 0)
-                                            power_max = power_target.get('max', 0)
-                                            power_str = f"{power_min}-{power_max}W"
-                                        elif 'start' in power_target and 'end' in power_target:
-                                            # Handle both dict format and direct value format
-                                            start_val = power_target['start']
-                                            end_val = power_target['end']
-                                            if isinstance(start_val, dict):
-                                                start_pct = start_val.get('value', 0)
-                                                end_pct = end_val.get('value', 0)
-                                            else:
-                                                start_pct = start_val
-                                                end_pct = end_val
-                                            power_str = f"{start_pct}%-{end_pct}% FTP"
-                                    
-                                    st.markdown(f"  - **{interval_name}**: {interval_duration}min @ {power_str}")
-            
-            # Save to proposed workouts
-            st.markdown("---")
-            st.markdown("### 💾 Step 5: Save & Export")
-            st.markdown("*Save this plan to your database and automatically generate Zwift workout files*")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                if st.button("💾 Save Plan to Proposed Workouts & Generate Zwift Files", type="primary", use_container_width=True):
-                    with st.spinner("💾 Saving plan to database and generating Zwift files..."):
-                        try:
-                            from utils.ai_coach_engine import AICoachEngine, AIModel
-                            import os
-                            
-                            coach = AICoachEngine(model=AIModel.GEMINI_FREE)
-                            
-                            # Get Zwift output directory from environment and expand ~ to home directory
-                            zwift_dir = os.getenv('ZWIFT_WORKOUTS_DIR', "~/Documents/Zwift/Workouts/6870291")
-                            zwift_dir = os.path.expanduser(zwift_dir)  # Expand ~ to full home path
-                            
-                            # Save plan and generate Zwift files
-                            # Use the start date from the AI-generated plan, not the UI input
-                            # (AI calculates next week's Monday correctly)
-                            plan_start_date = st.session_state.ai_workout_plan.get('startDate')
-                            success, message, zwift_files = coach.save_plan_to_database(
-                                workout_plan=st.session_state.ai_workout_plan,
-                                start_date=plan_start_date,
-                                output_dir=zwift_dir
-                            )
-                            
-                            if success:
-                                st.success(f"✅ {message}")
-                                
-                                # Show Zwift files if any were generated
-                                if zwift_files:
-                                    st.markdown("#### 🚴 Generated Zwift Workout Files:")
-                                    for zfile in zwift_files:
-                                        st.markdown(f"- `{zfile}`")
-                                    st.info(f"📁 Files saved to: `{zwift_dir}`")
-                                else:
-                                    st.info("ℹ️  No cycling workouts to generate Zwift files for (only Run/Strength/Mobility workouts)")
-                                
-                                # Show next steps
-                                st.markdown("""
-                                <div style='background: #e8f5e9; padding: 1rem; border-radius: 8px; margin-top: 1rem; border-left: 4px solid #4caf50;'>
-                                    <strong>✅ Next Steps:</strong><br>
-                                    • View your plan in <strong>📋 Proposed Workouts</strong> tab<br>
-                                    • Zwift files are ready in your Zwift workouts folder<br>
-                                    • Track your progress throughout the week!
-                                </div>
-                                """, unsafe_allow_html=True)
+                                    pt_str = str(pt)
                             else:
-                                st.error(f"❌ {message}")
-                                
-                        except Exception as e:
-                            st.error(f"Error saving plan: {str(e)}")
-                            import traceback
-                            with st.expander("Error Details"):
-                                st.code(traceback.format_exc())
-            
-            with col2:
-                st.markdown("""
-                <div style='background: #fff3e0; padding: 1rem; border-radius: 8px; border-left: 4px solid #ff9800;'>
-                    <strong>💡 What This Does:</strong><br>
-                    • Saves 7-day plan to database<br>
-                    • Generates .zwo files for cycling workouts<br>
-                    • Files appear in Zwift app automatically<br>
-                    • Plan visible in Proposed Workouts tab
-                </div>
-                """, unsafe_allow_html=True)
+                                pt_str = str(pt)
+                            st.markdown(f"  - **{iv_name}**: {iv_dur} min @ {pt_str}")
+
+        # Save button
+        st.markdown("---")
+        if session.phase in ("REVIEWING", "GENERATING"):
+            if st.button("💾 Save Plan & Generate Zwift Files", type="primary",
+                         use_container_width=True, key="chat_save_btn"):
+                with st.spinner("Saving plan to database and generating Zwift files…"):
+                    try:
+                        zwift_dir = _os.path.expanduser(
+                            _os.getenv("ZWIFT_WORKOUTS_DIR", "~/Documents/Zwift/Workouts/6870291")
+                        )
+                        success, message, zwift_files = session.save_plan(zwift_dir)
+                        if success:
+                            st.success(f"✅ {message}")
+                            if zwift_files:
+                                st.markdown("**Zwift files generated:**")
+                                for f in zwift_files:
+                                    st.markdown(f"- `{f}`")
+                            elif "Generated" not in message:
+                                st.warning(
+                                    "⚠️ Plan saved but no Zwift files generated. "
+                                    "This usually means the Week folder doesn't exist yet on the Windows host. "
+                                    f"Create it with: `New-Item -Path 'C:/Users/rakej/fitness_tracker/shareable/zwift_workouts/Week_XX' -Force` "
+                                    f"then re-run Zwift file generation from the Proposed Workouts page."
+                                )
+                            st.rerun()
+                        else:
+                            st.error(f"❌ {message}")
+                    except Exception as e:
+                        st.error(f"Error saving: {e}")
+                        import traceback
+                        with st.expander("Details"):
+                            st.code(traceback.format_exc())
+
+        elif session.phase == "SAVED":
+            st.success("✅ Plan saved – view it in **Proposed Workouts**")
+
+            # ── Download Zwift files button ──────────────────────────────────
+            week_num = (session.current_plan or {}).get("weekNumber") if session.current_plan else None
+            if week_num:
+                # Always use the container bind-mount path — the .env on Beelink
+                # overrides ZWIFT_WORKOUTS_DIR to a Windows path which breaks
+                # inside the Linux container.
+                env_dir = _os.getenv("ZWIFT_WORKOUTS_DIR", "")
+                if env_dir and not env_dir.startswith("C:\\") and not env_dir.startswith("C:/"):
+                    zwift_base = _os.path.expanduser(env_dir)
+                else:
+                    zwift_base = "/app/shareable/zwift_workouts"
+                week_folder = _os.path.join(zwift_base, f"Week_{week_num}")
+                zwo_files = []
+                try:
+                    if _os.path.isdir(week_folder):
+                        zwo_files = [f for f in _os.listdir(week_folder) if f.endswith(".zwo")]
+                except Exception:
+                    pass
+
+                if zwo_files:
+                    import io, zipfile
+                    zip_buf = io.BytesIO()
+                    with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+                        for fname in zwo_files:
+                            fpath = _os.path.join(week_folder, fname)
+                            zf.write(fpath, arcname=f"Week_{week_num}/{fname}")
+                    zip_buf.seek(0)
+                    st.download_button(
+                        label=f"⬇️ Download Week {week_num} Zwift Files ({len(zwo_files)} workouts)",
+                        data=zip_buf,
+                        file_name=f"Week_{week_num}_zwift_workouts.zip",
+                        mime="application/zip",
+                        use_container_width=True,
+                        key="zwift_download_btn",
+                    )
+                    st.caption(
+                        f"Extract into `~/Documents/Zwift/Workouts/6870291/` on your Mac. "
+                        f"The zip contains the `Week_{week_num}/` folder."
+                    )
+                else:
+                    # No files yet — offer to generate them
+                    plan_start = (session.current_plan or {}).get("startDate", "")
+                    if plan_start:
+                        from datetime import datetime as _dt, timedelta as _td
+                        try:
+                            _start = _dt.strptime(plan_start, "%Y-%m-%d")
+                            _end = (_start + _td(days=6)).strftime("%Y-%m-%d")
+                            _start_str = _start.strftime("%Y-%m-%d")
+                        except ValueError:
+                            _start_str = _end = ""
+                        if _start_str:
+                            if st.button(
+                                f"🚴 Generate Week {week_num} Zwift Files",
+                                use_container_width=True,
+                                key="zwift_generate_btn",
+                            ):
+                                with st.spinner("Generating Zwift workout files… this takes ~30–60s"):
+                                    try:
+                                        gen_resp = requests.get(
+                                            f"{API_URL}/zwift/generate_workouts",
+                                            params={
+                                                "start_date": _start_str,
+                                                "end_date": _end,
+                                                "output_dir": "/app/shareable/zwift_workouts",
+                                            },
+                                            timeout=300,
+                                        )
+                                        if gen_resp.ok:
+                                            n = len(gen_resp.json().get("files", []))
+                                            st.success(f"Generated {n} file(s)!")
+                                            st.rerun()
+                                        else:
+                                            st.error(f"Generation failed: {gen_resp.text[:200]}")
+                                    except Exception as _ge:
+                                        st.error(f"Error calling generate: {_ge}")
+                    else:
+                        st.info(f"No .zwo files found for Week {week_num}.")
+            # ────────────────────────────────────────────────────────────────
+
+            if st.button("♻️ Regenerate Plan (new conversation)", key="chat_regen_btn"):
+                session.phase = "ANALYSIS"
+                session.messages = []
+                session.current_plan = None
+                session.persist()
+                st.session_state.pop("chat_session_obj", None)
+                st.rerun()
+
+    # ------------------------------------------------------------------
+    # "Generate Plan" button — visible in CLARIFYING so user isn't
+    # stuck waiting for the AI to emit the READY_TO_GENERATE sentinel
+    # ------------------------------------------------------------------
+    if session.phase == "CLARIFYING" and session.messages:
+        if st.button("⚡ Generate My Plan Now", type="primary",
+                     use_container_width=True, key="force_generate_btn"):
+            session.phase = "GENERATING"
+            session.persist()
+            st.rerun()
+
+    # ------------------------------------------------------------------
+    # Chat input  (not shown once SAVED unless user wants to regenerate)
+    # ------------------------------------------------------------------
+    if session.phase not in ("GENERATING", "SAVED"):
+        user_msg = st.chat_input(
+            "Talk to your coach…" if session.phase in ("CLARIFYING", "ANALYSIS")
+            else "Ask for changes to specific days…",
+            key="chat_input_box",
+        )
+        if user_msg:
+            # Show the user bubble immediately
+            with st.chat_message("user"):
+                st.markdown(user_msg)
+
+            # Stream coach reply
+            with st.chat_message("assistant"):
+                if session.phase in ("ANALYSIS", "CLARIFYING"):
+
+                    def _chat_stream():
+                        for chunk in session.chat(user_msg):
+                            yield chunk
+
+                    st.write_stream(_chat_stream())
+                elif session.phase == "REVIEWING":
+
+                    def _edit_stream():
+                        for chunk in session.apply_surgical_edit(user_msg):
+                            yield chunk
+
+                    st.write_stream(_edit_stream())
+
+            session.persist()
+            st.rerun()
+
+    # ------------------------------------------------------------------
+    # Phase hint
+    # ------------------------------------------------------------------
+    phase_labels = {
+        "ANALYSIS": "🔍 Analysing your week…",
+        "CLARIFYING": "💬 Gathering context",
+        "GENERATING": "⚙️ Generating plan…",
+        "REVIEWING": "✏️ Review & refine – tell me what to change",
+        "SAVED": "✅ Plan saved",
+    }
+    st.caption(phase_labels.get(session.phase, session.phase))
+
 
 def display_session_comparison_page():
     """Session Comparison page - compare similar workouts to track progress"""
@@ -3040,7 +2854,7 @@ st.sidebar.markdown("### 🎯 Navigation")
 page = st.sidebar.radio("Go to", [
     '📊 Dashboard', 
     '🏆 Performance Analytics',
-    '🎯 Achievements & Goals',
+    '🎯 Goals & Power PRs',
     '📅 Workout Calendar', 
     '🤖 AI Coach',
     '📦 Workout Data Ingestion',  # NEW: Manual matching workflow
@@ -3053,7 +2867,7 @@ if page == '📅 Workout Calendar':
 elif page == '🏆 Performance Analytics':
     display_performance_analytics()
 
-elif page == '🎯 Achievements & Goals':
+elif page == '🎯 Goals & Power PRs':
     from src.ui.tabs.achievements import render_achievements_tab
     render_achievements_tab()
 
@@ -3835,6 +3649,73 @@ elif page == '📦 Workout Data Ingestion':
                 st.session_state.current_workout_idx = 0
                 st.rerun()
         
+        # Manual workout entry (for workouts missing from TrainingPeaks export, e.g. Strength)
+        st.markdown("---")
+        with st.expander("➕ Manually Add a Workout (e.g. Strength not in TP export)"):
+            st.info("Use this when a workout appeared in TrainingPeaks but wasn't included in the CSV export (common for Strength/Yoga sessions).")
+            mcol1, mcol2 = st.columns(2)
+            with mcol1:
+                manual_date = st.date_input(
+                    "Workout Date",
+                    value=datetime.now().date(),
+                    key="manual_workout_date"
+                )
+                manual_title = st.text_input(
+                    "Title",
+                    placeholder="e.g. Strength Training",
+                    key="manual_workout_title"
+                )
+                manual_type = st.selectbox(
+                    "Type",
+                    options=["Strength", "Yoga", "Run", "Swim", "Bike", "Other"],
+                    key="manual_workout_type"
+                )
+            with mcol2:
+                manual_duration = st.number_input(
+                    "Duration (minutes)",
+                    min_value=0, max_value=360, value=60,
+                    key="manual_workout_duration"
+                )
+                manual_tss = st.number_input(
+                    "TSS (optional)",
+                    min_value=0.0, max_value=500.0, value=0.0, step=0.5,
+                    key="manual_workout_tss"
+                )
+                manual_rpe = st.number_input(
+                    "RPE (1-10, optional)",
+                    min_value=0, max_value=10, value=0,
+                    key="manual_workout_rpe"
+                )
+            manual_comments = st.text_area(
+                "Athlete Comments (optional)",
+                placeholder="How did it go?",
+                key="manual_workout_comments"
+            )
+            if st.button("💾 Save Workout", key="manual_save_workout", type="primary"):
+                if not manual_title.strip():
+                    st.error("Please enter a workout title.")
+                else:
+                    try:
+                        from storage.database import WorkoutDatabase
+                        _db = WorkoutDatabase(db_path)
+                        _workout = {
+                            'title': manual_title.strip(),
+                            'type': manual_type,
+                            'workout_day': manual_date.isoformat(),
+                            'metrics': {
+                                'actual_tss': float(manual_tss) if manual_tss > 0 else None,
+                                'actual_duration': float(manual_duration) if manual_duration > 0 else None,
+                                'rpe': float(manual_rpe) if manual_rpe > 0 else None,
+                            },
+                            'athlete_comments': manual_comments.strip() or None,
+                        }
+                        if _db.save_workout(_workout):
+                            st.success(f"✅ Saved **{manual_title}** on {manual_date}. Refresh 'Load Unmatched Workouts' to match it.")
+                        else:
+                            st.error("Failed to save — check app logs.")
+                    except Exception as _e:
+                        st.error(f"Error: {_e}")
+
         # Step 2: Match workouts (only show if sync completed)
         if st.session_state.get('sync_completed', False):
             st.markdown("---")
@@ -3972,8 +3853,12 @@ elif page == '📦 Workout Data Ingestion':
                                                 )
                                                 st.success(f"✅ Matched to: {selected_name}")
                                                 
-                                                # Step 2: Run AI analysis if FIT data exists
-                                                if workout.get('fit_data'):
+                                                # Step 2: Run AI analysis if FIT data exists and has power data or is a structured workout
+                                                fit_data_for_analysis = workout.get('fit_data') or {}
+                                                has_power = bool((fit_data_for_analysis.get('power_metrics') or {}).get('power_series'))
+                                                is_other = (selected_option == "Other (Custom workout/warm-up/cool-down)")
+                                                
+                                                if fit_data_for_analysis and not is_other and has_power:
                                                     with st.spinner("🤖 Running AI analysis..."):
                                                         try:
                                                             # Get athlete FTP
@@ -3985,11 +3870,13 @@ elif page == '📦 Workout Data Ingestion':
                                                             comments = workout.get('comments', '')
                                                             
                                                             # Run analysis using already-parsed FIT data
+                                                            # Pass the manually matched workout name so AI grades against correct workout
                                                             analyzer = FitFileAnalyzer(use_dynamic_models=True)
                                                             analysis = analyzer.analyze_workout_from_parsed_data(
                                                                 parsed_data=workout['fit_data'],
                                                                 athlete_ftp=float(ftp),
-                                                                athlete_notes=comments
+                                                                athlete_notes=comments,
+                                                                matched_proposed_workout_name=selected_name  # Use manual match!
                                                             )
                                                             
                                                             if analysis:
@@ -4039,8 +3926,15 @@ elif page == '📦 Workout Data Ingestion':
                                                                 st.warning("⚠️ Analysis returned no results")
                                                         
                                                         except Exception as analysis_error:
+                                                            import traceback
+                                                            tb = traceback.format_exc()
+                                                            print(f"ANALYSIS ERROR TRACEBACK:\n{tb}")
                                                             st.warning(f"⚠️ Could not analyze workout: {str(analysis_error)}")
                                                             # Continue anyway - matching is saved
+                                                elif is_other:
+                                                    st.info("ℹ️ Skipping AI analysis for 'Other' workouts (commutes, warmups, etc.)")
+                                                elif not has_power:
+                                                    st.info("ℹ️ No power data — skipping AI analysis")
                                                 else:
                                                     st.info("ℹ️ No FIT file data - skipping analysis")
                                                 
@@ -4233,6 +4127,12 @@ elif page == '📦 Workout Data Ingestion':
         st.error("⚠️ **WARNING:** Deleting a workout will also delete its analysis. This cannot be undone!")
         st.info("💡 Use this to remove duplicate uploads, junk data, or test workouts")
         
+        # Initialize session state for delete functionality
+        if 'delete_search' not in st.session_state:
+            st.session_state.delete_search = ''
+        if 'delete_show_matched' not in st.session_state:
+            st.session_state.delete_show_matched = False
+        
         # Date range selector
         col1, col2 = st.columns(2)
         with col1:
@@ -4255,10 +4155,11 @@ elif page == '📦 Workout Data Ingestion':
             search_text = st.text_input(
                 "🔍 Filter by title:",
                 placeholder="e.g., 'test', 'duplicate'",
-                key="delete_search"
+                value=st.session_state.delete_search,
+                key="delete_search_input"
             )
         with col2:
-            show_matched = st.checkbox("Show matched only", value=False, key="delete_matched_only")
+            show_matched = st.checkbox("Show matched only", value=st.session_state.delete_show_matched, key="delete_matched_only")
         
         if st.button("🔍 Load Workouts", key="load_deletable"):
             st.session_state.delete_date_range = (delete_start, delete_end)

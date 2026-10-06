@@ -4,7 +4,7 @@ import json
 import random
 import requests
 from typing import Dict, Any, List, Optional, Set
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 
 class DynamicWorkoutContent:
@@ -20,6 +20,7 @@ class DynamicWorkoutContent:
         self.api_timeout = 3  # seconds
         self.gemini_api_key = os.getenv('GEMINI_API_KEY')
         self.news_api_key = os.getenv('NEWS_API_KEY')  # Free from newsapi.org
+        self._gemini_models_cache: Optional[List[str]] = None
         self.team_news_sources = [
             {
                 'label': 'Mets',
@@ -254,12 +255,31 @@ class DynamicWorkoutContent:
             if headline in self.used_stories:
                 return None
             
+            # If story text is very short, skip AI summary
+            if not story_text or len(story_text) < 400:
+                self.used_stories.add(headline)
+                self.used_messages.add(headline)
+                return (headline, [])
+
             # Try AI summary first
             summary = self._generate_story_summary(headline, story_text)
             
+            if summary and self._is_redundant_summary(headline, summary):
+                summary = None
+
+            # Fallback: local model summary (Ollama)
+            if not summary:
+                summary = self._generate_local_summary(headline, story_text)
+
             # Fallback: Create simple summary from description if AI unavailable
             if not summary:
-                summary = self._create_simple_summary(story_text)
+                summary = self._create_simple_summary(story_text, headline)
+
+            if summary and self._is_redundant_summary(headline, summary):
+                summary = None
+
+            if summary and len(summary.strip()) < 20:
+                summary = None
             
             if summary:
                 summary_messages = self._split_summary_messages(summary)
@@ -349,6 +369,238 @@ class DynamicWorkoutContent:
         ]
         return any(kw in lower for kw in keywords)
 
+    def _get_available_gemini_models(self) -> List[str]:
+        """Return a prioritized list of available Gemini models for this API key."""
+        if self._gemini_models_cache is not None:
+            return self._gemini_models_cache
+
+        # Fallback defaults
+        fallback = [
+            os.getenv('GEMINI_MODEL', '').strip() or None,
+            'gemini-2.5-flash',
+            'gemini-2.0-flash',
+            'gemini-2.5-pro',
+            'gemini-1.5-flash-002'
+        ]
+        fallback = [m for m in fallback if m]
+
+        if not self.gemini_api_key:
+            self._gemini_models_cache = fallback
+            return fallback
+
+    def _generate_local_summary(self, headline: str, story_text: str) -> Optional[str]:
+        """Use a local Ollama model as fallback for summaries."""
+        try:
+            host = os.getenv('OLLAMA_HOST', 'http://host.docker.internal:11434').rstrip('/')
+            model = os.getenv('OLLAMA_MODEL', 'llama3.1:8b')
+            story_text = (story_text or '')[:1200]
+            prompt = (
+                "Summarize the following news story in 2-4 sentences. "
+                "Use neutral, concise language. "
+                "Do not mention workouts, exercise, gyms, or motivation. "
+                "Do not repeat the headline.\n\n"
+                f"Headline: {headline}\n"
+                f"Story text: {story_text}"
+            )
+
+            payload = {
+                "model": model,
+                "prompt": prompt,
+                "stream": False,
+                "options": {
+                    "temperature": 0.4,
+                    "num_predict": 120
+                }
+            }
+            response = requests.post(f"{host}/api/generate", json=payload, timeout=90)
+            if response.status_code != 200:
+                return None
+            data = response.json()
+            summary = (data.get('response') or '').strip().strip('"\'')
+            return summary or None
+        except Exception as e:
+            print(f"Local summary failed: {e}")
+            return None
+
+        try:
+            from google import genai as genai_client
+            client = genai_client.Client(api_key=self.gemini_api_key)
+            names = []
+            for model in client.models.list():
+                name = getattr(model, 'name', '') or ''
+                if 'gemini' in name:
+                    names.append(name)
+
+            # Prefer flash for speed, then pro
+            preferred = [m for m in names if 'flash' in m]
+            preferred += [m for m in names if 'pro' in m and m not in preferred]
+            preferred += [m for m in names if m not in preferred]
+
+            self._gemini_models_cache = preferred or fallback
+            return self._gemini_models_cache
+        except Exception:
+            self._gemini_models_cache = fallback
+            return fallback
+
+    # Nav chrome that appears when a sports site page is scraped as plain text.
+    # Truncate story text at the first occurrence of any of these patterns.
+    _NAV_CHROME_PATTERNS = [
+        'Skip to Content News Probable Pitchers',
+        'Skip to Content Home Scores',
+        'Starting Lineups Transactions Injury Report World Baseball Classic',
+        'Skip to main content Skip to navigation',
+        'Skip to Article',
+    ]
+
+    # Keywords that indicate sponsored / promotional content to exclude.
+    _AD_KEYWORDS = [
+        'promo code', 'promocode', 'bonus code', 'promo-code',
+        'betting odds', 'sportsbook', 'online casino', 'online gambling',
+        'bet now', 'place your bet', 'free bet', 'first bet', 'deposit bonus',
+        'draftkings', 'fanduel', 'kalshi', 'pointsbet', 'betmgm',
+        'caesars', 'barstool sportsbook', 'sign up and bet',
+        'sponsored content', 'paid content', 'advertisement',
+    ]
+
+    def _is_ad_or_promo(self, title: str, description: str = '') -> bool:
+        """Return True if the item looks like a sponsored or promotional post."""
+        haystack = f"{title} {description}".lower()
+        return any(kw in haystack for kw in self._AD_KEYWORDS)
+
+    def _clean_story_text(self, headline: str, text: str) -> str:
+        """Clean story text to reduce repeated headline/source noise."""
+        if not text:
+            return ""
+        cleaned = text.replace('Google News', '').strip()
+        if headline:
+            cleaned = cleaned.replace(headline, '').strip()
+        # Drop embedded oEmbed/JSON fragments
+        if 'providerName' in cleaned or 'contentType' in cleaned:
+            return ""
+        # Truncate at nav chrome (e.g. MLB.com page navigation scraped as text)
+        import re as _re
+        for pattern in self._NAV_CHROME_PATTERNS:
+            idx = cleaned.find(pattern)
+            if idx != -1:
+                cleaned = cleaned[:idx].strip()
+        # Also strip trailing nav-like run-on text: long stretches with no spaces
+        # that look like concatenated nav links
+        cleaned = _re.sub(r'\S{80,}', '', cleaned)  # remove very long non-spaced tokens
+        # Collapse whitespace
+        cleaned = ' '.join(cleaned.split())
+        return cleaned
+
+        # Topics to block in the Oregonian/local news feed (ads, lifestyle noise).
+    _OREGONIAN_BLOCKED_TOPICS = [
+        'recipe', 'recipes', 'cooking', 'cookbook', 'meal prep', 'how to cook',
+        'restaurant review', 'best restaurants',
+        'real estate listing', 'home & garden', 'horoscope', 'astrology',
+        'promo code', 'odds', 'betting', 'casino', 'sportsbook', 'gambling',
+        'wager', 'draftkings', 'fanduel', 'kalshi', 'cash bonus',
+        'classified', 'for sale', 'death notice',
+    ]
+
+    def _passes_team_filters(self, label: str, title: str, description: str) -> bool:
+        """Apply per-team filters (e.g., Ducks football only, Oregonian topics)."""
+        haystack = f"{title} {description}".lower()
+        haystack = haystack.replace('’', "'")
+        if 'ducks' in label.lower():
+            # Prefer football-only coverage
+            allowed = ['football', 'qb', 'quarterback', 'offense', 'defense', 'linebacker', 'recruit', 'commit', 'transfer']
+            blocked = [
+                "women's basketball", "women’s basketball",
+                "men's basketball", "men’s basketball",
+                'basketball', 'softball', 'baseball', 'volleyball'
+            ]
+            if any(b in haystack for b in blocked):
+                return False
+            if not any(a in haystack for a in allowed):
+                return False
+        if 'oregonian' in label.lower():
+            if any(b in haystack for b in self._OREGONIAN_BLOCKED_TOPICS):
+                return False
+        return True
+
+    def _is_redundant_summary(self, headline: str, summary: str) -> bool:
+        """Return True if summary mostly repeats the headline."""
+        if not headline or not summary:
+            return False
+        try:
+            import re
+            h_tokens = set(re.findall(r"\w+", headline.lower()))
+            s_tokens = set(re.findall(r"\w+", summary.lower()))
+            if not s_tokens:
+                return False
+            overlap = len(s_tokens & h_tokens)
+            ratio = overlap / max(1, len(s_tokens))
+            extra = s_tokens - h_tokens
+            if len(s_tokens) <= 8:
+                return True
+            return ratio >= 0.8 and len(extra) <= 4
+        except Exception:
+            return False
+
+    def _get_weather_forecast(self) -> Optional[str]:
+        """Get a simple daily weather forecast message."""
+        try:
+            lat = float(os.getenv('WEATHER_LAT', '45.5152'))
+            lon = float(os.getenv('WEATHER_LON', '-122.6784'))
+            label = os.getenv('WEATHER_LABEL', 'Portland')
+
+            response = requests.get(
+                'https://api.open-meteo.com/v1/forecast',
+                params={
+                    'latitude': lat,
+                    'longitude': lon,
+                    'daily': 'temperature_2m_max,temperature_2m_min,precipitation_probability_max',
+                    'timezone': 'auto'
+                },
+                timeout=self.api_timeout
+            )
+            if response.status_code != 200:
+                return None
+            data = response.json()
+            daily = data.get('daily', {})
+            tmax = daily.get('temperature_2m_max', [None])[0]
+            tmin = daily.get('temperature_2m_min', [None])[0]
+            precip = daily.get('precipitation_probability_max', [None])[0]
+            if tmax is None or tmin is None:
+                return None
+
+            # Convert C to F
+            tmax_f = round((tmax * 9/5) + 32)
+            tmin_f = round((tmin * 9/5) + 32)
+            precip_str = f"{int(precip)}%" if precip is not None else "n/a"
+            return f"Weather {label}: High {tmax_f}F / Low {tmin_f}F, Precip {precip_str}"
+        except Exception as e:
+            print(f"Weather fetch failed: {e}")
+            return None
+
+    def _parse_pub_date(self, raw: str) -> Optional[datetime]:
+        """Parse RSS/Atom published date string into a datetime, if possible."""
+        if not raw:
+            return None
+        try:
+            from email.utils import parsedate_to_datetime
+            return parsedate_to_datetime(raw)
+        except Exception:
+            return None
+
+    def _is_recent_date(self, dt: Optional[datetime]) -> bool:
+        """Allow only today or yesterday."""
+        if not dt:
+            return False
+        try:
+            today = datetime.now(dt.tzinfo).date() if dt.tzinfo else datetime.now().date()
+            allowed = {today, today - timedelta(days=1)}
+            return dt.date() in allowed
+        except Exception:
+            return False
+
+    def get_quote_message(self) -> Optional[str]:
+        """Return a quote-only message for occasional non-news content."""
+        return self._get_quote()
+
     def _load_team_news_sources(self, defaults: List[Dict[str, str]]) -> List[Dict[str, str]]:
         """Allow overrides via TEAM_NEWS_SOURCES env (JSON array)."""
         raw = os.getenv('TEAM_NEWS_SOURCES')
@@ -376,7 +628,7 @@ class DynamicWorkoutContent:
         text = text.replace('&nbsp;', ' ').replace('&amp;', '&')
         return ' '.join(text.split()).strip()
 
-    def _fetch_article_text(self, url: str, max_chars: int = 3000) -> str:
+    def _fetch_article_text(self, url: str, max_chars: int = 6000) -> str:
         """Fetch and extract plain text from an article URL (best-effort)."""
         if not url:
             return ""
@@ -396,6 +648,10 @@ class DynamicWorkoutContent:
             text = re.sub(r'<[^>]+>', ' ', html)
             text = text.replace('&nbsp;', ' ').replace('&amp;', '&')
             text = ' '.join(text.split()).strip()
+            # Heuristic: drop noisy page shells
+            noisy_markers = ['Skip to Article', 'Set weather', 'Back To Main Menu', 'View full weather report']
+            if any(marker in text for marker in noisy_markers):
+                return ""
             if len(text) > max_chars:
                 text = text[:max_chars]
             return text
@@ -491,6 +747,7 @@ class DynamicWorkoutContent:
                         description = article.get('description', '')
                         content = article.get('content', '')
                         url = article.get('url', '')
+                        published_at = article.get('publishedAt', '')
 
                         # Clean title (remove source suffix like " - CNN")
                         if ' - ' in title:
@@ -500,9 +757,19 @@ class DynamicWorkoutContent:
                         if self._is_job_listing(title) or self._is_job_listing(description):
                             continue
 
+                        published_dt = None
+                        if published_at:
+                            try:
+                                published_dt = datetime.fromisoformat(published_at.replace('Z', '+00:00'))
+                            except Exception:
+                                published_dt = None
+                        if not published_dt or not self._is_recent_date(published_dt):
+                            continue
+
                         fetched = self._fetch_article_text(url)
                         story_text = ' '.join(filter(None, [description, content, fetched]))
                         story_text = story_text.replace('[+', '').replace('chars]', '')
+                        story_text = self._clean_story_text(title, story_text)
 
                         if title and story_text and len(title) < 120:
                             headline = f'📰 News: {title}'
@@ -513,7 +780,7 @@ class DynamicWorkoutContent:
         return None
 
     def _parse_rss_items(self, url: str, max_items: int = 10) -> List[Dict[str, str]]:
-        """Parse RSS feed items into a list of dicts with title/description/link."""
+        """Parse RSS/Atom feed items into a list of dicts with title/description/link/pub_date."""
         try:
             response = requests.get(url, timeout=self.api_timeout)
             if response.status_code != 200:
@@ -522,14 +789,37 @@ class DynamicWorkoutContent:
             root = ET.fromstring(response.content)
             items = root.findall('.//item')
             results = []
+            if not items:
+                # Atom feeds use <entry>
+                items = root.findall('.//{http://www.w3.org/2005/Atom}entry')
+                for item in items[:max_items]:
+                    title = item.findtext('{http://www.w3.org/2005/Atom}title', default='').strip()
+                    description = item.findtext('{http://www.w3.org/2005/Atom}summary', default='').strip()
+                    link = ''
+                    link_elem = item.find('{http://www.w3.org/2005/Atom}link')
+                    if link_elem is not None:
+                        link = (link_elem.attrib.get('href') or '').strip()
+                    pub_raw = item.findtext('{http://www.w3.org/2005/Atom}updated', default='').strip()
+                    results.append({
+                        'title': title,
+                        'description': self._strip_html(description),
+                        'link': link,
+                        'pub_date': pub_raw
+                    })
+                return results
+
             for item in items[:max_items]:
                 title = item.findtext('title', default='').strip()
                 description = item.findtext('description', default='').strip()
                 link = item.findtext('link', default='').strip()
+                pub_raw = item.findtext('pubDate', default='').strip()
+                if not pub_raw:
+                    pub_raw = item.findtext('{http://purl.org/dc/elements/1.1/}date', default='').strip()
                 results.append({
                     'title': title,
                     'description': self._strip_html(description),
-                    'link': link
+                    'link': link,
+                    'pub_date': pub_raw
                 })
             return results
         except Exception as e:
@@ -537,21 +827,37 @@ class DynamicWorkoutContent:
             return []
 
     def _get_team_news_story(self) -> Optional[tuple[str, str]]:
-        """Get team-specific news in priority order from RSS feeds.
+        """Get team-specific news from RSS feeds with randomized source order for diversity.
 
         Returns: (headline, story_text) or None
         """
-        for source in self.team_news_sources:
+        # Randomize source order to ensure diverse news selection across workouts
+        sources = list(self.team_news_sources)
+        random.shuffle(sources)
+        
+        for source in sources:
             items = self._parse_rss_items(source['rss'], max_items=12)
             random.shuffle(items)
             for item in items:
                 title = item.get('title', '')
                 description = item.get('description', '')
                 link = item.get('link', '')
+                pub_raw = item.get('pub_date', '')
+                pub_dt = self._parse_pub_date(pub_raw) if pub_raw else None
+
+                if not pub_dt or not self._is_recent_date(pub_dt):
+                    continue
 
                 if not title:
                     continue
                 if self._is_job_listing(title) or self._is_job_listing(description):
+                    continue
+
+                if self._is_ad_or_promo(title, description):
+                    print(f"   🚫 Skipping ad/promo: {title[:60]}")
+                    continue
+
+                if not self._passes_team_filters(source['label'], title, description):
                     continue
 
                 headline = f"{source['emoji']} {source['label']}: {title}"
@@ -559,7 +865,8 @@ class DynamicWorkoutContent:
                     continue
 
                 fetched = self._fetch_article_text(link)
-                story_text = ' '.join(filter(None, [description, fetched, title]))
+                story_text = ' '.join(filter(None, [description, fetched]))
+                story_text = self._clean_story_text(title, story_text)
                 return (headline, story_text)
 
         return None
@@ -649,30 +956,65 @@ class DynamicWorkoutContent:
             return None
         
         try:
-            import google.generativeai as genai
-            configure = getattr(genai, 'configure', None)
-            model_cls = getattr(genai, 'GenerativeModel', None)
-            if not configure or not model_cls:
-                return None
-            configure(api_key=self.gemini_api_key)
-            model = model_cls('gemini-1.5-flash')
-            
+            model_candidates = self._get_available_gemini_models()
+
             prompt = f"""Explain this story in simple, clear language that someone exercising can understand:
 
 Headline: {headline}
-Story text: {story_text[:1200]}
+Story text: {story_text[:3000]}
 
 Provide a 2-4 sentence summary (max 420 characters) explaining what the story is about in simple terms. Make it conversational and easy to understand while riding a bike. Do NOT say 'go read the article' or repeat the headline.
 
 Just return the summary, nothing else."""
             
-            response = model.generate_content(prompt)
-            summary = response.text.strip().strip('"\'')
+            summary = None
+
+            # Prefer new google-genai client if available
+            try:
+                from google import genai as genai_client
+                client = genai_client.Client(api_key=self.gemini_api_key)
+                for model_name in model_candidates:
+                    try:
+                        response = client.models.generate_content(
+                            model=model_name,
+                            contents=prompt
+                        )
+                        summary = (response.text or '').strip().strip('"\'')
+                        if summary:
+                            break
+                    except Exception as model_error:
+                        error_msg = str(model_error)
+                        if '404' in error_msg or 'not found' in error_msg.lower():
+                            continue
+                        raise
+            except Exception:
+                # Fallback to deprecated google-generativeai
+                import google.generativeai as genai
+                configure = getattr(genai, 'configure', None)
+                model_cls = getattr(genai, 'GenerativeModel', None)
+                if not configure or not model_cls:
+                    return None
+                configure(api_key=self.gemini_api_key)
+                for model_name in model_candidates:
+                    try:
+                        model = model_cls(model_name)
+                        response = model.generate_content(prompt)
+                        summary = response.text.strip().strip('"\'')
+                        if summary:
+                            break
+                    except Exception as model_error:
+                        error_msg = str(model_error)
+                        if '404' in error_msg or 'not found' in error_msg.lower():
+                            continue
+                        raise
             
+            if not summary:
+                return None
+
             # Keep it concise
             if len(summary) > 420:
                 summary = summary[:417] + '...'
-            
+
             if summary:
                 return summary
         except Exception as e:
@@ -684,7 +1026,7 @@ Just return the summary, nothing else."""
         
         return None
     
-    def _create_simple_summary(self, description: str) -> Optional[str]:
+    def _create_simple_summary(self, description: str, headline: str = "") -> Optional[str]:
         """Create a simple summary from description text when AI is unavailable.
         
         This is a fallback for when Gemini API quota is exhausted.
@@ -723,7 +1065,13 @@ Just return the summary, nothing else."""
             # Truncate if still too long
             if len(summary) > 240:
                 summary = summary[:237] + '...'
-            
+
+            if headline and summary:
+                hl = headline.lower()
+                sm = summary.lower()
+                if hl in sm or sm in hl:
+                    return None
+
             return summary
         except Exception as e:
             print(f"Simple summary creation failed: {e}")
@@ -866,7 +1214,7 @@ Just return the summary, nothing else."""
             if not configure or not model_cls:
                 return None
             configure(api_key=self.gemini_api_key)
-            model = model_cls('gemini-1.5-flash')
+            model = model_cls('gemini-2.5-flash')
             
             prompt = """Generate ONE short, motivational message for a cyclist during an indoor training workout.
             

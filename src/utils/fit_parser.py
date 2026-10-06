@@ -262,6 +262,30 @@ class FitParser:
                         'zones': self.calculate_hr_zones(hr_data_filtered, max_hr=athlete_max_hr),  # Pass athlete max HR
                         'hr_series': convert_numpy(hr_array)  # Include time series
                     }
+            # Extract lap data — Zwift stamps a lap at each ZWO interval boundary,
+            # so laps give us the exact per-interval avg_power and timing
+            laps = []
+            try:
+                workout_start = timestamps[0] if timestamps else None
+                for lap in fitfile.get_messages('lap'):
+                    try:
+                        lap_raw = cast(Any, lap).get_values()
+                        lap_data = {str(k): v for k, v in (lap_raw.items() if isinstance(lap_raw, dict) else {})}
+                    except Exception:
+                        lap_data = {}
+                    if not lap_data:
+                        continue
+                    lap_start = lap_data.get('start_time')
+                    elapsed = (lap_start - workout_start).total_seconds() if lap_start and workout_start else None
+                    laps.append({
+                        'start_elapsed_sec': round(elapsed, 1) if elapsed is not None else None,
+                        'total_elapsed_time': lap_data.get('total_elapsed_time'),
+                        'avg_power': lap_data.get('avg_power'),
+                        'max_power': lap_data.get('max_power'),
+                        'avg_heart_rate': lap_data.get('avg_heart_rate'),
+                    })
+            except Exception as e:
+                print(f"DEBUG: Lap extraction failed: {e}")
             # Detect sport type from session data
             sport = None
             try:
@@ -304,6 +328,7 @@ class FitParser:
                 'power_metrics': power_metrics,
                 'hr_metrics': hr_metrics,
                 'time_series': time_series,  # Add time series data
+                'laps': laps,
                 'metrics': {
                     'tss': power_metrics['tss'] if power_metrics else None,
                     'duration': duration_hours * 60,  # Convert to minutes

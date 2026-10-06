@@ -9,7 +9,15 @@ This ensures the system stays working as Google updates their model lineup.
 """
 
 import os
-import google.generativeai as genai
+try:
+    from google import genai as genai_client
+except Exception:
+    genai_client = None
+
+try:
+    import google.generativeai as genai_legacy
+except Exception:
+    genai_legacy = None
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 import json
@@ -55,9 +63,20 @@ class GeminiModelDiscovery:
         if not self.api_key:
             raise ValueError("Gemini API key required. Set GEMINI_API_KEY environment variable.")
         
-        genai.configure(api_key=self.api_key)
         self._cached_models: Optional[List[str]] = None
         self._cache_timestamp: Optional[datetime] = None
+
+        self._client = None
+        self._use_new_client = False
+
+        if genai_client is not None:
+            self._client = genai_client.Client(api_key=self.api_key)
+            self._use_new_client = True
+        elif genai_legacy is not None:
+            genai_legacy.configure(api_key=self.api_key)
+            self._client = genai_legacy
+        else:
+            raise ValueError("Gemini SDK not available. Install google-genai or google-generativeai.")
     
     def _load_cache(self) -> Optional[Dict[str, Any]]:
         """Load cached model list if fresh enough."""
@@ -115,11 +134,20 @@ class GeminiModelDiscovery:
         try:
             # Query Google's API for available models
             available_models = []
-            for model in genai.list_models():
-                # Only include generative models (not embeddings, etc.)
-                if 'generateContent' in model.supported_generation_methods:
-                    model_name = model.name.replace('models/', '')
-                    available_models.append(model_name)
+            if self._use_new_client:
+                for model in self._client.models.list():
+                    model_name = getattr(model, 'name', '')
+                    supported = getattr(model, 'supported_actions', None) or getattr(model, 'supported_generation_methods', None) or []
+                    supports_generate = any('generate' in str(m).lower() for m in supported)
+
+                    if supports_generate or 'gemini' in model_name.lower():
+                        available_models.append(model_name)
+            else:
+                for model in self._client.list_models():
+                    # Only include generative models (not embeddings, etc.)
+                    if 'generateContent' in model.supported_generation_methods:
+                        model_name = model.name.replace('models/', '')
+                        available_models.append(model_name)
             
             print(f"✅ Found {len(available_models)} generative models")
             

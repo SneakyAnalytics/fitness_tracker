@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   fastapi:
     build: .
@@ -8,21 +6,27 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-      - ./src:/app/src
+      - fitness_tracker_data:/app/data
+      - fitness_tracker_logs:/app/logs
+      - fitness_tracker_shareable:/app/shareable
     environment:
       - PYTHONUNBUFFERED=1
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - OLLAMA_MODEL=llama3.1:8b
+      - ZWIFT_WORKOUTS_DIR=/app/shareable/zwift_workouts
     env_file:
       - .env
     command: >
-      sh -c "uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload"
+      sh -c "cp /app/data/api_app.py /app/src/api/app.py 2>/dev/null || true; cp /app/data/database.py /app/src/storage/database.py 2>/dev/null || true; uvicorn src.api.app:app --host 0.0.0.0 --port 8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 30s
       timeout: 30s
       retries: 5
       start_period: 120s
+    # Resource limits to prevent WSL CPU/memory accumulation
+    mem_limit: 768m
+    cpus: 1.5
 
   streamlit:
     build: .
@@ -31,22 +35,43 @@ services:
     ports:
       - "8501:8501"
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-      - ./src:/app/src
+      - fitness_tracker_data:/app/data
+      - fitness_tracker_logs:/app/logs
+      - fitness_tracker_shareable:/app/shareable
     environment:
       - PYTHONUNBUFFERED=1
       - API_URL=http://fastapi:8000
-      - STREAMLIT_PASSWORD=${STREAMLIT_PASSWORD}
+      - ZWIFT_WORKOUTS_DIR=/app/shareable/zwift_workouts
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - OLLAMA_MODEL=llama3.1:8b
       - TRAININGPEAKS_USERNAME=${TRAININGPEAKS_USERNAME}
-      - TRAININGPEAKS_PASSWORD=q8ND$$MMGjhb&6r&
     env_file:
       - .env
     command: >
-      sh -c "streamlit run src/ui/streamlit_app.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true"
+      sh -c "cp /app/data/streamlit_app.py /app/src/ui/streamlit_app.py 2>/dev/null || true; cp /app/data/workout_matching.py /app/src/storage/workout_matching.py 2>/dev/null || true; cp /app/data/database.py /app/src/storage/database.py 2>/dev/null || true; cp /app/data/ai_chat_session.py /app/src/utils/ai_chat_session.py 2>/dev/null || true; cp /app/data/ai_prompts.py /app/src/utils/ai_prompts.py 2>/dev/null || true; cp /app/data/ai_coach_engine.py /app/src/utils/ai_coach_engine.py 2>/dev/null || true; cp /app/data/trainingpeaks_sync.py /app/src/utils/trainingpeaks_sync.py 2>/dev/null || true; cp /app/data/fit_file_analyzer.py /app/src/utils/fit_file_analyzer.py 2>/dev/null || true; streamlit run src/ui/streamlit_app.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true --server.enableCORS=false --server.enableXsrfProtection=false --server.fileWatcherType=none"
     depends_on:
       - fastapi
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 120s
+    # Resource limits for UI container (lighter workload)
+    mem_limit: 384m
+    cpus: 0.5
 
 networks:
   default:
     name: fitness-tracker-network
+
+volumes:
+  fitness_tracker_data:
+    external: true
+    name: fitness_tracker_data
+  fitness_tracker_logs:
+    external: true
+    name: fitness_tracker_logs
+  fitness_tracker_shareable:
+    external: true
+    name: fitness_tracker_shareable
