@@ -45,6 +45,7 @@ def run(days: int = 3, sync: bool = True) -> Dict[str, Any]:
             result["errors"].append("TrainingPeaks sync failed (see container logs)")
         else:
             result["synced"] = {k: synced.get(k) for k in ("fit_files", "workouts", "metrics")}
+            result["errors"].extend(synced.get("errors") or [])
 
     result["linked"] = link_fit_files(db.db_path, start.isoformat(), end.isoformat())
 
