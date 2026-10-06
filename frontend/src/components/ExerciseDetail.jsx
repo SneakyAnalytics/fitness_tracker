@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { CheckCircle2, ChevronDown, ChevronRight, ExternalLink, Save } from "lucide-react";
-import { exerciseLookupUrl } from "../lib/workouts";
+import { CheckCircle2, ChevronDown, ChevronRight, ExternalLink, Save, Timer } from "lucide-react";
+import { exerciseLookupUrl, movementTiming } from "../lib/workouts";
+import MovementTimer from "./MovementTimer";
 import "./ExerciseDetail.css";
 
 function formatDuration(seconds) {
@@ -81,6 +82,7 @@ function ExerciseDetail({ exercise, initialLog = {}, onSave }) {
   const [status, setStatus] = useState("");
   const sets = Array.isArray(exercise.sets) ? exercise.sets : [];
   const summary = prescription(exercise);
+  const timing = movementTiming(exercise);
 
   const handleSave = async () => {
     if (!onSave) return;
@@ -102,6 +104,7 @@ function ExerciseDetail({ exercise, initialLog = {}, onSave }) {
           <span className="exercise-info">
             <span className="exercise-name">
               {exercise.name}
+              {timing && <Timer size={15} className="exercise-timed-icon" aria-label="timed" />}
               {logged && <CheckCircle2 size={16} className="exercise-logged-icon" />}
             </span>
             {summary && <span className="exercise-summary">{summary}</span>}
@@ -121,6 +124,7 @@ function ExerciseDetail({ exercise, initialLog = {}, onSave }) {
 
       {open && (
         <div className="exercise-body">
+          {timing && <MovementTimer seconds={timing.seconds} perSide={timing.perSide} />}
           {exercise.description && <p className="exercise-description">{exercise.description}</p>}
           {sets.map((set, idx) => (
             <div key={idx} className="exercise-set-notes">

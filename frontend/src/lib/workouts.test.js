@@ -57,3 +57,19 @@ describe("parseSSEChunk", () => {
     expect(rest).toBe('data: {"type":"st');
   });
 });
+
+import { movementTiming } from "./workouts";
+
+describe("movementTiming", () => {
+  it("uses structured duration and perSide", () => {
+    expect(movementTiming({ sets: [{ duration: 45, perSide: true }] })).toEqual({ seconds: 45, perSide: true });
+  });
+  it("parses text like '30-40 seconds each side' (top of range)", () => {
+    expect(movementTiming({ sets: [{ reps: "30-40 seconds each side" }] })).toEqual({ seconds: 40, perSide: true });
+    expect(movementTiming({ sets: [{ reps: "1 min" }] })).toEqual({ seconds: 60, perSide: false });
+  });
+  it("returns null for rep-based work", () => {
+    expect(movementTiming({ sets: [{ reps: 12, weight: "moderate" }] })).toBeNull();
+    expect(movementTiming({ sets: [{ reps: "10 each leg" }] })).toBeNull();
+  });
+});

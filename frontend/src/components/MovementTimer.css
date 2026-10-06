@@ -1,0 +1,67 @@
+.movement-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 6px;
+  border-radius: 999px;
+  background: white;
+  border: 1px solid var(--color-cream-dark);
+  margin: 4px 0 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.movement-timer.running {
+  border-color: var(--color-forest);
+  box-shadow: 0 0 0 1px var(--color-forest);
+}
+
+.movement-timer.finished .mt-time {
+  color: var(--color-success, #2e7d32);
+}
+
+.mt-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: var(--color-cream);
+  color: var(--color-forest);
+}
+
+.mt-btn.primary {
+  background: var(--color-forest);
+  color: white;
+}
+
+.mt-time {
+  font-size: 1.35rem;
+  font-weight: 700;
+  min-width: 3.2ch;
+}
+
+.mt-label {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.mt-adjust {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.mt-small {
+  min-width: 34px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--color-cream-dark);
+  background: var(--color-background, #fafaf7);
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
