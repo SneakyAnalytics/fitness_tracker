@@ -1,19 +1,68 @@
-import React from "react";
 import {
-  LineChart,
-  Line,
-  AreaChart,
   Area,
+  CartesianGrid,
+  ComposedChart,
+  Legend,
+  Line,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceLine,
 } from "recharts";
+import { resolvePowerTarget } from "../lib/workouts";
 import "./IntervalVisualizer.css";
 
-function IntervalVisualizer({ intervals }) {
+// Validated pair (scripts/validate_palette.js): planned vs actual.
+const PLANNED = "#eb6834";
+const ACTUAL = "#2a78d6";
+
+// Steps on a numeric time axis: a steady/range interval is flat at its band's
+// middle; only real ramps slope. `actuals` (optional) adds what was ridden.
+export function buildSeries(intervals, ftp, actuals = []) {
+  const planned = [];
+  const actual = [];
+  let t = 0;
+  intervals.forEach((iv, i) => {
+    const dur = (iv.duration || 0) / 60;
+    if (dur <= 0) return;
+    const target = resolvePowerTarget(iv.powerTarget, ftp);
+    const isRamp = Boolean(iv.powerTarget?.start && iv.powerTarget?.end);
+    const name = iv.name || `Interval ${i + 1}`;
+    if (target) {
+      // Shade the whole target band so riding anywhere inside it reads as on target.
+      const start = isRamp ? [target.low, target.low] : [target.low, target.high];
+      const end = isRamp ? [target.high, target.high] : [target.low, target.high];
+      planned.push({ time: t, planned: start.map(Math.round), name, target: target.label });
+      planned.push({ time: t + dur, planned: end.map(Math.round), name, target: target.label });
+    }
+    const a = actuals.find((r) => r.interval_index === i);
+    if (a?.actual_avg_w != null) {
+      actual.push({ time: t, actual: Math.round(a.actual_avg_w), name });
+      actual.push({ time: t + dur, actual: Math.round(a.actual_avg_w), name });
+    }
+    t += dur;
+  });
+  return { planned, actual, total: t };
+}
+
+function TooltipBody({ active, payload }) {
+  if (!active || !payload?.length) return null;
+  const p = payload[0].payload;
+  return (
+    <div className="interval-tooltip">
+      <h4>{p.name}</h4>
+      {payload.map((s) => (
+        <p key={s.dataKey}>
+          <strong>{s.dataKey === "planned" ? "Target" : "Actual"}:</strong>{" "}
+          {s.dataKey === "planned" && p.target ? p.target : `${s.value}W`}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function IntervalVisualizer({ intervals, ftp, actuals = [] }) {
   if (!intervals || intervals.length === 0) {
     return (
       <div className="interval-visualizer empty">
@@ -21,139 +70,36 @@ function IntervalVisualizer({ intervals }) {
       </div>
     );
   }
-
-  // Build power profile data points over time
-  const buildPowerProfile = (intervals) => {
-    const dataPoints = [];
-    let cumulativeTime = 0;
-
-    intervals.forEach((interval, index) => {
-      const duration = interval.duration || 0;
-
-      // Extract power values
-      let startPower = 0;
-      let endPower = 0;
-
-      if (interval.powerTarget) {
-        if (interval.powerTarget.type === "range") {
-          // For range, start at min and ramp to max
-          startPower = interval.powerTarget.min || 0;
-          endPower = interval.powerTarget.max || startPower;
-        } else if (interval.powerTarget.start && interval.powerTarget.end) {
-          // For percentage-based ramps
-          const ftp = 302; // Could be passed as prop
-          startPower = Math.round(
-            (interval.powerTarget.start.value || 0) * ftp,
-          );
-          endPower = Math.round((interval.powerTarget.end.value || 0) * ftp);
-        } else if (typeof interval.powerTarget === "number") {
-          startPower = interval.powerTarget;
-          endPower = interval.powerTarget;
-        }
-      }
-
-      // Add start point
-      dataPoints.push({
-        time: cumulativeTime / 60, // Convert to minutes
-        power: startPower,
-        interval: interval.name || `Interval ${index + 1}`,
-        phase: "start",
-      });
-
-      // Add end point (creates the ramp)
-      cumulativeTime += duration;
-      dataPoints.push({
-        time: cumulativeTime / 60,
-        power: endPower,
-        interval: interval.name || `Interval ${index + 1}`,
-        phase: "end",
-      });
-    });
-
-    return dataPoints;
-  };
-
-  const powerProfile = buildPowerProfile(intervals);
-
-  // Calculate max power for Y-axis domain
-  const maxPower = Math.max(...powerProfile.map((p) => p.power), 300);
-  const yAxisMax = Math.ceil(maxPower / 50) * 50; // Round up to nearest 50
-
-  const CustomTooltip = ({ active, payload }) => {
-    if (active && payload && payload[0]) {
-      const data = payload[0].payload;
-      return (
-        <div className="interval-tooltip">
-          <h4>{data.interval}</h4>
-          <p>
-            <strong>Time:</strong> {Math.floor(data.time)}:
-            {String(Math.round((data.time % 1) * 60)).padStart(2, "0")}
-          </p>
-          <p>
-            <strong>Power:</strong> {Math.round(data.power)}W
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
+  const { planned, actual, total } = buildSeries(intervals, ftp, actuals);
+  const peak = Math.max(ftp || 0, ...planned.map((d) => d.planned[1]), ...actual.map((d) => d.actual), 100);
+  const ticks = Array.from({ length: Math.floor(total / 15) + 1 }, (_, i) => i * 15);
 
   return (
     <div className="interval-visualizer">
-      <ResponsiveContainer width="100%" height={300}>
-        <AreaChart
-          data={powerProfile}
-          margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-        >
-          <defs>
-            <linearGradient id="powerGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop
-                offset="5%"
-                stopColor="var(--color-cycling)"
-                stopOpacity={0.8}
-              />
-              <stop
-                offset="95%"
-                stopColor="var(--color-cycling)"
-                stopOpacity={0.1}
-              />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+      <ResponsiveContainer width="100%" height={280}>
+        <ComposedChart margin={{ top: 10, right: 16, left: 0, bottom: 4 }}>
+          <CartesianGrid stroke="var(--color-cream-dark)" vertical={false} />
           <XAxis
+            type="number"
             dataKey="time"
-            label={{
-              value: "Time (minutes)",
-              position: "insideBottom",
-              offset: -5,
-            }}
+            domain={[0, total]}
+            ticks={ticks}
+            tickFormatter={(v) => `${v}m`}
             tick={{ fontSize: 12 }}
+            allowDuplicatedCategory={false}
           />
-          <YAxis
-            label={{
-              value: "Power (watts)",
-              angle: -90,
-              position: "insideLeft",
-            }}
-            domain={[0, yAxisMax]}
-            tick={{ fontSize: 12 }}
-          />
-          <Tooltip content={<CustomTooltip />} />
-          <ReferenceLine
-            y={302}
-            stroke="#2C5F2D"
-            strokeDasharray="5 5"
-            label="FTP"
-          />
-          <Area
-            type="linear"
-            dataKey="power"
-            stroke="var(--color-cycling)"
-            strokeWidth={3}
-            fill="url(#powerGradient)"
-            animationDuration={1000}
-          />
-        </AreaChart>
+          <YAxis domain={[0, Math.ceil(peak / 50) * 50]} tick={{ fontSize: 12 }} unit="W" width={56} />
+          <Tooltip content={<TooltipBody />} />
+          {actual.length > 0 && <Legend verticalAlign="top" height={28} />}
+          <ReferenceLine y={ftp} stroke="var(--color-text-tertiary)" strokeDasharray="5 5"
+                         label={{ value: `FTP ${ftp}W`, position: "insideTopRight", fontSize: 11 }} />
+          <Area data={planned} dataKey="planned" name="Target band" type="linear" stroke={PLANNED} strokeWidth={1.5}
+                fill={PLANNED} fillOpacity={0.25} isAnimationActive={false} />
+          {actual.length > 0 && (
+            <Line data={actual} dataKey="actual" name="Actual" type="linear" stroke={ACTUAL} strokeWidth={2}
+                  dot={false} isAnimationActive={false} />
+          )}
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
   );

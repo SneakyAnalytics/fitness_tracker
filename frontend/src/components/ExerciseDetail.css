@@ -189,3 +189,100 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Collapsible card (Oct 2026) ─────────────────────────────────────────── */
+.exercise-detail {
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.exercise-detail.logged {
+  border-left-color: var(--color-success, #2e7d32);
+}
+
+.exercise-header {
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+.exercise-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 2px 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.exercise-toggle svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.exercise-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.exercise-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.exercise-logged-icon {
+  color: var(--color-success, #2e7d32);
+}
+
+.exercise-summary {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+.exercise-link {
+  flex-shrink: 0;
+  min-width: 40px;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.exercise-body {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-cream-dark);
+}
+
+.exercise-set-notes {
+  margin-bottom: 8px;
+}
+
+.set-label {
+  display: block;
+  color: var(--color-forest);
+  margin-bottom: 2px;
+}
+
+.exercise-body ul {
+  margin: 4px 0 8px;
+  padding-left: 1.1rem;
+}
+
+.exercise-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+  gap: 8px;
+}

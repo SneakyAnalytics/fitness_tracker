@@ -1,0 +1,91 @@
+.dashboard-page .page-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tile-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.9rem 1rem;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.stat-value {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.stat-sub {
+  font-size: 0.8rem;
+  color: var(--color-text-tertiary);
+}
+
+.flags p {
+  margin: 0.25rem 0;
+}
+
+.chart-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.chart-card h3,
+.dashboard-page .card h3 {
+  margin-top: 0;
+}
+
+.chart-note {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  margin-top: -0.25rem;
+}
+
+.dashboard-page .card {
+  margin-bottom: 1rem;
+}
+
+.progression-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr));
+  gap: 1rem;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.data-table th,
+.data-table td {
+  text-align: left;
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--color-cream-dark);
+}
+
+.data-table th {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.progression-grid > div {
+  min-width: 0;
+  overflow-x: auto;
+}

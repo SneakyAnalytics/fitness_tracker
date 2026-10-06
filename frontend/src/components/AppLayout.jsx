@@ -1,31 +1,22 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import {
-  Calendar,
-  Upload,
-  Brain,
-  BarChart3,
-  Menu,
-  X,
-  Mountain,
-} from "lucide-react";
+import { Calendar, Brain, BarChart3, Menu, X, Wrench } from "lucide-react";
 import UserProfile from "./UserProfile";
 import "./AppLayout.css";
 
-console.log("AppLayout component loaded");
-
 function AppLayout({ children }) {
-  console.log("AppLayout rendering");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const isNarrow = () => window.matchMedia("(max-width: 768px)").matches;
+  const [sidebarOpen, setSidebarOpen] = useState(() => !isNarrow());
   const navigate = useNavigate();
   const location = useLocation();
 
   const navItems = [
     { path: "/calendar", icon: Calendar, label: "Workout Calendar" },
-    { path: "/import", icon: Upload, label: "Import & Analysis" },
     { path: "/coaching", icon: Brain, label: "Weekly Coaching" },
-    { path: "/dashboard", icon: BarChart3, label: "Analytics Dashboard" },
+    { path: "/dashboard", icon: BarChart3, label: "Dashboard" },
   ];
+  // Import, matching and analysis stay in the Streamlit admin app.
+  const adminUrl = import.meta.env.VITE_ADMIN_URL || `${window.location.protocol}//${window.location.hostname}:8501`;
 
   const isActive = (path) => location.pathname === path;
 
@@ -42,13 +33,20 @@ function AppLayout({ children }) {
           {navItems.map(({ path, icon: Icon, label }) => (
             <button
               key={path}
-              onClick={() => navigate(path)}
+              onClick={() => {
+                navigate(path);
+                if (isNarrow()) setSidebarOpen(false);
+              }}
               className={`nav-item ${isActive(path) ? "active" : ""}`}
             >
               <Icon size={20} />
               <span className="nav-label">{label}</span>
             </button>
           ))}
+          <a className="nav-item" href={adminUrl} target="_blank" rel="noopener noreferrer">
+            <Wrench size={20} />
+            <span className="nav-label">Admin (import &amp; matching)</span>
+          </a>
         </nav>
 
         <div className="sidebar-footer">

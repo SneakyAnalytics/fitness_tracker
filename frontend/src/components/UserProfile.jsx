@@ -1,49 +1,46 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { User, Settings } from "lucide-react";
-import { athleteAPI } from "../api/client";
+import { useAthleteSettings, useSaveAthleteSettings } from "../hooks/useAthleteSettings";
 import "./UserProfile.css";
+
+const toText = (v) => (Array.isArray(v) ? v.join(",") : v ?? "");
 
 function UserProfile() {
   const [showSettings, setShowSettings] = useState(false);
-  const [athleteSettings, setAthleteSettings] = useState({
-    ftp: "",
-    hr_zones: "",
-    power_zones: "",
-  });
-  const [loading, setLoading] = useState(false);
+  const { settings, isSuccess } = useAthleteSettings();
+  const saveMutation = useSaveAthleteSettings();
+  const [athleteSettings, setAthleteSettings] = useState({ ftp: "", hr_zones: "", power_zones: "" });
   const [saveStatus, setSaveStatus] = useState("");
+  const loading = saveMutation.isPending;
 
   useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
-    try {
-      const response = await athleteAPI.getSettings();
-      if (response.data) {
-        setAthleteSettings({
-          ftp: response.data.ftp || "",
-          hr_zones: response.data.hr_zones || "",
-          power_zones: response.data.power_zones || "",
-        });
-      }
-    } catch (error) {
-      console.error("Failed to load athlete settings:", error);
+    if (isSuccess) {
+      setAthleteSettings({
+        ftp: settings.ftp ?? "",
+        hr_zones: toText(settings.hr_zones),
+        power_zones: toText(settings.power_zones),
+      });
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSuccess, settings.ftp]);
 
   const handleSave = async () => {
-    setLoading(true);
     setSaveStatus("");
     try {
-      await athleteAPI.saveSettings(athleteSettings);
+      // Keep the stored shapes: ftp number, hr_zones string, power_zones number array.
+      await saveMutation.mutateAsync({
+        ...settings,
+        ftp: Number(athleteSettings.ftp) || null,
+        hr_zones: athleteSettings.hr_zones,
+        power_zones: athleteSettings.power_zones
+          .split(",")
+          .map((v) => Number(v.trim()))
+          .filter((v) => !Number.isNaN(v) && v > 0),
+      });
       setSaveStatus("Settings saved successfully!");
       setTimeout(() => setSaveStatus(""), 3000);
     } catch (error) {
-      setSaveStatus("Failed to save settings");
-      console.error("Error saving settings:", error);
-    } finally {
-      setLoading(false);
+      setSaveStatus(`Failed to save settings: ${error.message}`);
     }
   };
 
