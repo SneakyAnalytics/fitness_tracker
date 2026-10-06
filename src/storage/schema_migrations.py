@@ -191,6 +191,19 @@ def _m12_ride_power_bests(conn):
     conn.execute("CREATE INDEX IF NOT EXISTS idx_ride_power_bests_date ON ride_power_bests(ride_date)")
 
 
+def _m13_zwift_ftp_observations(conn):
+    """Zwift's FTP as revealed by its ERG targets on each structured ride."""
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS zwift_ftp_observations (
+            workout_id INTEGER PRIMARY KEY REFERENCES workouts(id),
+            ride_date TEXT NOT NULL,
+            ftp INTEGER NOT NULL,
+            intervals_used INTEGER NOT NULL,
+            computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+
 MIGRATIONS: List[Tuple[int, str, Callable[[sqlite3.Connection], None]]] = [
     (1, "matching columns on workouts", _m1_matching_columns),
     (2, "workouts.proposed_workout_id foreign key + backfill", _m2_proposed_workout_fk),
@@ -204,6 +217,7 @@ MIGRATIONS: List[Tuple[int, str, Callable[[sqlite3.Connection], None]]] = [
     (10, "weekly_plans.rationale", _m10_plan_rationale),
     (11, "app_events table", _m11_app_events),
     (12, "ride_power_bests table", _m12_ride_power_bests),
+    (13, "zwift_ftp_observations table", _m13_zwift_ftp_observations),
 ]
 
 

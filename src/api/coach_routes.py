@@ -17,7 +17,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from src.storage.database import WorkoutDatabase
-from src.utils import progression, training_load
+from src.utils import progression, training_load, zwift_ftp
 from src.utils.ai_coach_config import AIModel
 
 router = APIRouter()
@@ -242,7 +242,7 @@ def dashboard_trends(weeks: int = 16):
         "load": training_load.load_snapshot(db.db_path),
         "weekly": training_load.weekly_load(db.db_path, weeks=weeks),
         "power_curve": training_load.compare_power_curves(90, db_path=db.db_path),
-        "ftp": training_load.ftp_check(ftp, db.db_path),
+        "zwift_ftp": zwift_ftp.current(db.db_path),
         "readiness": training_load.readiness(db_path=db.db_path),
         "progression": {a: progression.get_progression(a, 6, db.db_path)
                         for a in ("threshold", "sweet_spot", "over_under", "vo2max", "tempo", "endurance")},
@@ -264,3 +264,69 @@ def workout_intervals(workout_id: int):
     finally:
         conn.close()
     return {"workout_id": workout_id, "intervals": [dict(r) for r in rows]}
+
+
+# ── Weekly review: import + confirm matches ─────────────────────────────────
+
+class MatchRequest(BaseModel):
+    workout_id: int
+    proposed_workout_id: Optional[int] = None
+    label: Optional[str] = None
+
+
+class ReviewWeekRequest(BaseModel):
+    week_start: str
+
+
+@router.get("/review/week")
+def review_week_get(week_start: str):
+    from src.utils.week_review import review_week
+    return review_week(week_start)
+
+
+@router.post("/review/match")
+def review_match(req: MatchRequest):
+    from src.utils.week_review import apply_match
+    try:
+        apply_match(req.workout_id, req.proposed_workout_id, req.label)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"ok": True}
+
+
+@router.post("/review/confirm-all")
+def review_confirm_all(req: ReviewWeekRequest):
+    """Accept every pending suggestion that has a concrete match or label."""
+    from src.utils.week_review import apply_match, review_week
+    confirmed = 0
+    for row in review_week(req.week_start)["workouts"]:
+        m = row["match"] or {}
+        if row["status"] != "suggested" or not m.get("name"):
+            continue
+        apply_match(row["id"], m.get("proposed_workout_id"), None if m.get("proposed_workout_id") else m["name"])
+        confirmed += 1
+    return {"confirmed": confirmed}
+
+
+@router.post("/review/sync")
+def review_sync(req: ReviewWeekRequest):
+    from src.utils.week_review import start_sync
+    return start_sync(req.week_start)
+
+
+@router.get("/review/sync")
+def review_sync_status():
+    from src.utils.week_review import sync_status
+    return sync_status()
+
+
+@router.post("/review/link")
+def review_link(req: ReviewWeekRequest):
+    """After manual uploads: attach ride files to workouts and refresh derived data."""
+    from src.storage.workout_matching import link_fit_files
+    monday = _monday(req.week_start)
+    sunday = (datetime.strptime(monday, "%Y-%m-%d") + timedelta(days=6)).strftime("%Y-%m-%d")
+    db = WorkoutDatabase()
+    linked = link_fit_files(db.db_path, monday, sunday)
+    training_load.refresh_all(db.db_path)
+    return {"linked": linked}

@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 from typing import Any, Dict, Optional, Tuple
 
 from src.storage import goals as goals_store
-from src.utils import training_load
+from src.utils import training_load, zwift_ftp
 from src.utils.periodization import WeekTarget, plan_next_week
 from src.utils.progression import progression_summary
 
@@ -27,7 +27,6 @@ def build_training_state(week_start_date: str, current_ftp: Optional[float] = No
     readiness = training_load.readiness(as_of, db_path)
     goals = goals_store.list_goals(db_path=db_path)
     target = plan_next_week(next_monday, goals=goals, readiness=readiness, db_path=db_path)
-    ftp = training_load.ftp_check(current_ftp, db_path)
     trajectory = progression_summary(db_path)
 
     today = date.today()
@@ -57,10 +56,21 @@ def build_training_state(week_start_date: str, current_ftp: Optional[float] = No
                                for k, v in metrics.items()))
     lines.append("Flags: " + ("; ".join(readiness["flags"]) if readiness.get("flags") else "none"))
     lines.append("")
-    if ftp.get("estimate"):
-        lines.append(f"## FTP check\nSetting {ftp['current_ftp']}W; recent best efforts imply ≥{ftp['estimate']}W "
-                     f"({ftp['basis']}, last {ftp['window_days']} days)."
-                     + (f" Note: {ftp['flag']}." if ftp.get("flag") else ""))
+    zftp = zwift_ftp.current(db_path)
+    if zftp.get("ftp"):
+        lines.append("## FTP (Zwift's — the app follows it automatically)")
+        lines.append(f"Zwift FTP {zftp['ftp']}W, read from Zwift's ERG targets on {zftp['observed']}; "
+                     f"last changed {zftp['changed_on']}"
+                     + (f", last ramp test/race {zftp['last_test_or_race']}" if zftp.get("last_test_or_race") else "")
+                     + f" ({zftp['weeks_since_change']} weeks ago). Zwift scales every .zwo by this number, "
+                     "so plan watts at this FTP. Only a Zwift ramp/FTP test or a Zwift race changes it.")
+        if zftp.get("test_due"):
+            lines.append(
+                f"**FTP test due ({zftp['weeks_since_change']} weeks without one).** Put a Zwift Ramp Test (or a "
+                "Zwift race) in next week's plan on a fresh day — the last day or two of a recovery week, or day "
+                "1-2 of a build week. Make it a bike workout named \"Zwift Ramp Test\" with no intervals and a note "
+                "to use Zwift's built-in Ramp Test, so Zwift updates its FTP. Tell the athlete why.")
+        lines.append("")
     stale = [g for g in goals if g.get("stale")]
     if stale:
         lines.append("\n## Goals needing attention\n" + "\n".join(

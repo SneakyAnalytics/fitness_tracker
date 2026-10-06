@@ -80,10 +80,11 @@ def find_raw_fit(file_name: str, raw_dir: Path = RAW_FIT_DIR) -> Optional[Path]:
 
 def refresh_laps(fit_file_id: int, db: Optional[WorkoutDatabase] = None,
                  raw_dir: Path = RAW_FIT_DIR) -> bool:
-    """Add lap markers to stored fit_data by re-parsing the archived raw file.
+    """Add lap markers (with Zwift ERG targets) to stored fit_data by re-parsing
+    the archived raw file.
 
     Older uploads were parsed before lap extraction existed. Only `laps` is
-    added; every other stored value is left exactly as it was.
+    replaced; every other stored value is left exactly as it was.
     """
     from src.utils.fit_parser import FitParser
 
@@ -94,8 +95,11 @@ def refresh_laps(fit_file_id: int, db: Optional[WorkoutDatabase] = None,
         if not row or not row[1]:
             return False
         stored = json.loads(row[1])
-        if not isinstance(stored, dict) or stored.get("laps"):
+        if not isinstance(stored, dict):
             return False
+        laps_now = stored.get("laps") or []
+        if laps_now and all("avg_target_power" in lap for lap in laps_now):
+            return False  # already has laps including Zwift's ERG targets
         raw = find_raw_fit(row[0], raw_dir)
         if not raw:
             return False
