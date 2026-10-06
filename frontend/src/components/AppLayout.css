@@ -188,3 +188,14 @@
     margin-left: 0;
   }
 }
+
+/* Phones: give content the full width */
+@media (max-width: 768px) {
+  .main-content {
+    padding: var(--spacing-md) 12px;
+  }
+
+  .top-bar {
+    padding: 0 12px;
+  }
+}
