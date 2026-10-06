@@ -633,3 +633,96 @@ def heal_name_only_matches(db_path: str) -> int:
         return conn.execute("SELECT COUNT(*) FROM workouts WHERE proposed_workout_id IS NOT NULL").fetchone()[0] - before
     finally:
         conn.close()
+
+
+# Columns that belong to the user (review decisions, notes), not to the TrainingPeaks export.
+_KEPT_COLUMNS = ("proposed_workout_id", "proposed_workout_name", "match_source", "matched_at",
+                 "qualitative_data", "athlete_comments")
+
+
+def snapshot_workouts(db_path: str, start_date: str, end_date: str) -> Dict[tuple, Dict[str, Any]]:
+    """Capture id and user-owned columns of the workouts a re-import is about to replace.
+
+    Keyed by (day, title, sequence_number): a re-import of the same export recreates
+    the same keys, so restore_workouts() can give each row its old identity back.
+    """
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            f"SELECT id, workout_day, workout_title, sequence_number, fit_file_id, {', '.join(_KEPT_COLUMNS)} "
+            "FROM workouts WHERE workout_day BETWEEN ? AND ?", (start_date, end_date)).fetchall()
+    finally:
+        conn.close()
+    return {(r["workout_day"], r["workout_title"], r["sequence_number"] or 1): dict(r) for r in rows}
+
+
+def restore_workouts(db_path: str, snapshot: Dict[tuple, Dict[str, Any]], start_date: str, end_date: str) -> int:
+    """After a re-import, put back each workout's old id, match and notes.
+
+    Keeping the id keeps analyses, interval results and progression attached;
+    keeping the match keeps the Sunday review's decisions. Rows are paired by
+    (day, title, sequence), falling back to the same ride file on the same day.
+    """
+    if not snapshot:
+        return 0
+    by_fit = {(s["workout_day"], s["fit_file_id"]): s for s in snapshot.values() if s["fit_file_id"]}
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    restored = 0
+    try:
+        new_rows = conn.execute(
+            "SELECT id, workout_day, workout_title, sequence_number, fit_file_id FROM workouts "
+            "WHERE workout_day BETWEEN ? AND ? ORDER BY id", (start_date, end_date)).fetchall()
+        # Without AUTOINCREMENT, SQLite hands the deleted ids to the re-inserted rows in
+        # whatever order the export lists them, so an old id may now sit on a different
+        # workout. Park every new row on a negative id first, then hand out ids again.
+        conn.execute("UPDATE workouts SET id = -id WHERE workout_day BETWEEN ? AND ?", (start_date, end_date))
+        used = set()
+        unpaired = []
+        for row in new_rows:
+            old = snapshot.get((row["workout_day"], row["workout_title"], row["sequence_number"] or 1))
+            if old is None and row["fit_file_id"]:
+                old = by_fit.get((row["workout_day"], row["fit_file_id"]))
+            if old is None or old["id"] in used:
+                unpaired.append(row["id"])
+                continue
+            used.add(old["id"])
+            conn.execute(
+                f"UPDATE workouts SET id = ?, {', '.join(f'{c} = ?' for c in _KEPT_COLUMNS)} WHERE id = ?",
+                (old["id"],) + tuple(old[c] for c in _KEPT_COLUMNS) + (-row["id"],))
+            restored += 1
+        # Fresh ids skip anything an analysis still points at, so a workout that left
+        # the export never hands its analysis to a newcomer.
+        next_id = max(conn.execute("SELECT COALESCE(MAX(id), 0) FROM workouts").fetchone()[0],
+                      conn.execute("SELECT COALESCE(MAX(workout_id), 0) FROM workout_analyses").fetchone()[0],
+                      max(s["id"] for s in snapshot.values())) + 1
+        for new_id in unpaired:
+            conn.execute("UPDATE workouts SET id = ? WHERE id = ?", (next_id, -new_id))
+            next_id += 1
+        conn.commit()
+    finally:
+        conn.close()
+    return restored
+
+
+def reattach_orphan_analyses(db_path: str) -> int:
+    """Point analyses whose workout row was replaced at the workout now holding the same ride file."""
+    conn = sqlite3.connect(db_path)
+    try:
+        orphans = conn.execute(
+            "SELECT wa.id, wa.fit_file_id FROM workout_analyses wa "
+            "LEFT JOIN workouts w ON w.id = wa.workout_id "
+            "WHERE w.id IS NULL AND wa.fit_file_id IS NOT NULL ORDER BY wa.id DESC").fetchall()
+        fixed = 0
+        for analysis_id, fit_id in orphans:
+            target = conn.execute(
+                "SELECT w.id FROM workouts w LEFT JOIN workout_analyses wa ON wa.workout_id = w.id "
+                "WHERE w.fit_file_id = ? AND wa.id IS NULL", (fit_id,)).fetchone()
+            if target:
+                conn.execute("UPDATE workout_analyses SET workout_id = ? WHERE id = ?", (target[0], analysis_id))
+                fixed += 1
+        conn.commit()
+        return fixed
+    finally:
+        conn.close()

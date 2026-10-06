@@ -333,7 +333,11 @@ async def upload_workouts(file: UploadFile = File(...)):
         # Initialize database connection
         db = WorkoutDatabase()
         
-        # Delete existing workouts in date range (will be re-inserted with merged FIT data)
+        # Delete existing workouts in date range (will be re-inserted with merged FIT data).
+        # Their ids, matches and notes are put back afterwards (restore_workouts).
+        from src.storage.workout_matching import (reattach_orphan_analyses, restore_workouts,
+                                                  snapshot_workouts)
+        kept = snapshot_workouts(db.db_path, min_date, max_date)
         conn = sqlite3.connect(db.db_path)
         c = conn.cursor()
         
@@ -548,7 +552,10 @@ async def upload_workouts(file: UploadFile = File(...)):
             else:
                 print(f"Failed to save workout: {workout['title']} on {workout['workout_day']}")
         
-        print(f"\n✓ Successfully processed {len(workouts)} workouts")
+        restored = restore_workouts(db.db_path, kept, min_date, max_date)
+        reattached = reattach_orphan_analyses(db.db_path)
+        print(f"\n✓ Successfully processed {len(workouts)} workouts "
+              f"(kept identity of {restored}, reattached {reattached} analyses)")
         return {
             "message": f"Successfully processed {len(workouts)} workouts",
             "workouts": workouts

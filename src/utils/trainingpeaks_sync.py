@@ -19,6 +19,62 @@ import nest_asyncio
 nest_asyncio.apply()
 
 
+# TrainingPeaks' newer strength workouts ("StructuredStrength", logged in the strength
+# builder) live in a separate service and are missing from the Workout Summary CSV
+# export. The calendar page loads them from this feed; the sync reads that response
+# and adds the completed ones to the CSV before upload.
+STRENGTH_FEED = "peakswaresb.com/rx/activity"
+
+
+def strength_csv_rows(items, start_date, end_date):
+    """Completed strength sessions from the calendar feed, as Workout Summary CSV rows."""
+    rows = []
+    for w in items or []:
+        if not isinstance(w, dict) or not (w.get("executedDurationInSeconds") or w.get("completedDateTime")):
+            continue  # planned only, not done
+        day = (w.get("startDateTime") or w.get("prescribedDate") or "")[:10]
+        if not day or not (str(start_date) <= day <= str(end_date)):
+            continue
+        seconds = w.get("executedDurationInSeconds") or 0
+        rows.append({
+            "Title": w.get("title") or "Strength",
+            "WorkoutType": "Strength",
+            "WorkoutDay": day,
+            "TimeTotalInHours": round(seconds / 3600, 4) if seconds else "",
+            "TSS": w.get("completedTss") if w.get("completedTss") is not None else "",
+            "IF": w.get("completedIntensityFactor") if w.get("completedIntensityFactor") is not None else "",
+            "Rpe": w.get("rpe") if w.get("rpe") is not None else "",
+            "Feeling": w.get("feel") if w.get("feel") is not None else "",
+        })
+    return rows
+
+
+def append_strength_rows(csv_path, rows):
+    """Add strength rows to an exported Workout Summary CSV, skipping any already in it."""
+    import csv
+    if not rows:
+        return 0
+    raw = Path(csv_path).read_bytes()
+    bom = raw.startswith(b"\xef\xbb\xbf")
+    text = raw.decode("utf-8-sig")
+    reader = csv.DictReader(text.splitlines())
+    fields = reader.fieldnames or list(rows[0])
+    existing = list(reader)
+    have = {(r.get("WorkoutDay", "")[:10], (r.get("Title") or "").strip().lower()) for r in existing
+            if "strength" in (r.get("WorkoutType") or "").lower()}
+    new = [r for r in rows if (r["WorkoutDay"], r["Title"].strip().lower()) not in have]
+    if not new:
+        return 0
+    import io
+    out = io.StringIO()
+    writer = csv.DictWriter(out, fieldnames=fields, extrasaction="ignore", lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(existing)
+    writer.writerows(new)
+    Path(csv_path).write_bytes((b"\xef\xbb\xbf" if bom else b"") + out.getvalue().encode("utf-8"))
+    return len(new)
+
+
 class TrainingPeaksSync:
     """Automated sync from TrainingPeaks to local database"""
     
@@ -234,6 +290,22 @@ class TrainingPeaksSync:
 
         print(f"✅ Downloaded and saved {len(saved_files)} files!")
     
+    def fetch_strength_workouts(self, page: Page, start_date, end_date):
+        """Open the calendar and capture the strength feed it loads (see STRENGTH_FEED).
+
+        The calendar loads roughly the past six weeks onward, which covers the nightly
+        sync; strength sessions older than that aren't picked up.
+        """
+        print("🏋️  Reading strength workouts from the calendar...")
+        page.goto("https://app.trainingpeaks.com/#calendar")
+        with page.expect_response(lambda r: STRENGTH_FEED in r.url and r.status == 200, timeout=45000) as info:
+            page.reload()
+        data = info.value.json()
+        items = data if isinstance(data, list) else next((v for v in data.values() if isinstance(v, list)), [])
+        rows = strength_csv_rows(items, start_date, end_date)
+        print(f"   Found {len(rows)} completed strength workout(s) in range")
+        return rows
+
     def process_and_upload_files(self, cleanup_fit_files: bool = True, start_date=None, end_date=None):
         """Process downloaded files and upload to database
         
@@ -354,7 +426,11 @@ class TrainingPeaksSync:
                         raise FileNotFoundError("No CSV found in WorkoutExport ZIP")
                 else:
                     csv_path = workout_summary_path
-                
+
+                added = append_strength_rows(csv_path, getattr(self, "strength_rows", []))
+                if added:
+                    print(f"   🏋️  Added {added} strength workout(s) missing from the export")
+
                 with open(csv_path, 'rb') as f:
                     files_payload = {'file': ('workouts.csv', f, 'text/csv')}
                     response = requests.post(f"{self.api_base}/upload/workouts", files=files_payload)
@@ -504,6 +580,12 @@ class TrainingPeaksSync:
                 # Run automation
                 self.login_and_navigate(page)
                 self.export_data(page, start_str, end_str)
+                self.strength_rows = []
+                try:
+                    self.strength_rows = self.fetch_strength_workouts(page, start_date, end_date)
+                except Exception as e:  # rides still sync; the error is reported below
+                    print(f"⚠️  Could not read strength workouts: {e}")
+                    self.strength_error = f"Strength workouts not read: {e}"
                 
                 # Close browser
                 browser.close()
@@ -514,6 +596,8 @@ class TrainingPeaksSync:
                 start_date=start_date,
                 end_date=end_date
             )
+            if getattr(self, "strength_error", None):
+                results['errors'].append(self.strength_error)
             
             print("\n" + "=" * 60)
             print("✅ SYNC COMPLETE!")
