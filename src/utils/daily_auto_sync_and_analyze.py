@@ -11,6 +11,7 @@ Complete end-to-end automation:
 Designed to run at 10pm PST via cron job.
 """
 
+from src.config import get_db_path
 import os
 import gzip
 import subprocess
@@ -42,7 +43,7 @@ class DailyAutoSyncAndAnalyze:
     - Cleanup
     """
     
-    def __init__(self, db_path: str = 'data/fitness_data.db'):
+    def __init__(self, db_path: Optional[str] = None):
         """Initialize the daily automation system"""
         self.db = WorkoutDatabase(db_path)
         self.project_root = Path(__file__).parent.parent.parent
@@ -56,7 +57,7 @@ class DailyAutoSyncAndAnalyze:
         # Ensure logs directory exists
         self.resource_log_path.parent.mkdir(parents=True, exist_ok=True)
         
-        logger.info(f"Initialized daily automation with database: {db_path}")
+        logger.info(f"Initialized daily automation with database: {self.db.db_path}")
     
     def log_docker_stats(self, stage: str) -> None:
         """
@@ -328,90 +329,13 @@ class DailyAutoSyncAndAnalyze:
                     conn = sqlite3.connect(self.db.db_path)
                     c = conn.cursor()
 
-                    # If fit_file_id is missing, try to match a FIT file from the same day
+                    # If fit_file_id is missing, run the shared FIT matcher for this day
                     if not fit_file_id and workout_day:
-                        # Try exact day first, then +/-1 day to handle timezone drift
-                        workout_day_str = str(workout_day)
-                        candidate_days = [workout_day_str]
-                        # If workout_data has a start_time, derive LA date to avoid UTC/PST mismatch
-                        start_time_str = workout_data.get('start_time') or workout_data.get('start_time_utc')
-                        if start_time_str:
-                            try:
-                                import pytz
-                                start_time = datetime.fromisoformat(start_time_str)
-                                if start_time.tzinfo is None:
-                                    start_time = pytz.UTC.localize(start_time)
-                                la_timezone = pytz.timezone('America/Los_Angeles')
-                                la_time = start_time.astimezone(la_timezone)
-                                la_day = la_time.strftime('%Y-%m-%d')
-                                if la_day not in candidate_days:
-                                    candidate_days.insert(0, la_day)
-                            except Exception:
-                                pass
-                        try:
-                            wd = datetime.fromisoformat(workout_day_str).date()
-                            candidate_days = [
-                                wd.strftime('%Y-%m-%d'),
-                                (wd - timedelta(days=1)).strftime('%Y-%m-%d'),
-                                (wd + timedelta(days=1)).strftime('%Y-%m-%d')
-                            ]
-                        except Exception:
-                            pass
-
-                        placeholders = ','.join('?' for _ in candidate_days)
-                        c.execute(
-                            f'SELECT id, fit_data, workout_title, file_name, workout_day FROM fit_files WHERE workout_day IN ({placeholders})',
-                            tuple(candidate_days)
-                        )
-                        candidates = c.fetchall()
-
-                        def _norm(text: str) -> str:
-                            return ''.join(ch.lower() for ch in (text or '') if ch.isalnum() or ch.isspace()).strip()
-
-                        if candidates:
-                            if len(candidates) == 1:
-                                fit_file_id, fit_data_str, *_ = candidates[0]
-                            else:
-                                # Choose closest match by duration/TSS and title similarity
-                                metrics = workout_data.get('metrics', {})
-                                actual_tss = float(metrics.get('actual_tss', 0) or metrics.get('tss', 0) or 0)
-                                actual_dur = float(metrics.get('actual_duration', 0) or metrics.get('duration', 0) or 0)
-                                if not actual_dur:
-                                    actual_dur = float(workout_data.get('duration_minutes', 0) or 0)
-                                if not actual_dur:
-                                    actual_dur = float(workout_data.get('duration_hours', 0) or 0) * 60
-
-                                norm_title = _norm(workout_title)
-                                best_score = 1e9
-                                fit_data_str = None
-                                for cand_id, cand_fit_data, cand_title, cand_file, cand_day in candidates:
-                                    try:
-                                        cand = json.loads(cand_fit_data) if isinstance(cand_fit_data, str) else cand_fit_data
-                                        cand_tss = float(cand.get('power_metrics', {}).get('tss', 0) or 0)
-                                        cand_dur = float(cand.get('duration_seconds', 0) or 0) / 60
-                                        score = 0.0
-                                        if actual_tss and cand_tss:
-                                            score += abs(actual_tss - cand_tss)
-                                        if actual_dur and cand_dur:
-                                            score += abs(actual_dur - cand_dur)
-
-                                        cand_title_norm = _norm(cand_title or '')
-                                        cand_file_norm = _norm(cand_file or '')
-                                        if norm_title and norm_title not in cand_title_norm and norm_title not in cand_file_norm:
-                                            score += 30
-                                        if cand_day != workout_day:
-                                            score += 15
-
-                                        if score < best_score:
-                                            best_score = score
-                                            fit_file_id = cand_id
-                                            fit_data_str = cand_fit_data
-                                    except Exception:
-                                        continue
-
-                            # Persist linkage if found
-                            if fit_file_id:
-                                c.execute('UPDATE workouts SET fit_file_id = ? WHERE id = ?', (fit_file_id, workout_id))
+                        from src.storage.workout_matching import link_fit_files
+                        conn.commit()
+                        link_fit_files(self.db.db_path, str(workout_day), str(workout_day))
+                        row = c.execute('SELECT fit_file_id FROM workouts WHERE id = ?', (workout_id,)).fetchone()
+                        fit_file_id = row[0] if row else None
 
                     # Load fit_data by id
                     if fit_file_id:
@@ -439,21 +363,19 @@ class DailyAutoSyncAndAnalyze:
                 analyzer = FitFileAnalyzer(use_dynamic_models=True)
                 
                 # Run analysis using the workout data
+                # Honor the athlete's manual match; never let re-analysis re-guess it.
+                match = self.db.get_workout_match(workout_id)
                 analysis = analyzer.analyze_workout_from_parsed_data(
                     parsed_data=fit_data if fit_data else workout_data,
                     athlete_ftp=float(ftp_watts),
-                    athlete_notes=athlete_comments
+                    athlete_notes=athlete_comments,
+                    matched_proposed_workout_id=match['proposed_workout_id'],
+                    matched_proposed_workout_name=None if match['proposed_workout_id'] else match['proposed_workout_name'],
                 )
                 
                 if analysis:
-                    # Store analysis (full analysis object for UI + visualization)
-                    self.db.store_workout_analysis(
-                        workout_id=workout_id,
-                        fit_file_id=fit_file_id,
-                        analysis_text=analysis.get('ai_analysis', ''),
-                        analysis_data=analysis,
-                        peak_efforts=analysis.get('peak_efforts')
-                    )
+                    self.db.store_analysis_result(workout_id, fit_file_id, analysis,
+                                                  model_used=analyzer.last_model_used)
                     
                     results['workouts_analyzed'] += 1
                     # Personal bests are tracked when analyzing FIT files; keep count unchanged here
@@ -535,6 +457,7 @@ class DailyAutoSyncAndAnalyze:
             if not analysis:
                 logger.warning(f"No data found in {fit_file_path.name}")
                 return None
+            analysis['model_used'] = analyzer.last_model_used
             
             # Get peak efforts for tracking
             peak_efforts = analysis.get('peak_efforts', {})
@@ -644,14 +567,8 @@ class DailyAutoSyncAndAnalyze:
                 conn.close()
 
             # Store the analysis with full data for visualization
-            analysis_id = self.db.store_workout_analysis(
-                workout_id=workout_id,
-                fit_file_id=fit_file_id,
-                analysis_text=analysis.get('ai_analysis', ''),  # Text for display
-                analysis_data=analysis,  # Full analysis object with parsed_data for viz
-                peak_efforts=analysis.get('peak_efforts'),
-                model_used='gemini-2.0-flash-exp'
-            )
+            analysis_id = self.db.store_analysis_result(
+                workout_id, fit_file_id, analysis, model_used=analysis.get('model_used'))
             
             logger.info(f"   💾 Stored analysis ID: {analysis_id}")
             
@@ -943,6 +860,20 @@ class DailyAutoSyncAndAnalyze:
             logger.info("-" * 60)
             self.cleanup_temp_files(target_date)
         
+        # Keep training load, power bests and the progression ledger current
+        try:
+            from src.utils.training_load import refresh_all
+            results['derived'] = refresh_all(self.db.db_path)
+        except Exception as e:
+            results['errors'].append(f"Derived data refresh failed: {e}")
+
+        # Headless box: make failures visible in the UI, not just the log file
+        if results['errors']:
+            from src.storage.events import record_event
+            record_event("error", "daily_automation",
+                         f"{len(results['errors'])} problem(s) in nightly sync for {results.get('date')}",
+                         results['errors'], db_path=self.db.db_path)
+
         # Log final resource usage
         self.log_docker_stats("end")
         

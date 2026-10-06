@@ -1,13 +1,15 @@
 # src/storage/database.py
 
+from src.config import get_db_path
+from src.storage.schema_migrations import apply_migrations
 import sqlite3
 import json
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 
 class WorkoutDatabase:
-    def __init__(self, db_path: str = "data/fitness_data.db"):
-        self.db_path = db_path
+    def __init__(self, db_path: Optional[str] = None):
+        self.db_path = db_path or get_db_path()
         self._init_db()
 
     def _init_db(self):
@@ -199,6 +201,7 @@ class WorkoutDatabase:
         
         # Handle database migration for existing databases
         self._migrate_database()
+        apply_migrations(self.db_path)
     
     def _migrate_database(self):
         """Migrate existing database to support sequence numbers for duplicate workouts"""
@@ -640,8 +643,6 @@ class WorkoutDatabase:
     def _find_matching_proposed_workout(self, date: str, workout_type: str, actual_duration: float, 
                                       proposed_workouts: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         """Find matching proposed workout based on date, type, and duration"""
-        print(f"\nDEBUG: Looking for match - Date: {date}, Type: {workout_type}, Duration: {actual_duration}")
-        print(f"DEBUG: Available proposed workouts: {json.dumps(proposed_workouts, indent=2)}")
         
         # Convert both dates to ISO format for consistent comparison
         iso_date = datetime.strptime(date, '%Y-%m-%d').date().isoformat()
@@ -702,24 +703,20 @@ class WorkoutDatabase:
         try:
             # Get all workouts for the date range - updated to handle sequence numbers
             query = '''
-                    SELECT w.workout_day, w.workout_title, w.workout_data, w.qualitative_data, w.athlete_comments, w.sequence_number, f.fit_data, wa.analysis_data
+                    SELECT w.workout_day, w.workout_title, w.workout_data, w.qualitative_data, w.athlete_comments, w.sequence_number, f.fit_data, wa.analysis_data,
+                           w.id, w.proposed_workout_id, w.proposed_workout_name, wa.execution_score
                     FROM workouts w
-                    LEFT JOIN fit_files f ON w.workout_day = f.workout_day 
-                    AND w.workout_title = f.workout_title 
-                    AND w.sequence_number = f.sequence_number
+                    -- Prefer the explicit link; TrainingPeaks titles rarely equal FIT titles.
+                    LEFT JOIN fit_files f ON f.id = COALESCE(w.fit_file_id, (
+                        SELECT f2.id FROM fit_files f2
+                        WHERE f2.workout_day = w.workout_day AND f2.workout_title = w.workout_title
+                          AND f2.sequence_number = w.sequence_number))
                     LEFT JOIN workout_analyses wa ON w.id = wa.workout_id
                     WHERE w.workout_day >= ? AND w.workout_day <= ?
                     ORDER BY w.workout_day, w.sequence_number
                     '''
 
             print(f"\nExecuting query with dates: {start_date}, {end_date}")
-
-            # Debug: Check available workout days and their formats
-            c.execute("SELECT workout_day, typeof(workout_day) FROM workouts ORDER BY workout_day")
-            available_dates = c.fetchall()
-            print("\nAvailable workout days in database:")
-            for date in available_dates:
-                print(f"  - {date[0]}")
 
             # Execute the main query
             c.execute(query, (start_date, end_date))
@@ -768,11 +765,11 @@ class WorkoutDatabase:
             # Process workouts
             for row in workout_rows:
                 try:
-                    day, title, workout_data, qual_data, athlete_comments, sequence_number, fit_data, analysis_data_json = row
+                    (day, title, workout_data, qual_data, athlete_comments, sequence_number, fit_data, analysis_data_json,
+                     workout_row_id, matched_pw_id, matched_pw_name, execution_score) = row
                     print(f"\nProcessing workout: {title} on {day} (sequence {sequence_number})")
                     
                     workout = json.loads(workout_data)
-                    print(f"Raw workout data: {json.dumps(workout, indent=2)}")
                     
                     qualitative = json.loads(qual_data) if qual_data else {}
                     
@@ -988,7 +985,6 @@ class WorkoutDatabase:
                             import traceback
                             traceback.print_exc()
 
-                    print(f"Power data (canonical): {json.dumps(canonical_power, indent=2)}")
 
                     # Normalize/override power zone distribution if we have a persisted FTP or explicit numeric power zone bounds.
                     # Some FIT files include pre-computed zones that were calculated with a different FTP; prefer a simple
@@ -1250,7 +1246,6 @@ class WorkoutDatabase:
                         # No FIT data, just use CSV data
                         hr_data['zones'] = csv_hr_zones
                         
-                    print(f"HR data after standardization: {json.dumps(hr_data, indent=2)}")
 
                     # Extract normalized power from fit_data
                     normalized_power = None
@@ -1308,6 +1303,10 @@ class WorkoutDatabase:
                     workout_entry = {
                         'day': day,
                         'type': workout_type,
+                        'workout_id': workout_row_id,
+                        'proposed_workout_id': matched_pw_id,
+                        'matched_plan_name': matched_pw_name,
+                        'execution_score': execution_score,
                         'title': display_title,
                         'original_title': title,
                         'sequence_number': sequence_number,
@@ -1351,7 +1350,6 @@ class WorkoutDatabase:
                             print(f"DEBUG: Updated workout row to reference fit_file_id {matched_fit_id} for {title} on {day} (seq {sequence_number})")
                         except Exception as e:
                             print(f"DEBUG: Could not update workout with fit_file_id: {e}")
-                    print(f"Successfully added workout entry with power data: {json.dumps(workout_entry['workout_data'].get('power_data'), indent=2)}")
                 except Exception as e:
                     print(f"Error processing workout: {str(e)}")
                     import traceback
@@ -1452,7 +1450,7 @@ class WorkoutDatabase:
             c.execute(
                 '''
                 SELECT dp.date, p.type, p.plannedDuration, p.plannedTSS_min, p.plannedTSS_max, 
-                    p.targetRPE_min, p.targetRPE_max
+                    p.targetRPE_min, p.targetRPE_max, p.id, p.name
                 FROM proposed_workouts p
                 JOIN daily_plans dp ON p.dailyPlanId = dp.id
                 WHERE dp.date BETWEEN ? AND ?
@@ -1470,24 +1468,31 @@ class WorkoutDatabase:
                     'plannedTSS_min': row[3],
                     'plannedTSS_max': row[4],
                     'targetRPE_min': row[5],
-                    'targetRPE_max': row[6]
+                    'targetRPE_max': row[6],
+                    'id': row[7],
+                    'name': row[8],
                 }
                 for row in proposed_rows
             ]
-            print(f"DEBUG: Proposed workouts data: {json.dumps(proposed_workouts, indent=2)}")
 
             # When processing workouts, add debug logging
             for workout_entry in daily_workouts:
                 print(f"\nDEBUG: Processing workout: {workout_entry['day']} - {workout_entry['type']}")
-                matching_proposed = self._find_matching_proposed_workout(
-                    workout_entry['day'],
-                    workout_entry['type'],
-                    workout_entry['workout_data']['metrics']['actual_duration'],
-                    proposed_workouts
-                )
+                # The athlete's manual match wins; only unmatched workouts are guessed.
+                if workout_entry.get('proposed_workout_id'):
+                    matching_proposed = next((p for p in proposed_workouts
+                                              if p['id'] == workout_entry['proposed_workout_id']), None)
+                elif workout_entry.get('matched_plan_name'):
+                    matching_proposed = None  # custom label: an unplanned session
+                else:
+                    matching_proposed = self._find_matching_proposed_workout(
+                        workout_entry['day'],
+                        workout_entry['type'],
+                        workout_entry['workout_data']['metrics']['actual_duration'],
+                        proposed_workouts
+                    )
                 
                 if matching_proposed:
-                    print(f"DEBUG: Updating workout with planned data: {json.dumps(matching_proposed, indent=2)}")
                     workout_entry['workout_data']['metrics'].update({
                         'planned_tss': f"{matching_proposed['plannedTSS_min']}-{matching_proposed['plannedTSS_max']}",
                         'planned_duration': matching_proposed['plannedDuration'],
@@ -1546,7 +1551,6 @@ class WorkoutDatabase:
             # Add qualitative data (muscle soreness and fatigue patterns) if available
             qual_data = self.get_weekly_summary_qualitative_data(start_date, end_date)
             if qual_data:
-                print(f"\nDEBUG: Adding qualitative data to summary: {json.dumps(qual_data, indent=2)}")
                 summary['muscle_soreness_patterns'] = qual_data.get('muscle_soreness_patterns')
                 summary['general_fatigue_level'] = qual_data.get('general_fatigue_level')
             
@@ -1983,6 +1987,18 @@ class WorkoutDatabase:
                          targetRPE_min, targetRPE_max, intervals, sections, notes or "")
                     )
                     print(f"Created new proposed workout '{name}' for dailyPlanId {dailyPlanId}")
+
+                # Record the FTP these targets were written against, so %FTP
+                # targets stay reconstructable after FTP changes.
+                c.execute(
+                    """
+                    UPDATE proposed_workouts SET prescribed_ftp = (
+                        SELECT wp.ftp FROM daily_plans dp JOIN weekly_plans wp ON wp.weekNumber = dp.weekNumber
+                        WHERE dp.id = proposed_workouts.dailyPlanId)
+                    WHERE dailyPlanId = ? AND name = ?
+                    """,
+                    (dailyPlanId, name),
+                )
                 
                 conn.commit()
                 return True
@@ -2367,10 +2383,12 @@ class WorkoutDatabase:
             # Get completed workouts
             c.execute(
                 '''
-                SELECT workout_day, workout_title, workout_data, qualitative_data, athlete_comments
-                FROM workouts 
-                WHERE workout_day BETWEEN ? AND ?
-                ORDER BY workout_day
+                SELECT w.workout_day, w.workout_title, w.workout_data, w.qualitative_data, w.athlete_comments,
+                       w.id, w.proposed_workout_id, w.proposed_workout_name, w.fit_file_id, wa.execution_score
+                FROM workouts w
+                LEFT JOIN workout_analyses wa ON wa.workout_id = w.id
+                WHERE w.workout_day BETWEEN ? AND ?
+                ORDER BY w.workout_day, w.id
                 ''',
                 (start_date, end_date)
             )
@@ -2378,13 +2396,23 @@ class WorkoutDatabase:
             
             completed_workouts = []
             for row in completed_rows:
-                workout_day, title, workout_data, qual_data, comments = row
+                workout_day, title, workout_data, qual_data, comments, wid, pw_id, pw_name, fit_id, score = row
                 workout = json.loads(workout_data)
                 if qual_data:
                     workout.update(json.loads(qual_data))
+                # Per-second series are large and unused by list views.
+                for block in ('power_data', 'heart_rate_data'):
+                    if isinstance(workout.get(block), dict):
+                        for key in ('power_series', 'hr_series', 'time_series'):
+                            workout[block].pop(key, None)
                 workout['athlete_comments'] = comments
                 workout['date'] = workout_day
                 workout['title'] = title
+                workout['id'] = wid
+                workout['proposed_workout_id'] = pw_id
+                workout['proposed_workout_name'] = pw_name
+                workout['fit_file_id'] = fit_id
+                workout['execution_score'] = score
                 completed_workouts.append(workout)
             
             # Get proposed workouts
@@ -2393,11 +2421,11 @@ class WorkoutDatabase:
                 SELECT dp.date, pw.type, pw.name, pw.plannedDuration, 
                     pw.plannedTSS_min, pw.plannedTSS_max, 
                     pw.targetRPE_min, pw.targetRPE_max,
-                    pw.intervals, pw.sections
+                    pw.intervals, pw.sections, pw.id, pw.notes, pw.prescribed_ftp
                 FROM daily_plans dp
                 JOIN proposed_workouts pw ON dp.id = pw.dailyPlanId
                 WHERE dp.date BETWEEN ? AND ?
-                ORDER BY dp.date
+                ORDER BY dp.date, pw.id
                 ''',
                 (start_date, end_date)
             )
@@ -2415,7 +2443,10 @@ class WorkoutDatabase:
                     'targetRPE_min': row[6],
                     'targetRPE_max': row[7],
                     'intervals': row[8],
-                    'sections': row[9]
+                    'sections': row[9],
+                    'id': row[10],
+                    'notes': row[11],
+                    'prescribed_ftp': row[12],
                 }
                 proposed_workouts.append(workout)
             
@@ -2457,6 +2488,63 @@ class WorkoutDatabase:
         finally:
             conn.close()
     
+    def get_workout_match(self, workout_id: int) -> Dict[str, Any]:
+        """The athlete's manual match for a workout, for passing to the analyzer."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            row = conn.execute(
+                "SELECT proposed_workout_id, proposed_workout_name, match_source FROM workouts WHERE id = ?",
+                (workout_id,),
+            ).fetchone()
+        finally:
+            conn.close()
+        if not row:
+            return {"proposed_workout_id": None, "proposed_workout_name": None, "match_source": None}
+        return {"proposed_workout_id": row[0], "proposed_workout_name": row[1], "match_source": row[2]}
+
+    def store_analysis_result(self, workout_id: Optional[int], fit_file_id: Optional[int],
+                              analysis: Dict[str, Any], model_used: Optional[str] = None) -> int:
+        """Persist an analyze_workout_from_parsed_data() result everywhere it belongs.
+
+        One path for every caller (UI, nightly automation, backfills) so they all
+        store the same things: the narrative, the plan it was compared against,
+        the computed execution score, and per-interval results.
+        """
+        execution = analysis.get('execution') or {}
+        proposed = analysis.get('proposed_workout') or {}
+        analysis_id = self.store_workout_analysis(
+            workout_id=workout_id,
+            fit_file_id=fit_file_id,
+            analysis_text=analysis.get('ai_analysis', ''),
+            analysis_data=analysis,
+            peak_efforts=analysis.get('peak_efforts'),
+            model_used=model_used or 'unknown',
+        )
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.execute(
+                "UPDATE workout_analyses SET execution_score = ?, proposed_workout_id = ? WHERE id = ?",
+                (execution.get('execution_score'), proposed.get('id'), analysis_id),
+            )
+            if workout_id:
+                conn.execute("DELETE FROM interval_results WHERE workout_id = ?", (workout_id,))
+                for row in execution.get('intervals', []):
+                    conn.execute(
+                        "INSERT INTO interval_results (workout_id, proposed_workout_id, interval_index, name, label,"
+                        " duration_sec, target_low_w, target_high_w, actual_avg_w, deviation_pct, compliance, alignment)"
+                        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (workout_id, proposed.get('id'), row['index'], row['name'], row['label'],
+                         row['duration_sec'], row['target_low_w'], row['target_high_w'], row['actual_avg_w'],
+                         row['deviation_pct'], row['compliance'], execution.get('alignment')),
+                    )
+            conn.commit()
+        finally:
+            conn.close()
+        if execution:
+            from src.utils.progression import refresh_progression
+            refresh_progression(self.db_path)
+        return analysis_id
+
     def store_workout_analysis(self, workout_id: Optional[int] = None, 
                                fit_file_id: Optional[int] = None,
                                analysis_text: str = "",
@@ -2635,8 +2723,8 @@ class WorkoutDatabase:
                     w.workout_day,
                     w.workout_title,
                     json_extract(w.workout_data, '$.type') as workout_type,
-                    json_extract(w.workout_data, '$.TimeTotalInHours') as duration_hours,
-                    json_extract(w.workout_data, '$.TSS') as tss,
+                    json_extract(w.workout_data, '$.metrics.actual_duration') / 60.0 as duration_hours,
+                    json_extract(w.workout_data, '$.metrics.actual_tss') as tss,
                     wa.id as analysis_id,
                     wa.analysis_text,
                     wa.analysis_data,

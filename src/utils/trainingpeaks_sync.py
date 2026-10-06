@@ -3,6 +3,7 @@ TrainingPeaks Automated Sync
 Standalone script that runs browser automation directly
 """
 
+from src.config import get_db_path
 import os
 import time
 import json
@@ -457,155 +458,11 @@ class TrainingPeaksSync:
         return results
     
     def _match_workouts_to_fit_files(self, start_date, end_date):
-        """
-        Match workouts to fit_files by comparing TSS and duration.
-        This ensures workout records are linked to their FIT file data.
-        """
-        import sqlite3
-        import json
-        from pathlib import Path
-        
-        project_root = Path(__file__).parent.parent.parent
-        db_path = project_root / "data" / "fitness_data.db"
-        
-        conn = sqlite3.connect(str(db_path))
-        c = conn.cursor()
-        
-        try:
-            # Get workouts without fit_file_id in date range
-            c.execute('''
-                SELECT id, workout_day, workout_title, workout_data
-                FROM workouts
-                WHERE workout_day BETWEEN ? AND ?
-                  AND fit_file_id IS NULL
-                ORDER BY workout_day, id
-            ''', (start_date, end_date))
-            
-            workouts = []
-            for row in c.fetchall():
-                data = json.loads(row[3])
-                metrics = data.get('metrics', {})
-                workouts.append({
-                    'id': row[0],
-                    'day': row[1],
-                    'title': row[2],
-                    'tss': float(metrics.get('actual_tss', 0) or 0),
-                    'duration_min': float(metrics.get('actual_duration', 0) or 0)
-                })
-            
-            # Get fit_files in date range
-            c.execute('''
-                SELECT id, workout_day, file_name, fit_data
-                FROM fit_files
-                WHERE workout_day BETWEEN ? AND ?
-                ORDER BY workout_day, id
-            ''', (start_date, end_date))
-            
-            fit_files = []
-            for row in c.fetchall():
-                data = json.loads(row[3])
-                metrics = data.get('metrics', {})
-                fit_files.append({
-                    'id': row[0],
-                    'day': row[1],
-                    'file_name': row[2],
-                    'tss': float(metrics.get('tss', 0) or 0),
-                    'duration_min': float(metrics.get('duration', 0) or 0)
-                })
-            
-            # Match by day + title keywords (then TSS/duration for scoring)
-            # Title-based filtering prevents same-day workout mismatches (e.g., strength vs Zwift)
-            matched_count = 0
-            for workout in workouts:
-                # Get all FIT files from same day
-                same_day_fits = [f for f in fit_files if f['day'] == workout['day']]
-                
-                if not same_day_fits:
-                    continue
-                
-                # Analyze workout title for keywords
-                workout_title_lower = workout['title'].lower()
-                
-                # Skip FIT assignment for strength workouts (no power/HR data expected)
-                if 'strength' in workout_title_lower or 'weight' in workout_title_lower:
-                    print(f"   ⏭️  Skipping FIT match for strength workout: {workout['title']}")
-                    continue
-                
-                # Filter candidates by title matching before scoring
-                candidates = []
-                for fit in same_day_fits:
-                    fit_filename_lower = fit['file_name'].lower()
-                    
-                    # If workout is clearly Zwift, only use Zwift FIT files
-                    if 'zwift' in workout_title_lower:
-                        if 'zwift' in fit_filename_lower:
-                            candidates.append(fit)
-                        else:
-                            print(f"   ⏭️  Skipping non-Zwift FIT '{fit['file_name']}' for Zwift workout")
-                        continue
-                    
-                    # If FIT is clearly Zwift, only match to Zwift workouts
-                    if 'zwift' in fit_filename_lower:
-                        if 'zwift' in workout_title_lower:
-                            candidates.append(fit)
-                        else:
-                            print(f"   ⏭️  Skipping Zwift FIT '{fit['file_name']}' for non-Zwift workout")
-                        continue
-                    
-                    # For other workouts (Garmin, generic bike/run), allow all non-Zwift FITs
-                    candidates.append(fit)
-                
-                if not candidates:
-                    print(f"   ⚠️  No suitable FIT files found for workout: {workout['title']}")
-                    continue
-                
-                # Now score the filtered candidates
-                best_match = None
-                best_score = 999999
-                
-                for fit in candidates:
-                    # Check if this is a Garmin file (TrainingPeaks export or contains GarminPing)
-                    is_garmin = 'tp-' in fit['file_name'].lower() or 'garmin' in fit['file_name'].lower()
-                    
-                    if is_garmin:
-                        # Garmin: Only match on duration (TSS calculations differ significantly)
-                        dur_diff = abs(workout['duration_min'] - fit['duration_min'])
-                        score = dur_diff
-                    else:
-                        # Zwift: Match on both TSS and duration
-                        tss_diff = abs(workout['tss'] - fit['tss'])
-                        dur_diff = abs(workout['duration_min'] - fit['duration_min'])
-                        score = tss_diff + dur_diff
-                    
-                    if score < best_score:
-                        best_score = score
-                        best_match = fit
-                
-                # More lenient threshold for Garmin (50 min duration diff), stricter for Zwift (100 total)
-                is_garmin_match = best_match and ('tp-' in best_match['file_name'].lower() or 'garmin' in best_match['file_name'].lower())
-                threshold = 50 if is_garmin_match else 100
-                
-                if best_match and best_score < threshold:
-                    print(f"   ✅ Matched '{workout['title']}' → '{best_match['file_name']}' (score: {best_score:.1f})")
-                    c.execute('UPDATE workouts SET fit_file_id = ? WHERE id = ?', 
-                             (best_match['id'], workout['id']))
-                    matched_count += 1
-                    # Remove from candidates to avoid duplicate matching
-                    fit_files.remove(best_match)
-                elif best_match:
-                    print(f"   ⚠️  Low confidence match skipped for '{workout['title']}' (score: {best_score:.1f} > threshold {threshold})")
-                else:
-                    print(f"   ⚠️  No suitable match found for '{workout['title']}'")
-            
-            conn.commit()
-            if matched_count > 0:
-                print(f"   ✅ Matched {matched_count} workouts to FIT files")
-            else:
-                print("   ℹ️  No new workout-FIT file matches needed")
-                
-        finally:
-            conn.close()
-    
+        """Link workout records to their FIT files (shared matcher)."""
+        from src.storage.workout_matching import link_fit_files
+        linked = link_fit_files(get_db_path(), str(start_date), str(end_date))
+        print(f"   ✅ Matched {linked} workouts to FIT files" if linked else "   ℹ️  No new workout-FIT file matches needed")
+
     def run_sync(self, start_date=None, end_date=None, cleanup_fit_files=True):
         """Run the complete sync process
         

@@ -144,39 +144,39 @@ def get_proposed_workouts_for_week(db_path: str, week_start: str) -> List[Dict[s
         conn.close()
 
 
-def match_workout_to_proposed(db_path: str, workout_id: int, proposed_workout_name: str, 
-                               match_source: str = "manual") -> bool:
+def match_workout_to_proposed(db_path: str, workout_id: int, proposed_workout_name: str,
+                               match_source: str = "manual",
+                               proposed_workout_id: Optional[int] = None) -> bool:
     """
-    Match a workout to a proposed workout name and update database
-    
+    Record the athlete's match for a completed workout.
+
     Args:
         db_path: Path to SQLite database
         workout_id: ID of workout to match
-        proposed_workout_name: Name of proposed workout (or custom name)
+        proposed_workout_name: Name of the planned workout, or a custom label for
+            an unplanned session (warm-up, commute, hike...)
         match_source: Source of match ('manual' or 'ai')
-    
+        proposed_workout_id: proposed_workouts.id of the planned workout. This is
+            the authoritative link; names repeat across weeks. None for custom labels.
+
     Returns:
         True if successful
     """
     conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    
     try:
-        c.execute('''
+        cur = conn.execute(
+            """
             UPDATE workouts
             SET proposed_workout_name = ?,
+                proposed_workout_id = ?,
                 match_source = ?,
                 matched_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        ''', (proposed_workout_name, match_source, workout_id))
-        
+            """,
+            (proposed_workout_name, proposed_workout_id, match_source, workout_id),
+        )
         conn.commit()
-        return c.rowcount > 0
-        
-    except Exception as e:
-        print(f"Error matching workout: {e}")
-        conn.rollback()
-        return False
+        return cur.rowcount > 0
     finally:
         conn.close()
 
@@ -442,3 +442,129 @@ def unassign_fit_file(db_path: str, workout_id: int) -> bool:
         True if successful
     """
     return reassign_fit_file(db_path, workout_id, None)
+
+
+def _is_zwift(name: str) -> bool:
+    return "zwift" in (name or "").lower()
+
+
+def _is_garmin(name: str) -> bool:
+    lowered = (name or "").lower()
+    return "tp-" in lowered or "garmin" in lowered
+
+
+def link_fit_files(db_path: str, start_date: str, end_date: str) -> int:
+    """Link completed workouts to their FIT files (the one FIT matcher).
+
+    Same day preferred, +/-1 day allowed for UTC/Pacific drift. Zwift files only
+    pair with Zwift workouts; strength sessions are skipped; a FIT file already
+    linked to a workout is never reused. Garmin files are scored on duration only
+    (their TSS is computed differently); Zwift on TSS + duration.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        lo = (datetime.strptime(start_date, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
+        hi = (datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
+        workouts = conn.execute(
+            "SELECT id, workout_day, workout_title, workout_data FROM workouts "
+            "WHERE workout_day BETWEEN ? AND ? AND fit_file_id IS NULL ORDER BY workout_day, id",
+            (start_date, end_date)).fetchall()
+        fits = conn.execute(
+            "SELECT f.id, f.workout_day, f.file_name, f.fit_data FROM fit_files f "
+            "WHERE f.workout_day BETWEEN ? AND ? "
+            "AND NOT EXISTS (SELECT 1 FROM workouts w WHERE w.fit_file_id = f.id)",
+            (lo, hi)).fetchall()
+
+        available = []
+        for fid, day, file_name, fit_json in fits:
+            try:
+                data = json.loads(fit_json) if fit_json else {}
+            except ValueError:
+                data = {}
+            data = data or {}
+            available.append({
+                "id": fid, "day": day, "file_name": file_name or "",
+                "tss": float((data.get("metrics") or {}).get("tss") or 0),
+                "duration_min": float((data.get("metrics") or {}).get("duration") or 0)
+                                or float(data.get("duration_seconds") or 0) / 60,
+            })
+
+        linked = 0
+        for wid, day, title, workout_json in workouts:
+            title_l = (title or "").lower()
+            if "strength" in title_l or "weight" in title_l:
+                continue
+            try:
+                metrics = (json.loads(workout_json) or {}).get("metrics", {})
+            except ValueError:
+                metrics = {}
+            tss = float(metrics.get("actual_tss") or 0)
+            dur = float(metrics.get("actual_duration") or 0)
+            wday = datetime.strptime(day[:10], '%Y-%m-%d').date()
+
+            best, best_score = None, None
+            for fit in available:
+                fday = datetime.strptime(fit["day"][:10], '%Y-%m-%d').date()
+                if abs((fday - wday).days) > 1 or _is_zwift(fit["file_name"]) != _is_zwift(title):
+                    continue
+                if _is_garmin(fit["file_name"]):
+                    score = abs(dur - fit["duration_min"])
+                else:
+                    score = abs(tss - fit["tss"]) + abs(dur - fit["duration_min"])
+                score += 15 if fday != wday else 0
+                if best_score is None or score < best_score:
+                    best, best_score = fit, score
+            if best is None:
+                continue
+            threshold = 50 if _is_garmin(best["file_name"]) else 100
+            if best_score < threshold:
+                conn.execute("UPDATE workouts SET fit_file_id = ? WHERE id = ?", (best["id"], wid))
+                available.remove(best)
+                linked += 1
+        conn.commit()
+        return linked
+    finally:
+        conn.close()
+
+
+_NON_RECORDED_TYPES = {"other", "strength", "yoga", "mobility", "breathing"}
+
+
+def fix_double_linked_fit_files(db_path: str, apply: bool = False) -> List[Dict[str, Any]]:
+    """Resolve FIT files linked to more than one workout (left by older matchers).
+
+    Keeps the link on the workout whose sport and duration best fit the file
+    (a ride's file belongs to the ride, not the yoga session that day) and
+    unlinks the rest so link_fit_files can find them their own file.
+    """
+    conn = sqlite3.connect(db_path)
+    try:
+        dupes = [r[0] for r in conn.execute(
+            "SELECT fit_file_id FROM workouts WHERE fit_file_id IS NOT NULL GROUP BY fit_file_id HAVING COUNT(*) > 1")]
+        changes = []
+        for fid in dupes:
+            fit_min = conn.execute(
+                "SELECT COALESCE(json_extract(fit_data, '$.duration_seconds') / 60.0,"
+                " json_extract(fit_data, '$.metrics.duration')) FROM fit_files WHERE id = ?", (fid,)).fetchone()[0] or 0
+            rows = conn.execute(
+                "SELECT id, workout_title, json_extract(workout_data, '$.type'),"
+                " json_extract(workout_data, '$.metrics.actual_duration') FROM workouts WHERE fit_file_id = ?",
+                (fid,)).fetchall()
+
+            def score(row):
+                _, _, wtype, minutes = row
+                sport_penalty = 1000 if (wtype or "").lower() in _NON_RECORDED_TYPES else 0
+                return sport_penalty + abs((minutes or 0) - fit_min)
+
+            keep = min(rows, key=score)
+            for row in rows:
+                if row[0] != keep[0]:
+                    changes.append({"fit_file_id": fid, "unlink_workout": row[0], "unlink_title": row[1],
+                                    "keep_workout": keep[0], "keep_title": keep[1]})
+                    if apply:
+                        conn.execute("UPDATE workouts SET fit_file_id = NULL WHERE id = ?", (row[0],))
+        if apply:
+            conn.commit()
+        return changes
+    finally:
+        conn.close()
