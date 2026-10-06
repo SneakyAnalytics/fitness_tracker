@@ -40,12 +40,15 @@ docker cp "${container}:/app/shareable/zwift_workouts/$week" "$staging\$week"
 if ($LASTEXITCODE -ne 0) { Log "ERROR: could not copy $week out of the container"; exit 1 }
 
 Log "Syncing $week to ${MacUser}@${MacHost}:$MacZwiftDir"
-ssh -o ConnectTimeout=15 "${MacUser}@${MacHost}" "mkdir -p '$MacZwiftDir' && rm -rf '$MacZwiftDir/$week'"
-scp -r "$staging\$week" "${MacUser}@${MacHost}:$MacZwiftDir/"
+ssh -o BatchMode=yes -o ConnectTimeout=15 "${MacUser}@${MacHost}" "mkdir -p '$MacZwiftDir' && rm -rf '$MacZwiftDir/$week'"
+# Windows scp is happiest with forward slashes; capture its output in the log.
+$src = ("$staging\$week") -replace '\\', '/'
+scp -r -o BatchMode=yes -o ConnectTimeout=15 "$src" "${MacUser}@${MacHost}:$MacZwiftDir/" 2>&1 | ForEach-Object { Add-Content $log "  scp: $_" }
 if ($LASTEXITCODE -eq 0) { Log "Synced $week ($((Get-ChildItem "$staging\$week").Count) files)" }
 else { Log "ERROR: scp failed (exit $LASTEXITCODE) - is the Mac awake and on Tailscale?"; $failed = $true }
 
-if ($env:EMAIL_TO) {
+# Daily news email only if SMTP is configured in .env (SMTP_HOST etc.).
+if ($env:EMAIL_TO -and $env:SMTP_HOST) {
     docker exec $container python scripts/email_daily_news.py 2>&1 | ForEach-Object { Add-Content $log "  $_" }
 }
 
