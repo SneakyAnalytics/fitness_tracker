@@ -70,13 +70,8 @@ workouts*.csv
 weekly_summary_*.json
 weekly_summary_*.txt
 
-# Test files
-pytest.ini
-tests/
-
 # Build and development files
 bin/
-.github/
 *.jpeg
 *.jpg
 *.png
@@ -98,3 +93,11 @@ frontend/*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+# Contain Windows account passwords: never commit (public repo)
+scripts/configure_autologin_and_tasks.ps1
+scripts/setup_autologin_local_account.ps1
+
+# Local-only
+SyncZwiftWorkouts.app/
+archive/root_scripts_2026_10/
+archive/data_scripts_2026_10/

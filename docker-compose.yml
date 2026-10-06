@@ -1,65 +1,99 @@
+# Production stack for the Beelink.
+#
+# Images are built by GitHub Actions from `main` and pulled from ghcr.io, so the
+# Beelink never compiles anything (no pip/npm/Playwright downloads on Windows).
+#   Deploy:   docker compose pull && docker compose up -d
+#   Rollback: set APP_VERSION=<git sha> in .env, then the same two commands.
+#   Local:    docker compose build   (builds from source instead of pulling)
+#
+# Code comes from the image only. Never copy source out of /app/data at startup:
+# that made deployed code silently diverge from git.
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"   # keep container logs from filling the disk
+    max-file: "3"
+
+x-app: &app
+  image: ghcr.io/sneakyanalytics/fitness-tracker:${APP_VERSION:-main}
+  build: .
+  restart: unless-stopped
+  env_file:
+    - .env
+  volumes:
+    - fitness_tracker_data:/app/data
+    - fitness_tracker_logs:/app/logs
+    - fitness_tracker_shareable:/app/shareable
+  logging: *logging
+
 services:
   fastapi:
-    build: .
+    <<: *app
     container_name: fitness-tracker-api
-    restart: unless-stopped
     ports:
       - "8000:8000"
-    volumes:
-      - fitness_tracker_data:/app/data
-      - fitness_tracker_logs:/app/logs
-      - fitness_tracker_shareable:/app/shareable
     environment:
       - PYTHONUNBUFFERED=1
       - OLLAMA_HOST=http://host.docker.internal:11434
       - OLLAMA_MODEL=llama3.1:8b
       - ZWIFT_WORKOUTS_DIR=/app/shareable/zwift_workouts
-    env_file:
-      - .env
-    command: >
-      sh -c "cp /app/data/api_app.py /app/src/api/app.py 2>/dev/null || true; cp /app/data/database.py /app/src/storage/database.py 2>/dev/null || true; uvicorn src.api.app:app --host 0.0.0.0 --port 8000"
+    command: uvicorn src.api.app:app --host 0.0.0.0 --port 8000
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 30s
       retries: 5
-      start_period: 120s
+      start_period: 60s
     # Resource limits to prevent WSL CPU/memory accumulation
     mem_limit: 768m
     cpus: 1.5
 
   streamlit:
-    build: .
+    <<: *app
     container_name: fitness-tracker-ui
-    restart: unless-stopped
     ports:
       - "8501:8501"
-    volumes:
-      - fitness_tracker_data:/app/data
-      - fitness_tracker_logs:/app/logs
-      - fitness_tracker_shareable:/app/shareable
     environment:
       - PYTHONUNBUFFERED=1
       - API_URL=http://fastapi:8000
       - ZWIFT_WORKOUTS_DIR=/app/shareable/zwift_workouts
       - OLLAMA_HOST=http://host.docker.internal:11434
       - OLLAMA_MODEL=llama3.1:8b
-      - TRAININGPEAKS_USERNAME=${TRAININGPEAKS_USERNAME}
-    env_file:
-      - .env
     command: >
-      sh -c "cp /app/data/streamlit_app.py /app/src/ui/streamlit_app.py 2>/dev/null || true; cp /app/data/workout_matching.py /app/src/storage/workout_matching.py 2>/dev/null || true; cp /app/data/database.py /app/src/storage/database.py 2>/dev/null || true; cp /app/data/ai_chat_session.py /app/src/utils/ai_chat_session.py 2>/dev/null || true; cp /app/data/ai_prompts.py /app/src/utils/ai_prompts.py 2>/dev/null || true; cp /app/data/ai_coach_engine.py /app/src/utils/ai_coach_engine.py 2>/dev/null || true; cp /app/data/trainingpeaks_sync.py /app/src/utils/trainingpeaks_sync.py 2>/dev/null || true; cp /app/data/fit_file_analyzer.py /app/src/utils/fit_file_analyzer.py 2>/dev/null || true; streamlit run src/ui/streamlit_app.py --server.port=8501 --server.address=0.0.0.0 --server.headless=true --server.enableCORS=false --server.enableXsrfProtection=false --server.fileWatcherType=none"
+      streamlit run src/ui/streamlit_app.py --server.port=8501 --server.address=0.0.0.0
+      --server.headless=true --server.enableCORS=false --server.enableXsrfProtection=false
+      --server.fileWatcherType=none
     depends_on:
-      - fastapi
+      fastapi:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8501/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
       interval: 30s
       timeout: 30s
       retries: 5
-      start_period: 120s
-    # Resource limits for UI container (lighter workload)
+      start_period: 60s
     mem_limit: 384m
     cpus: 0.5
+
+  frontend:
+    image: ghcr.io/sneakyanalytics/fitness-tracker-web:${APP_VERSION:-main}
+    build: ./frontend
+    container_name: fitness-tracker-web
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      fastapi:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging: *logging
+    mem_limit: 128m
+    cpus: 0.25
 
 networks:
   default:

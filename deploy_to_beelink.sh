@@ -1,104 +1,115 @@
 #!/bin/bash
-# Deploy Playwright fix to Beelink
-# Run this script from your local machine
+# Deploy to the Beelink by pulling prebuilt images (built by GitHub Actions from main).
+#
+# The Beelink builds nothing: it only needs docker-compose.yml, .env and the
+# images. Every deploy is pinned to an exact commit, so rolling back is just
+# deploying an older commit.
+#
+# Usage:
+#   ./deploy_to_beelink.sh                 # deploy the commit origin/main points at
+#   ./deploy_to_beelink.sh --env TRAININGPEAKS_PASSWORD
+#                                          # ...and copy just these keys from your Mac .env
+#                                          # (the Beelink .env has extra keys; never overwrite it whole)
+#   ./deploy_to_beelink.sh --version <sha> # deploy (or roll back to) a specific commit
+#
+# Run between training weeks: a broken deploy mid-week costs real workouts.
 
-set -e
+set -euo pipefail
 
-BEELINK_IP="100.117.194.8"
-BEELINK_USER="rakej"
-PROJECT_DIR="/home/rakej/fitness_tracker"
+BEELINK="rakej@100.117.194.8"
+REMOTE_DIR='C:\Users\rakej\fitness_tracker'
+REMOTE_DIR_FWD="C:/Users/rakej/fitness_tracker"
+ENV_KEYS=()
+VERSION=""
 
-echo "=================================================="
-echo "🚀 Deploying Playwright Fix to Beelink"
-echo "=================================================="
-echo ""
-echo "Target: $BEELINK_USER@$BEELINK_IP"
-echo "Project: $PROJECT_DIR"
-echo ""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --env) ENV_KEYS+=("$2"); shift 2 ;;
+    --version) VERSION="$2"; shift 2 ;;
+    *) echo "unknown option $1"; exit 2 ;;
+  esac
+done
 
-# Check if we can reach Beelink
-echo "1️⃣  Testing connection to Beelink..."
-if ping -c 1 -W 2 $BEELINK_IP > /dev/null 2>&1; then
-    echo "   ✅ Beelink is reachable"
-else
-    echo "   ❌ Cannot reach Beelink at $BEELINK_IP"
-    echo "   Check Tailscale connection and try again"
-    exit 1
+cd "$(dirname "$0")"
+remote() { ssh -o ConnectTimeout=10 "$BEELINK" "$@"; }
+
+echo "🔌 Checking the Beelink..."
+remote "docker info --format {{.ServerVersion}}" >/dev/null || {
+  echo "❌ Docker isn't responding on the Beelink. Start Docker Desktop (or run scripts/start_docker_and_containers.ps1) and retry."
+  exit 1
+}
+
+if [[ -z "$VERSION" ]]; then
+  git fetch -q origin main
+  VERSION=$(git rev-parse origin/main)
 fi
+echo "📌 Deploying commit ${VERSION:0:12}  ($(git log -1 --format=%s "$VERSION" 2>/dev/null || echo 'unknown locally'))"
 
-# SSH into Beelink and run deployment
-echo ""
-echo "2️⃣  Connecting to Beelink and deploying..."
-echo "   (This will take 5-10 minutes for Chromium download)"
-echo ""
+echo "🔎 Checking the images exist for that commit..."
+for image in fitness-tracker fitness-tracker-web; do
+  if ! remote "docker manifest inspect ghcr.io/sneakyanalytics/$image:$VERSION" >/dev/null 2>&1; then
+    echo "❌ ghcr.io/sneakyanalytics/$image:$VERSION not found (or not accessible)."
+    echo "   - Has the 'Build images' GitHub Action finished for this commit?"
+    echo "   - Are the ghcr.io packages public (or has the Beelink run 'docker login ghcr.io')?"
+    exit 1
+  fi
+done
 
-ssh $BEELINK_USER@$BEELINK_IP << 'ENDSSH'
-    set -e
-    
-    # Navigate to project
-    cd /home/rakej/fitness_tracker
-    
-    echo "📦 Pulling latest changes..."
-    git pull origin main
-    
-    echo ""
-    echo "🛑 Stopping containers..."
-    docker-compose down
-    
-    echo ""
-    echo "🔨 Rebuilding with Playwright/Chromium..."
-    echo "   (Downloading ~200MB Chromium, please wait...)"
-    docker-compose build --no-cache
-    
-    echo ""
-    echo "▶️  Starting containers..."
-    docker-compose up -d
-    
-    echo ""
-    echo "⏳ Waiting for services to start (30s)..."
-    sleep 30
-    
-    echo ""
-    echo "✅ Verifying Playwright installation..."
-    docker exec fitness-tracker-ui python -c "from playwright.sync_api import sync_playwright; print('✅ Playwright Python package: OK')" || echo "❌ Playwright check failed"
-    
-    echo ""
-    echo "✅ Checking Chromium browser..."
-    docker exec fitness-tracker-ui sh -c "ls -la /root/.cache/ms-playwright/chromium-* 2>/dev/null | head -1" && echo "✅ Chromium browser: Installed" || echo "⚠️  Chromium browser: Not found (rebuild may have failed)"
-    
-    echo ""
-    echo "✅ Checking API health..."
-    curl -s http://localhost:8000/health | python3 -m json.tool 2>/dev/null && echo "✅ API: Healthy" || echo "⚠️  API: Not responding yet"
-    
-    echo ""
-    echo "📊 Container status:"
-    docker-compose ps
-    
-    echo ""
-    echo "=================================================="
-    echo "✅ DEPLOYMENT COMPLETE"
-    echo "=================================================="
-    echo ""
-    echo "🌐 Access your application:"
-    echo "   Streamlit: http://100.117.194.8:8501"
-    echo "   API: http://100.117.194.8:8000"
-    echo ""
-    echo "🧪 Test TrainingPeaks sync in Streamlit now!"
-    echo ""
-ENDSSH
+echo "💾 Backing up the live database..."
+scp -q scripts/deploy/backup_db.py "$BEELINK:C:/Users/rakej/ft_backup_db.py"
+remote "docker cp C:/Users/rakej/ft_backup_db.py fitness-tracker-api:/tmp/backup_db.py" \
+  && remote "docker exec fitness-tracker-api python3 /tmp/backup_db.py" \
+  || { echo "❌ Backup failed; not deploying."; exit 1; }
 
-echo ""
-echo "=================================================="
-echo "🎉 Deployment script complete!"
-echo "=================================================="
-echo ""
-echo "Next steps:"
-echo "1. Open http://100.117.194.8:8501 in your browser"
-echo "2. Navigate to TrainingPeaks sync page"
-echo "3. Click sync button - should work without errors now"
-echo ""
-echo "If issues persist, check logs:"
-echo "  ssh $BEELINK_USER@$BEELINK_IP"
-echo "  cd $PROJECT_DIR"
-echo "  docker-compose logs -f streamlit"
-echo ""
+# Merge KEY=VALUE lines into the Beelink .env without touching its other keys.
+merge_env() {
+  local updates; updates=$(mktemp)
+  cat > "$updates"
+  scp -q scripts/deploy/merge_env.ps1 "$BEELINK:C:/Users/rakej/ft_merge_env.ps1"
+  scp -q "$updates" "$BEELINK:C:/Users/rakej/ft_env_updates.txt"
+  rm -f "$updates"
+  remote "powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/rakej/ft_merge_env.ps1 -EnvFile $REMOTE_DIR_FWD/.env -Updates C:/Users/rakej/ft_env_updates.txt"
+}
+
+echo "📤 Sending compose file..."
+scp -q docker-compose.yml "$BEELINK:$REMOTE_DIR_FWD/docker-compose.yml"
+if [[ ${#ENV_KEYS[@]} -gt 0 ]]; then
+  for key in "${ENV_KEYS[@]}"; do
+    grep -q "^$key=" .env || { echo "❌ $key not found in local .env"; exit 1; }
+  done
+  for key in "${ENV_KEYS[@]}"; do
+    line=$(grep "^$key=" .env); val=${line#*=}
+    # Compose expands $ in .env values; single-quote them so passwords survive intact.
+    if [[ "$val" == *'$'* && "$val" != \'*\' ]]; then line="$key='$val'"; fi
+    printf '%s\n' "$line"
+  done | merge_env
+fi
+# Pin the version so a plain 'docker compose up -d' on the Beelink keeps it.
+echo "APP_VERSION=$VERSION" | merge_env
+
+echo "⬇️  Pulling images and restarting..."
+remote "cd /d $REMOTE_DIR && docker compose pull && docker compose up -d --remove-orphans"
+
+echo "🩺 Waiting for health..."
+for i in $(seq 1 30); do
+  if health=$(remote "curl -sf http://localhost:8000/health" 2>/dev/null); then
+    echo "✅ $health"
+    break
+  fi
+  sleep 10
+  if [[ $i -eq 30 ]]; then
+    echo "❌ API did not become healthy. Logs: ssh $BEELINK \"docker logs --tail 80 fitness-tracker-api\""
+    echo "   Roll back: ./deploy_to_beelink.sh --version <previous sha>"
+    exit 1
+  fi
+done
+remote "docker ps --format \"{{.Names}}\t{{.Status}}\""
+remote "docker image prune -f" >/dev/null
+
+cat <<EOF
+
+Deployed ${VERSION:0:12}.  Calendar & coaching: http://100.117.194.8:3000   Admin: http://100.117.194.8:8501
+
+First deploy after the October 2026 overhaul only — run the one-time backfill:
+  ssh $BEELINK "docker exec fitness-tracker-api python -m src.utils.maintenance backfill"
+EOF
