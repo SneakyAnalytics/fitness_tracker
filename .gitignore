@@ -101,3 +101,4 @@ scripts/setup_autologin_local_account.ps1
 SyncZwiftWorkouts.app/
 archive/root_scripts_2026_10/
 archive/data_scripts_2026_10/
+!frontend/public/*.png
