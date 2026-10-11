@@ -29,7 +29,9 @@ Log "Refreshing today's Zwift files with fresh news..."
 docker exec $container python -m src.utils.refresh_daily_zwift_news 2>&1 | ForEach-Object { Add-Content $log "  $_" }
 if ($LASTEXITCODE -ne 0) { Log "WARNING: news refresh failed (exit $LASTEXITCODE); syncing existing files"; $failed = $true }
 
-$week = (docker exec $container python -m src.utils.refresh_daily_zwift_news --week-dir | Select-Object -Last 1).Trim()
+$weekOut = docker exec $container python -m src.utils.refresh_daily_zwift_news --week-dir 2>$null
+if ($LASTEXITCODE -ne 0) { Log "ERROR: could not ask the container for the plan week (is Docker running?)"; exit 1 }
+$week = "$($weekOut | Select-Object -Last 1)".Trim()
 if (-not $week) { Log "No saved plan covers today; nothing to sync."; exit 0 }
 
 $staging = Join-Path $env:TEMP "zwift_sync"

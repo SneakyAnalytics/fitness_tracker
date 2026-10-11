@@ -82,6 +82,15 @@ week's `Week_<n>` folder out of the volume and scp's it to the Mac. Log:
 `C:\Users\rakej\fitness_tracker\logs\zwift_sync.log`. Run it by hand with
 `schtasks /run /tn ZwiftSyncToMac`.
 
+The `FitnessTrackerDockerWatchdog` task runs `scripts\beelink_docker_watchdog.ps1` every 10 minutes:
+if Docker isn't responding it starts Docker Desktop (restarting it if the engine stays silent for
+3 checks), and if the API container isn't running it runs `docker compose up -d`. It logs only
+when it acts: `logs\docker_watchdog.log`. Pause it while working on Docker by hand:
+`schtasks /change /tn FitnessTrackerDockerWatchdog /disable` (`/enable` afterwards). Set up by
+`scripts\register_docker_watchdog.ps1`, which also removes the 72-hour time limit from the Docker
+start tasks. Docker Desktop runs as that task's process, so the default limit killed Docker three
+days after each start (2026-10-09).
+
 Already in place: Docker Desktop auto-start tasks, `restart: unless-stopped`, health checks
 (Streamlit and the web app wait for a healthy API), container log rotation (10 MB × 3),
 image pruning after each deploy, sleep disabled, and the network watchdog task.
