@@ -781,100 +781,10 @@ class WorkoutDatabase:
                         except (json.JSONDecodeError, TypeError):
                             analysis_data = None
                     
-                    # Safely load fit_data. If the LEFT JOIN didn't find a matching fit row (sequence mismatch),
-                    # try a fallback lookup for any fit_files entry matching day/title (use latest sequence).
+                    # Only the linked FIT file counts (link_fit_files is the one matcher). This used to
+                    # guess any FIT file stored under the same (UTC) day for unlinked sessions and save
+                    # the guess: a sauna picked up the day's 4-hour ride and the week's TSS doubled.
                     fit_metrics = {}
-                    matched_fit_id = None
-                    if not fit_data:
-                        try:
-                            # First try fallback by exact title (most recent sequence) and capture id
-                            c.execute(
-                                '''
-                                SELECT id, fit_data FROM fit_files
-                                WHERE workout_day = ? AND workout_title = ?
-                                ORDER BY sequence_number DESC
-                                LIMIT 1
-                                ''',
-                                (day, title)
-                            )
-                            fallback = c.fetchone()
-                            if fallback and fallback[1]:
-                                matched_fit_id = fallback[0]
-                                fit_data = fallback[1]
-                                print(f"DEBUG: Fallback fit_data found for {title} on {day} (by exact title) - fit_id: {matched_fit_id}")
-                            else:
-                                    # As a more robust fallback, try to find the best FIT file for the same day.
-                                    # If multiple FIT files exist for the day, choose the one whose average power
-                                    # (from the FIT file) is closest to the workout's CSV average power when available.
-                                    try:
-                                        c.execute(
-                                            '''
-                                            SELECT id, fit_data, workout_title, file_name, sequence_number FROM fit_files
-                                            WHERE workout_day = ?
-                                            ''',
-                                            (day,)
-                                        )
-                                        candidates = c.fetchall()
-                                        if candidates:
-                                            # Determine CSV average power if available for matching heuristic
-                                            csv_avg = None
-                                            try:
-                                                csv_power = workout.get('metrics') or {}
-                                                # Try common CSV keys for average power
-                                                csv_avg = workout.get('power_data', {}).get('average') or csv_power.get('actual_average_power') or csv_power.get('average_power')
-                                                if csv_avg is not None:
-                                                    csv_avg = float(csv_avg)
-                                            except Exception:
-                                                csv_avg = None
-
-                                            best_candidate = None
-                                            best_diff = None
-                                            for cand in candidates:
-                                                fid, fdata, ftitle, fname, fseq = cand
-                                                try:
-                                                    parsed = json.loads(fdata) if fdata else {}
-                                                except Exception:
-                                                    parsed = {}
-
-                                                pm = parsed.get('power_metrics') if isinstance(parsed, dict) else {}
-                                                cand_avg = None
-                                                if isinstance(pm, dict):
-                                                    cand_avg = pm.get('average_power') or pm.get('average')
-                                                try:
-                                                    cand_avg = float(cand_avg) if cand_avg is not None else None
-                                                except Exception:
-                                                    cand_avg = None
-
-                                                # If we have a csv_avg, choose candidate minimizing abs diff
-                                                if csv_avg is not None and cand_avg is not None:
-                                                    diff = abs(csv_avg - cand_avg)
-                                                else:
-                                                    # If we don't have numeric comparison data, prefer highest sequence (most recent)
-                                                    diff = None
-
-                                                if csv_avg is not None and diff is not None:
-                                                    if best_diff is None or diff < best_diff:
-                                                        best_diff = diff
-                                                        best_candidate = (fid, fdata)
-                                                else:
-                                                    # fallback to preferring the highest sequence number if no numeric match possible
-                                                    if best_candidate is None:
-                                                        best_candidate = (fid, fdata)
-                                                    else:
-                                                        # prefer candidate with higher sequence_number
-                                                        if fseq is not None and best_candidate:
-                                                            if fseq > (best_candidate[0] or 0):
-                                                                best_candidate = (fid, fdata)
-
-                                            if best_candidate:
-                                                matched_fit_id = best_candidate[0]
-                                                fit_data = best_candidate[1]
-                                                print(f"DEBUG: Selected best-fit fit_data for {title} on {day} - fit_id: {matched_fit_id}")
-                                    except Exception as e:
-                                        print(f"DEBUG: Error during fallback fit_files lookup: {e}")
-                        except Exception as e:
-                            print(f"DEBUG: Error during fallback fit_files lookup: {e}")
-
                     if fit_data:
                         try:
                             fit_metrics = json.loads(fit_data)
@@ -913,9 +823,10 @@ class WorkoutDatabase:
                     total_tss += workout_tss
                     
                     # Process duration
+                    # TrainingPeaks' figures first, like TSS; the FIT file only fills gaps.
                     duration = (
-                        self._get_numeric_value(fit_metrics_metrics.get('duration')) or
                         self._get_numeric_value(csv_metrics.get('actual_duration')) or
+                        self._get_numeric_value(fit_metrics_metrics.get('duration')) or
                         self._get_numeric_value(workout.get('TimeTotalInHours', 0)) * 60
                     )
                     print(f"Duration: {duration}")
@@ -1337,19 +1248,6 @@ class WorkoutDatabase:
                             if v is not None
                         }
                     daily_workouts.append(workout_entry)
-                    # If we found a fallback fit_file, persist the association so future queries join directly
-                    if matched_fit_id:
-                        try:
-                            c.execute(
-                                '''
-                                UPDATE workouts SET fit_file_id = ? WHERE workout_day = ? AND workout_title = ? AND sequence_number = ?
-                                ''',
-                                (matched_fit_id, day, title, sequence_number)
-                            )
-                            conn.commit()
-                            print(f"DEBUG: Updated workout row to reference fit_file_id {matched_fit_id} for {title} on {day} (seq {sequence_number})")
-                        except Exception as e:
-                            print(f"DEBUG: Could not update workout with fit_file_id: {e}")
                 except Exception as e:
                     print(f"Error processing workout: {str(e)}")
                     import traceback

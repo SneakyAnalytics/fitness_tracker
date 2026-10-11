@@ -361,7 +361,7 @@ async def upload_workouts(file: UploadFile = File(...)):
             c.execute('''
                 SELECT id, workout_day, fit_data, file_name
                 FROM fit_files 
-                WHERE DATE(workout_day) >= DATE(?) AND DATE(workout_day) <= DATE(?)
+                WHERE DATE(workout_day) >= DATE(?, '-1 day') AND DATE(workout_day) <= DATE(?, '+1 day')
                 ORDER BY workout_day, id
             ''', (min_date, max_date))
             
@@ -378,8 +378,10 @@ async def upload_workouts(file: UploadFile = File(...)):
                         elif 'metrics' in fit_data and 'duration' in fit_data['metrics']:
                             fit_data['duration_minutes'] = fit_data['metrics']['duration']
                     
-                    # Normalize day to date-only format (YYYY-MM-DD) to match CSV workout_day
-                    day_only = day.split(' ')[0] if ' ' in day else day
+                    # FIT files are stored under their UTC date; TrainingPeaks days are Pacific.
+                    from src.storage.workout_matching import local_date
+                    local = local_date(fit_data.get('start_time'))
+                    day_only = local.isoformat() if local else (day.split(' ')[0] if ' ' in day else day)
                     
                     # Store as list to handle multiple workouts per day (include ALL FIT files, not just cycling)
                     if day_only not in existing_fit_data_by_date:
@@ -478,6 +480,8 @@ async def upload_workouts(file: UploadFile = File(...)):
                     
                     # Check if title hints at type (e.g., "Strength" should not match Zwift FIT)
                     candidate_filename = candidate.get('_filename', '').lower()
+                    if candidate.get('sport') and candidate['sport'] != 'cycling' and 'zwift' not in candidate_filename:
+                        continue  # a yoga/hike file never belongs to a ride
                     
                     # If CSV workout is clearly Zwift, prefer FIT file with "zwift" in filename
                     if 'zwift' in workout_title_lower and 'zwift' in candidate_filename:
@@ -503,6 +507,9 @@ async def upload_workouts(file: UploadFile = File(...)):
                 # Second pass: If no intelligent match, use first unused FIT file
                 if not fit_data:
                     for candidate in available_fits:
+                        if candidate.get('sport') and candidate['sport'] != 'cycling' \
+                                and 'zwift' not in candidate.get('_filename', '').lower():
+                            continue
                         if candidate['_fit_id'] not in used_fit_ids:
                             fit_data = candidate
                             print(f"  Using first unused FIT file: {candidate.get('_filename')}")
@@ -554,6 +561,8 @@ async def upload_workouts(file: UploadFile = File(...)):
         
         restored = restore_workouts(db.db_path, kept, min_date, max_date)
         reattached = reattach_orphan_analyses(db.db_path)
+        from src.storage.workout_matching import repair_fit_links
+        print(f"FIT links: {repair_fit_links(db.db_path, min_date, max_date)}")
         print(f"\n✓ Successfully processed {len(workouts)} workouts "
               f"(kept identity of {restored}, reattached {reattached} analyses)")
         return {

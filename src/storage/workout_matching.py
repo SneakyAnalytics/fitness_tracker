@@ -503,6 +503,7 @@ def link_fit_files(db_path: str, start_date: str, end_date: str) -> int:
             local_day = local_date(data.get("start_time"))
             available.append({
                 "id": fid, "day": day, "local_day": local_day, "file_name": file_name or "",
+                "sport": data.get("sport"),
                 "tss": float((data.get("metrics") or {}).get("tss") or 0),
                 "duration_min": float((data.get("metrics") or {}).get("duration") or 0)
                                 or float(data.get("duration_seconds") or 0) / 60,
@@ -511,12 +512,14 @@ def link_fit_files(db_path: str, start_date: str, end_date: str) -> int:
         linked = 0
         for wid, day, title, workout_json in workouts:
             title_l = (title or "").lower()
-            if "strength" in title_l or "weight" in title_l:
+            if "strength" in title_l or "weight" in title_l or "sauna" in title_l:
                 continue
             try:
-                metrics = (json.loads(workout_json) or {}).get("metrics", {})
+                parsed = json.loads(workout_json) or {}
             except ValueError:
-                metrics = {}
+                parsed = {}
+            metrics = parsed.get("metrics", {})
+            wtype = parsed.get("type")
             tss = float(metrics.get("actual_tss") or 0)
             dur = float(metrics.get("actual_duration") or 0)
             wday = datetime.strptime(day[:10], '%Y-%m-%d').date()
@@ -524,6 +527,8 @@ def link_fit_files(db_path: str, start_date: str, end_date: str) -> int:
             best, best_score = None, None
             for fit in available:
                 if _is_zwift(fit["file_name"]) != _is_zwift(title):
+                    continue
+                if not sport_compatible(wtype, title, fit["sport"], fit["file_name"]):
                     continue
                 if fit["local_day"]:
                     # Garmin/Zwift record UTC; TrainingPeaks dates are local (Pacific).
@@ -555,6 +560,23 @@ def link_fit_files(db_path: str, start_date: str, end_date: str) -> int:
 
 
 _NON_RECORDED_TYPES = {"other", "strength", "yoga", "mobility", "breathing"}
+_BIKE_TYPES = {"bike", "cycling", "biking", "mtb", "mountain bike", "gravel"}
+
+
+def sport_compatible(workout_type: Optional[str], title: Optional[str], fit_sport: Optional[str],
+                     file_name: Optional[str] = "") -> bool:
+    """Bike sessions take cycling files; everything else takes non-cycling files; saunas take none.
+
+    Garmin files were matched on duration alone, so a 45-minute yoga session and a
+    45-minute ride could swap files.
+    """
+    if "sauna" in (title or "").lower():
+        return False
+    fit_is_bike = _is_zwift(file_name or "") or (fit_sport or "").lower() == "cycling"
+    if not workout_type or (not fit_sport and not _is_zwift(file_name or "")):
+        return True  # sport unknown on either side: duration decides
+    is_bike = workout_type.strip().lower() in _BIKE_TYPES or _is_zwift(title or "")
+    return is_bike == fit_is_bike
 
 
 def fix_double_linked_fit_files(db_path: str, apply: bool = False) -> List[Dict[str, Any]]:
@@ -726,3 +748,50 @@ def reattach_orphan_analyses(db_path: str) -> int:
         return fixed
     finally:
         conn.close()
+
+
+def fix_sport_mismatched_links(db_path: str, apply: bool = False) -> List[Dict[str, Any]]:
+    """Unlink FIT files whose sport doesn't fit the workout (a sauna holding a ride's file)."""
+    conn = sqlite3.connect(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT w.id, w.workout_day, w.workout_title, json_extract(w.workout_data, '$.type'), "
+            "json_extract(f.fit_data, '$.sport'), f.file_name "
+            "FROM workouts w JOIN fit_files f ON f.id = w.fit_file_id").fetchall()
+        changes = []
+        for wid, day, title, wtype, sport, file_name in rows:
+            if not sport_compatible(wtype, title, sport, file_name):
+                changes.append({"workout_id": wid, "workout_day": day, "title": title, "file_sport": sport})
+                if apply:
+                    conn.execute("UPDATE workouts SET fit_file_id = NULL WHERE id = ?", (wid,))
+        if apply:
+            conn.commit()
+        return changes
+    finally:
+        conn.close()
+
+
+def repair_fit_links(db_path: str, start_date: str, end_date: str) -> Dict[str, int]:
+    """Drop wrong FIT links (wrong day, wrong sport, shared) and relink the range properly.
+
+    Analyses made from a file the workout no longer holds are removed so the
+    nightly job redoes them against the right file.
+    """
+    result = {
+        "cross_day": len(fix_cross_day_links(db_path, apply=True)),
+        "wrong_sport": len(fix_sport_mismatched_links(db_path, apply=True)),
+        "shared": len(fix_double_linked_fit_files(db_path, apply=True)),
+    }
+    result["linked"] = link_fit_files(db_path, start_date, end_date)
+    conn = sqlite3.connect(db_path)
+    try:
+        cur = conn.execute(
+            "DELETE FROM workout_analyses WHERE fit_file_id IS NOT NULL AND workout_id IN "
+            "(SELECT w.id FROM workouts w WHERE w.workout_day BETWEEN ? AND ?) AND fit_file_id IS NOT "
+            "(SELECT w.fit_file_id FROM workouts w WHERE w.id = workout_analyses.workout_id)",
+            (start_date, end_date))
+        result["stale_analyses_removed"] = cur.rowcount
+        conn.commit()
+    finally:
+        conn.close()
+    return result
