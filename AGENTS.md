@@ -181,3 +181,15 @@ instead of `print` on a headless box; compute anything numeric instead of asking
   ids, matches and notes; `reattach_orphan_analyses` repairs by ride file. Test: `tests/test_reimport.py`.
 - **Lesson:** anything that deletes and re-inserts rows must carry user-owned columns and ids across, and must be
   tested by running it twice.
+
+---
+
+## 2026-10-10 — Docker Desktop died 72 hours after being started
+
+- The "Start Docker Desktop" scheduled task launches Docker Desktop as the task's own process, and Task
+  Scheduler's default `ExecutionTimeLimit` is 72 hours. Started 2026-10-06 ~06:10, Docker was killed 2026-10-09
+  ~06:10; the app was down ~38 h and the nightly/Zwift tasks just failed. No reboot, no crash event.
+- Fix: `scripts/register_docker_watchdog.ps1` sets the limit to unlimited (`PT0S`) and registers
+  `FitnessTrackerDockerWatchdog` (every 10 min) to restart Docker and the containers.
+- **Lesson:** any scheduled task that *is* a long-running process needs `ExecutionTimeLimit` disabled; and
+  "nothing is running" must be detected by something other than the things that need Docker.
