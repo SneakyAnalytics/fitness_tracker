@@ -137,14 +137,41 @@ def edit_plan(req: EditRequest):
     return _sse(_session_events(s, s.apply_surgical_edit(req.feedback)))
 
 
+# Saving writes the plan, then builds the Zwift files (fetching news text for each),
+# which can take several minutes, so it runs in the background and the page polls.
+_saves: Dict[str, Dict[str, Any]] = {}
+
+
 @router.post("/coach/session/save")
 def save_plan(req: WeekRequest):
     s = _session(req.week_start, req.model)
+    if not s.current_plan:
+        raise HTTPException(status_code=400, detail="No plan to save")
+    key = _monday(req.week_start)
+    with _sessions_lock:
+        if (_saves.get(key) or {}).get("state") == "running":
+            return _saves[key]
+        _saves[key] = {"state": "running", "started": datetime.now().isoformat(timespec="seconds")}
     zwift_dir = os.getenv("ZWIFT_WORKOUTS_DIR", "shareable/zwift_workouts")
-    ok, message, files = s.save_plan(zwift_dir)
-    if not ok:
-        raise HTTPException(status_code=400, detail=message)
-    return {"message": message, "zwift_files": files, **_session_state(s)}
+
+    def run():
+        from src.storage.events import record_event
+        try:
+            ok, message, files = s.save_plan(zwift_dir)
+            _saves[key] = {"state": "done" if ok else "error", "message": message, "zwift_files": files}
+            if not ok:
+                record_event("error", "coach_save", f"Saving the plan failed: {message}")
+        except Exception as exc:
+            _saves[key] = {"state": "error", "message": str(exc)}
+            record_event("error", "coach_save", f"Saving the plan failed: {exc}")
+
+    threading.Thread(target=run, daemon=True).start()
+    return _saves[key]
+
+
+@router.get("/coach/session/save")
+def save_status(week_start: str):
+    return _saves.get(_monday(week_start)) or {"state": "idle"}
 
 
 # ── Ask the coach about a specific day's workout ─────────────────────────────

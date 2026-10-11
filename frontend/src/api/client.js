@@ -45,8 +45,8 @@ export const dashboardAPI = {
 
 export const coachAPI = {
   getSession: (weekStart, model) => apiClient.get("/coach/session", { params: { week_start: weekStart, model } }),
-  savePlan: (weekStart, model) =>
-    apiClient.post("/coach/session/save", { week_start: weekStart, model }, { timeout: 120000 }),
+  savePlan: (weekStart, model) => apiClient.post("/coach/session/save", { week_start: weekStart, model }),
+  saveStatus: (weekStart) => apiClient.get("/coach/session/save", { params: { week_start: weekStart } }),
 };
 
 // Parse a text/event-stream body: each event is `data: {json}\n\n`.
