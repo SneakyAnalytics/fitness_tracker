@@ -193,3 +193,19 @@ instead of `print` on a headless box; compute anything numeric instead of asking
   `FitnessTrackerDockerWatchdog` (every 10 min) to restart Docker and the containers.
 - **Lesson:** any scheduled task that *is* a long-running process needs `ExecutionTimeLimit` disabled; and
   "nothing is running" must be detected by something other than the things that need Docker.
+
+---
+
+## 2026-10-11 — Coach reported 735 TSS for a 520 TSS week
+
+- `generate_weekly_summary` "fell back" to any FIT file stored under the same day for sessions without one,
+  **and saved that link**. FIT files are stored under their UTC upload date, so Sunday's sauna took Saturday's
+  4-hour gravel file (uploaded after midnight UTC); the summary used the file's TSS/duration (its duration even
+  ahead of TrainingPeaks'), counting the ride twice. Fallback removed; summary prefers TrainingPeaks' numbers.
+- The upload grouped FIT files by UTC date, and the linker matched Garmin files on duration alone, so evening
+  commutes landed on the next day and a 45-min yoga swapped files with a 45-min ride. Both now use the Pacific
+  date and `sport_compatible` (bike ↔ cycling file, everything else ↔ non-cycling, sauna ↔ none).
+- `repair_fit_links` (also `maintenance repair-fit-links`) runs after every upload: drops cross-day,
+  wrong-sport and shared links, relinks, and removes analyses made from a file the workout no longer holds.
+- Periodization/CTL were unaffected: they read `training_load_daily`, built from TrainingPeaks TSS.
+- **Lesson:** a read path (a summary) must never write links; derived "best guess" joins belong in one matcher.

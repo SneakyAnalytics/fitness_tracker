@@ -24,6 +24,9 @@ def main() -> None:
     link.add_argument("--start", required=True)
     link.add_argument("--end", default=date.today().isoformat())
     sub.add_parser("refresh-derived", help="recompute training load, power bests and progression")
+    rep = sub.add_parser("repair-fit-links", help="drop wrong FIT links (day/sport/shared), relink a range")
+    rep.add_argument("--start", required=True)
+    rep.add_argument("--end", default=date.today().isoformat())
     sub.add_parser("backfill", help="link FIT files, add lap markers, rescore executions, refresh derived data")
     drop = sub.add_parser("drop-orphan-tables", help="drop leftover *_old/*_backup tables (backs up the DB first)")
     drop.add_argument("--yes", action="store_true", help="actually drop (otherwise just list)")
@@ -32,6 +35,10 @@ def main() -> None:
     db = WorkoutDatabase()  # applies pending schema migrations
     if args.cmd == "link-fits":
         print(f"Linked {link_fit_files(db.db_path, args.start, args.end)} workouts to FIT files")
+    elif args.cmd == "repair-fit-links":
+        from src.storage.workout_matching import repair_fit_links
+        print(repair_fit_links(db.db_path, args.start, args.end))
+        print(training_load.refresh_all(db.db_path))
     elif args.cmd == "refresh-derived":
         print(training_load.refresh_all(db.db_path))
     elif args.cmd == "backfill":
