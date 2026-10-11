@@ -149,12 +149,22 @@ function WeeklyCoaching() {
     setBusy(true);
     setError("");
     try {
-      const res = await coachAPI.savePlan(weekStr, model);
-      setNotice(`${res.data.message} · ${res.data.zwift_files?.length || 0} Zwift files`);
+      // The save runs on the server (Zwift files take a few minutes); poll until it's done.
+      let job = (await coachAPI.savePlan(weekStr, model)).data;
+      const started = Date.now();
+      while (job.state === "running") {
+        const mins = Math.floor((Date.now() - started) / 60000);
+        setStatus(`Saving the plan and building Zwift files${mins ? ` (${mins} min so far)` : ""}`);
+        await new Promise((r) => setTimeout(r, 3000));
+        job = (await coachAPI.saveStatus(weekStr)).data;
+      }
+      if (job.state === "error") throw new Error(job.message || "Saving failed");
+      setNotice(`${job.message} · ${job.zwift_files?.length || 0} Zwift files`);
       await queryClient.invalidateQueries();
     } catch (err) {
       setError(err.response?.data?.detail || err.message);
     } finally {
+      setStatus("");
       setBusy(false);
     }
   };
