@@ -3,6 +3,9 @@
 Run by the Beelink task FitnessTrackerNightlySync (scripts/beelink_nightly_sync.ps1):
   python -m src.utils.nightly_sync [--days 3] [--no-sync]
 
+The range is the last `days` days, extended back to Monday of the current week, so a
+session logged in TrainingPeaks days late is still picked up before the Sunday review.
+
 Matching here is only a suggestion (the same one the Review step shows); nothing
 is marked confirmed, so the Sunday review still decides. Planned workouts are
 analyzed against their suggested plan; short unplanned sessions are skipped.
@@ -35,7 +38,7 @@ def _unanalyzed(db_path: str, start: str, end: str) -> List[int]:
 def run(days: int = 3, sync: bool = True) -> Dict[str, Any]:
     db = WorkoutDatabase()
     end = date.today()
-    start = end - timedelta(days=days - 1)
+    start = min(end - timedelta(days=days - 1), end - timedelta(days=end.weekday()))
     result: Dict[str, Any] = {"range": [start.isoformat(), end.isoformat()], "errors": []}
 
     if sync:

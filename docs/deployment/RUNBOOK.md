@@ -72,7 +72,7 @@ then `docker compose up -d`.
 ## Keeping Docker stable on Windows
 
 The 22:30 `FitnessTrackerNightlySync` task runs `scripts\beelink_nightly_sync.ps1`: pulls the
-last 3 days from TrainingPeaks, links ride files and analyzes new workouts against the Review
+last 3 days and the whole current week from TrainingPeaks, links ride files and analyzes new workouts against the Review
 step's suggestion (nothing is confirmed; that's still the Sunday review). Log:
 `logs\nightly_sync.log`. Run by hand: `schtasks /run /tn FitnessTrackerNightlySync`.
 

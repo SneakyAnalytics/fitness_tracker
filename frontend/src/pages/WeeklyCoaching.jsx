@@ -23,6 +23,10 @@ function lastCompletedWeek() {
   return today.getDay() === 0 ? monday : subWeeks(monday, 1);
 }
 
+function currentWeek() {
+  return startOfWeek(new Date(), { weekStartsOn: 1 });
+}
+
 function PlanPreview({ plan }) {
   if (!plan) return null;
   return (
@@ -62,6 +66,9 @@ function WeeklyCoaching() {
   const [notice, setNotice] = useState("");
   const [step, setStep] = useState(null); // "review" | "coach"; null = pick automatically
   const bottomRef = useRef(null);
+  // Once last week's plan is saved there's nothing left to do there: open the current
+  // week so its workouts can be matched as they come in. Only on first load.
+  const autoPicked = useRef(false);
   const queryClient = useQueryClient();
   const weekStr = format(weekStart, "yyyy-MM-dd");
   const key = ["coachSession", weekStr, model];
@@ -84,6 +91,17 @@ function WeeklyCoaching() {
   }, [session?.messages?.length, streaming]);
 
   useEffect(() => setStep(null), [weekStr]);
+
+  useEffect(() => {
+    if (autoPicked.current || !session) return;
+    autoPicked.current = true;
+    if (session.phase === "SAVED" && weekStart < currentWeek()) setWeekStart(currentWeek());
+  }, [session, weekStart]);
+
+  const goToWeek = (w) => {
+    autoPicked.current = true;
+    setWeekStart(w);
+  };
 
   const run = async (path, extra = {}) => {
     setBusy(true);
@@ -145,6 +163,8 @@ function WeeklyCoaching() {
   const phase = session?.phase || "ANALYSIS";
   const latestRecap = lastCompletedWeek();
   const weekFinished = weekStart <= latestRecap;
+  const thisWeek = currentWeek();
+  const range = `${format(weekStart, "MMM d")}–${format(addDays(weekStart, 6), "MMM d")}`;
   // Start on the review step until the conversation has begun.
   const activeStep = step || (messages.length === 0 ? "review" : "coach");
 
@@ -156,15 +176,17 @@ function WeeklyCoaching() {
             <Brain size={28} /> Weekly Coaching
           </h1>
           <p className="header-subtitle">
-            Recap of {format(weekStart, "MMM d")}–{format(addDays(weekStart, 6), "MMM d")} · phase {phase}
+            {weekFinished
+              ? <>Recap of {range}{phase === "SAVED" ? " · plan saved" : ""}</>
+              : <>This week, {range} · match workouts as you go; the coach opens Sunday</>}
           </p>
         </div>
         <div className="coaching-controls">
-          <button className="btn btn-outline icon-btn" onClick={() => setWeekStart((w) => subWeeks(w, 1))}>
+          <button className="btn btn-outline icon-btn" title="Previous week" onClick={() => goToWeek(subWeeks(weekStart, 1))}>
             <ChevronLeft size={18} />
           </button>
-          <button className="btn btn-outline icon-btn" disabled={!weekFinished || weekStart >= latestRecap}
-                  onClick={() => setWeekStart((w) => addWeeks(w, 1))}>
+          <button className="btn btn-outline icon-btn" title="Next week" disabled={weekStart >= thisWeek}
+                  onClick={() => goToWeek(addWeeks(weekStart, 1))}>
             <ChevronRight size={18} />
           </button>
           <select className="input" value={model} onChange={(e) => setModel(e.target.value)} disabled={busy}>
@@ -209,7 +231,10 @@ function WeeklyCoaching() {
                 </button>
               </>
             ) : (
-              <p>This week isn't over yet — the recap opens on Sunday {format(addDays(weekStart, 6), "MMM d")}.</p>
+              <p>
+                This week isn't over yet. The coaching session opens on Sunday {format(addDays(weekStart, 6), "MMM d")};
+                until then, match workouts in <button className="link-btn" onClick={() => setStep("review")}>① Review week</button>.
+              </p>
             )}
           </div>
         )}
@@ -227,6 +252,16 @@ function WeeklyCoaching() {
         <div ref={bottomRef} />
       </div>
 
+      {phase === "SAVED" && !busy && (
+        <div className="notice">
+          This week's coaching is done: the plan for the week of {format(addWeeks(weekStart, 1), "MMM d")} was saved.
+          {weekStart < thisWeek && (
+            <> <button className="link-btn" onClick={() => goToWeek(addWeeks(weekStart, 1))}>
+              Go to the week of {format(addWeeks(weekStart, 1), "MMM d")} →
+            </button></>
+          )}
+        </div>
+      )}
       {error && <div className="error-message">{error}</div>}
       {notice && <div className="notice">{notice}</div>}
 
