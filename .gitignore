@@ -102,3 +102,5 @@ SyncZwiftWorkouts.app/
 archive/root_scripts_2026_10/
 archive/data_scripts_2026_10/
 !frontend/public/*.png
+!docs/images/*.jpg
+!docs/images/*.png
