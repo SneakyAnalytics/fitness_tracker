@@ -4,6 +4,14 @@ import board from "../assets/coach-board.webp";
 import calendar from "../assets/coach-calendar.webp";
 import dashboard from "../assets/coach-dashboard.webp";
 import admin from "../assets/coach-admin.webp";
+import artCycling from "../assets/art-cycling.webp";
+import artRun from "../assets/art-run.webp";
+import artStrength from "../assets/art-strength.webp";
+import artMobility from "../assets/art-mobility.webp";
+import artSauna from "../assets/art-sauna.webp";
+import artRest from "../assets/art-rest.webp";
+import wave from "../assets/coach-wave.webp";
+import errorArt from "../assets/coach-error.webp";
 
 /**
  * Coach Claude's artwork: one badge per section, all transparent-background images
@@ -24,5 +32,29 @@ export const CoachCalendar = (props) => <Art src={calendar} size={32} {...props}
 export const CoachDashboard = (props) => <Art src={dashboard} size={32} {...props} />;
 
 export const CoachAdmin = (props) => <Art src={admin} size={32} {...props} />;
+
+export const CoachWave = (props) => <Art src={wave} size={140} {...props} />;
+export const CoachError = (props) => <Art src={errorArt} size={96} {...props} />;
+
+const SESSION_ART = { cycling: artCycling, run: artRun, strength: artStrength, mobility: artMobility, sauna: artSauna, rest: artRest };
+
+/** Which session badge fits a workout, or null when there isn't one (hiking, walking...). */
+export function sessionArtKey(type, name) {
+  const t = (type || "").toLowerCase();
+  const n = (name || "").toLowerCase();
+  if (n.includes("sauna") || n.includes("hot bath")) return "sauna";
+  if (n.includes("rest day") || t === "rest") return "rest";
+  if (t.includes("bike") || t.includes("cycling")) return "cycling";
+  if (t.includes("run")) return "run";
+  if (t.includes("strength") || t.includes("routine")) return "strength";
+  if (t.includes("yoga") || t.includes("mobility")) return "mobility";
+  if (/(yoga|mobility|stretch|hip |reset|flow)/.test(n)) return "mobility";
+  return null;
+}
+
+export function SessionArt({ type, name, size = 30, ...rest }) {
+  const key = sessionArtKey(type, name);
+  return key ? <Art src={SESSION_ART[key]} size={size} {...rest} /> : null;
+}
 
 export default CoachBadge;

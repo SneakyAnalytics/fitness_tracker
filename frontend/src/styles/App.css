@@ -167,14 +167,47 @@
 }
 
 /* Loading Spinner */
+/* Loading: the coach jogs on the spot (4-frame sprite, one frame per quarter of the cycle). */
 .spinner {
-  border: 3px solid var(--color-cream);
-  border-top: 3px solid var(--color-forest);
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  animation: spin 1s linear infinite;
+  grid-column: 1 / -1; /* centred when it sits in a grid, like the calendar's */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
   margin: var(--spacing-xl) auto;
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+}
+
+.spinner::before {
+  content: "";
+  width: 95px;
+  height: 112px;
+  background: url("../assets/coach-run-sprite.webp") 0 0 / 400% 100% no-repeat;
+  animation: coach-run 0.7s step-end infinite;
+}
+
+@keyframes coach-run {
+  0% { background-position: 0% 0; }
+  25% { background-position: 33.333% 0; }
+  50% { background-position: 66.667% 0; }
+  75% { background-position: 100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner::before {
+    animation: none;
+  }
+}
+
+/* Errors: the coach with a loose wire */
+.error-message::before {
+  content: "";
+  display: block;
+  width: 84px;
+  height: 84px;
+  margin: 0 auto var(--spacing-sm);
+  background: url("../assets/coach-error.webp") center / contain no-repeat;
 }
 
 @keyframes spin {

@@ -129,6 +129,11 @@
 }
 
 .no-workout-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.75;
   font-size: 0.85rem;
   color: var(--color-text-tertiary);
   font-style: italic;
@@ -193,7 +198,17 @@
 .workout-mini-icon {
   flex-shrink: 0;
   display: inline-flex;
+  position: relative;
   margin-top: 1px;
+}
+
+/* Completed sessions keep their badge; the tick sits on its corner. */
+.mini-check {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  background: #fff;
+  border-radius: 50%;
 }
 
 .workout-mini-info {
@@ -207,8 +222,8 @@
   line-height: 1.3;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow-wrap: break-word;
   hyphens: auto;

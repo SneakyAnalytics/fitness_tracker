@@ -204,3 +204,21 @@
 .nav-item img {
   margin: -5px;
 }
+
+/* Misty-forest artwork behind the sidebar's header and footer: contour lines up top, treeline below. */
+.sidebar .sidebar-header {
+  background:
+    linear-gradient(rgba(20, 48, 22, 0.3), rgba(20, 48, 22, 0.3)),
+    url("../assets/sidebar-forest.webp") center top / cover;
+}
+
+.sidebar .sidebar-footer {
+  border-top: none;
+  background:
+    linear-gradient(rgba(20, 48, 22, 0.25), rgba(20, 48, 22, 0.25)),
+    url("../assets/sidebar-forest.webp") center bottom / cover;
+}
+
+.sidebar .footer-text {
+  color: rgba(245, 245, 240, 0.9);
+}

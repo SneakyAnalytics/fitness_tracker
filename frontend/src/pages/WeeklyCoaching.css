@@ -29,6 +29,10 @@
 }
 
 .chat-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
   text-align: center;
   margin: auto;
   max-width: 420px;

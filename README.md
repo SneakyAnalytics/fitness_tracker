@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/banner.svg" alt="Coach Claude: computed training load, measured execution, and an AI coach that plans inside the numbers" width="100%">
+  <img src="docs/images/banner.jpg" alt="Coach Claude: computed training load, measured execution, and an AI coach that plans inside the numbers" width="100%">
 </p>
 
 <p align="center">

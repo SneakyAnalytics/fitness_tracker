@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { Check, CheckCircle2, Loader2, Pencil, RefreshCw, Upload } from "lucide-react";
 import apiClient from "../api/client";
+import { CoachWave, SessionArt } from "./CoachLogo";
 import "./WeekReview.css";
 
 const day = (d) => format(parseISO(d), "EEE MMM d");
@@ -78,6 +79,7 @@ function Row({ row, planned, categories, onMatch }) {
   };
   return (
     <div className={`review-row ${confirmed ? "confirmed" : "pending"}`}>
+      <SessionArt type={row.type} name={row.title} size={36} className="review-art" />
       <div className="review-workout">
         <span className="review-title">{row.title}</span>
         <span className="review-meta">
@@ -208,7 +210,12 @@ function WeekReview({ weekStart, onDone }) {
         )}
       </div>
 
-      {rows.length === 0 && <p className="review-empty">No workouts for this week yet — sync or upload first.</p>}
+      {rows.length === 0 && (
+        <div className="review-empty">
+          <CoachWave size={120} />
+          <p>No workouts for this week yet. Sync or upload first.</p>
+        </div>
+      )}
 
       {Object.entries(byDay).map(([date, dayRows]) => (
         <div key={date} className="review-day">

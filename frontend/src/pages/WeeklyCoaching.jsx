@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { addDays, format, startOfWeek, subWeeks, addWeeks } from "date-fns";
 import { ChevronLeft, ChevronRight, Save, Send, Zap } from "lucide-react";
 import { coachAPI, streamSSE } from "../api/client";
 import Markdown from "../components/Markdown";
 import WeekReview from "../components/WeekReview";
-import { CoachBoard } from "../components/CoachLogo";
+import { CoachBoard, CoachWave } from "../components/CoachLogo";
+import { useWeekParam } from "../hooks/useWeekParam";
 import apiClient from "../api/client";
 import "../styles/pages.css";
 import "./WeeklyCoaching.css";
@@ -57,7 +59,8 @@ function PlanPreview({ plan }) {
 }
 
 function WeeklyCoaching() {
-  const [weekStart, setWeekStart] = useState(lastCompletedWeek());
+  const [weekStart, setWeekStart] = useWeekParam(lastCompletedWeek());
+  const [urlParams] = useSearchParams();
   const [model, setModel] = useState("CLAUDE_OPUS");
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState("");
@@ -69,7 +72,7 @@ function WeeklyCoaching() {
   const bottomRef = useRef(null);
   // Once last week's plan is saved there's nothing left to do there: open the current
   // week so its workouts can be matched as they come in. Only on first load.
-  const autoPicked = useRef(false);
+  const autoPicked = useRef(urlParams.has("week")); // a week in the URL is an explicit choice
   const queryClient = useQueryClient();
   const weekStr = format(weekStart, "yyyy-MM-dd");
   const key = ["coachSession", weekStr, model];
@@ -234,6 +237,7 @@ function WeeklyCoaching() {
         {isLoading && <div className="spinner">Loading session…</div>}
         {!isLoading && messages.length === 0 && !busy && (
           <div className="chat-empty">
+            <CoachWave size={130} />
             {weekFinished ? (
               <>
                 <p>Your coach will review the week, check your training load and history, and ask a couple of questions.</p>

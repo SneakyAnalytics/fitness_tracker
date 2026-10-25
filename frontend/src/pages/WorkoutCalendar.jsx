@@ -16,7 +16,8 @@ import {
 } from "lucide-react";
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay } from "date-fns";
 import { workoutAPI, proposedWorkoutAPI } from "../api/client";
-import { CoachCalendar } from "../components/CoachLogo";
+import { CoachCalendar, SessionArt, sessionArtKey } from "../components/CoachLogo";
+import { useWeekParam } from "../hooks/useWeekParam";
 import { useAthleteSettings } from "../hooks/useAthleteSettings";
 import {
   flattenExercises,
@@ -85,7 +86,7 @@ function tssLabel(w) {
 }
 
 function WorkoutCalendar() {
-  const [weekStart, setWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const [weekStart, setWeekStart] = useWeekParam(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [selectedKey, setSelectedKey] = useState(null);
   const { data, isLoading, error } = useWeek(weekStart);
   const { ftp } = useAthleteSettings();
@@ -153,7 +154,7 @@ function WorkoutCalendar() {
                 </div>
                 <div className="day-workouts-compact">
                   {dayWorkouts.length === 0 ? (
-                    <div className="no-workout-indicator">Rest Day</div>
+                    <div className="no-workout-indicator"><SessionArt type="rest" name="rest day" size={44} /><span>Rest Day</span></div>
                   ) : (
                     dayWorkouts.map((w) => {
                       const { Icon, color } = getWorkoutIcon(w.type);
@@ -168,10 +169,13 @@ function WorkoutCalendar() {
                         >
                           <div className="workout-mini-head">
                             <span className="workout-mini-icon" style={{ color }}>
-                              {state === "completed" ? (
-                                <CheckCircle2 size={15} color="var(--color-success, #2e7d32)" />
+                              {sessionArtKey(w.type, displayName(w)) ? (
+                                <SessionArt type={w.type} name={displayName(w)} size={28} />
                               ) : (
                                 <Icon size={15} />
+                              )}
+                              {state === "completed" && (
+                                <CheckCircle2 className="mini-check" size={14} color="var(--color-success, #2e7d32)" />
                               )}
                             </span>
                             <div className="workout-mini-info">
