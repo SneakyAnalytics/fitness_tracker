@@ -39,6 +39,10 @@ export const zwiftAPI = {
     apiClient.get("/zwift/generate_workouts", { params: { start_date: startDate, end_date: endDate } }),
 };
 
+export const weatherAPI = {
+  get: (start, end) => apiClient.get("/weather", { params: { start, end } }),
+};
+
 export const dashboardAPI = {
   getTrends: (weeks = 16) => apiClient.get("/dashboard/trends", { params: { weeks } }),
 };

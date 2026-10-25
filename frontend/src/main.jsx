@@ -13,6 +13,10 @@ import "@fontsource/chakra-petch/600.css";
 import "@fontsource/chakra-petch/700.css";
 import "./styles/index.css";
 import "./styles/theme.css";
+import "./styles/theme-dark.css";
+import { applyTheme, initialTheme } from "./lib/theme";
+
+applyTheme(initialTheme()); // before first paint, so there is no light flash
 
 // A tab left open across a deploy points at chunk files that no longer exist; reload to pick up the new build.
 window.addEventListener("vite:preloadError", () => window.location.reload());

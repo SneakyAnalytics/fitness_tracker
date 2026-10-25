@@ -57,4 +57,18 @@ export function SessionArt({ type, name, size = 30, ...rest }) {
   return key ? <Art src={SESSION_ART[key]} size={size} {...rest} /> : null;
 }
 
+/** The coach's face in the chat; while it is answering, rings pulse and the badge rocks like a whistle being blown. */
+export function CoachAvatar({ speaking = false, size = 44 }) {
+  return (
+    <span className={`coach-avatar ${speaking ? "speaking" : ""}`} style={{ width: size, height: size }}>
+      <Art src={badge} size={size} />
+    </span>
+  );
+}
+
+/** A session badge by its art name: cycling, run, strength, mobility, sauna or rest. */
+export function ArtByKey({ name, size = 30, ...rest }) {
+  return SESSION_ART[name] ? <Art src={SESSION_ART[name]} size={size} {...rest} /> : null;
+}
+
 export default CoachBadge;

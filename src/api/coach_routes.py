@@ -280,6 +280,39 @@ def _goal_medals(db_path: str) -> Dict[str, Any]:
     return {"completed": done, "next": nxt}
 
 
+# A week "hits" when the TSS actually ridden lands within 15 % of the plan's band.
+HIT_LOW, HIT_HIGH = 0.85, 1.15
+
+
+def week_status(tss: float, planned_min: Optional[float], planned_max: Optional[float]) -> str:
+    if not planned_min or not planned_max:
+        return "none"
+    return "hit" if planned_min * HIT_LOW <= tss <= planned_max * HIT_HIGH else "miss"
+
+
+def _consistency(db_path: str, weeks: int = 12) -> Dict[str, Any]:
+    """Per-week plan adherence and the current streak of consecutive hit weeks."""
+    import sqlite3
+    rows = training_load.weekly_load(db_path, weeks=weeks)
+    conn = sqlite3.connect(db_path)
+    try:
+        plans = {r[0]: (r[1], r[2]) for r in conn.execute(
+            "SELECT startDate, plannedTSS_min, plannedTSS_max FROM weekly_plans")}
+    finally:
+        conn.close()
+    out = []
+    for r in rows:
+        lo, hi = plans.get(r["week_start"], (None, None))
+        out.append({"week_start": r["week_start"], "tss": r["tss"], "planned_min": lo, "planned_max": hi,
+                    "status": week_status(r["tss"], lo, hi)})
+    streak = 0
+    for w in reversed(out):
+        if w["status"] != "hit":
+            break
+        streak += 1
+    return {"weeks": out, "streak": streak}
+
+
 @router.get("/dashboard/trends")
 def dashboard_trends(weeks: int = 16):
     db = WorkoutDatabase()
@@ -291,6 +324,7 @@ def dashboard_trends(weeks: int = 16):
         "zwift_ftp": zwift_ftp.current(db.db_path),
         "readiness": training_load.readiness(db_path=db.db_path),
         "goals": _goal_medals(db.db_path),
+        "consistency": _consistency(db.db_path, weeks=12),
         "progression": {a: progression.get_progression(a, 6, db.db_path)
                         for a in ("threshold", "sweet_spot", "over_under", "vo2max", "tempo", "endurance")},
     }
@@ -377,3 +411,45 @@ def review_link(req: ReviewWeekRequest):
     linked = link_fit_files(db.db_path, monday, sunday)
     training_load.refresh_all(db.db_path)
     return {"linked": linked}
+
+
+# ── Weather for the calendar ─────────────────────────────────────────────────
+
+_weather_cache: Dict[str, Any] = {}
+WEATHER_TTL_SECONDS = 30 * 60
+
+
+def _fetch_forecast(lat: float, lon: float) -> Dict[str, Any]:
+    import requests
+    r = requests.get(
+        "https://api.open-meteo.com/v1/forecast",
+        params={"latitude": lat, "longitude": lon, "timezone": "America/Los_Angeles",
+                "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+                "temperature_unit": "fahrenheit", "past_days": 7, "forecast_days": 14},
+        timeout=6)
+    r.raise_for_status()
+    return r.json()
+
+
+@router.get("/weather")
+def weather(start: str, end: str):
+    """Daily forecast for [start, end] at the configured spot (WEATHER_LAT / WEATHER_LON, default Portland, OR).
+
+    The forecast service only sees a city-level coordinate. Results are cached, and any failure
+    returns an empty set so the calendar simply shows no chips.
+    """
+    import time
+    lat = float(os.getenv("WEATHER_LAT", "45.52"))
+    lon = float(os.getenv("WEATHER_LON", "-122.68"))
+    key = f"{lat:.2f},{lon:.2f}"
+    hit = _weather_cache.get(key)
+    if not hit or time.time() - hit["at"] > WEATHER_TTL_SECONDS:
+        try:
+            data = _fetch_forecast(lat, lon)["daily"]
+            days = {d: {"code": c, "high": hi, "low": lo, "rain_pct": p}
+                    for d, c, hi, lo, p in zip(data["time"], data["weather_code"], data["temperature_2m_max"],
+                                               data["temperature_2m_min"], data["precipitation_probability_max"])}
+            hit = _weather_cache[key] = {"at": time.time(), "days": days}
+        except Exception:
+            return {"days": {}}
+    return {"days": {d: v for d, v in hit["days"].items() if start <= d <= end}}

@@ -15,7 +15,8 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay } from "date-fns";
-import { workoutAPI, proposedWorkoutAPI } from "../api/client";
+import { workoutAPI, proposedWorkoutAPI, weatherAPI } from "../api/client";
+import WeatherChip from "../components/WeatherChip";
 import { CoachBadge, CoachCalendar, SessionArt, sessionArtKey } from "../components/CoachLogo";
 import { useWeekParam } from "../hooks/useWeekParam";
 import { useAthleteSettings } from "../hooks/useAthleteSettings";
@@ -48,6 +49,18 @@ function useWeek(weekStart) {
         plan: proposedRes.data?.weekly_plan || null,
       };
     },
+  });
+}
+
+// Forecast for the visible week (the API returns nothing for weeks outside its window, so no chips appear).
+function useWeather(weekStart) {
+  const startStr = format(weekStart, "yyyy-MM-dd");
+  const endStr = format(addDays(weekStart, 6), "yyyy-MM-dd");
+  return useQuery({
+    queryKey: ["weather", startStr],
+    queryFn: async () => (await weatherAPI.get(startStr, endStr)).data?.days || {},
+    staleTime: 15 * 60 * 1000,
+    retry: false,
   });
 }
 
@@ -89,6 +102,7 @@ function WorkoutCalendar() {
   const [weekStart, setWeekStart] = useWeekParam(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [selectedKey, setSelectedKey] = useState(null);
   const { data, isLoading, error } = useWeek(weekStart);
+  const { data: weather = {} } = useWeather(weekStart);
   const { ftp } = useAthleteSettings();
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -152,6 +166,7 @@ function WorkoutCalendar() {
                   <span className="day-name">{format(date, "EEE")}</span>
                   <span className="day-number">{format(date, "d")}</span>
                 </div>
+                <WeatherChip day={weather[format(date, "yyyy-MM-dd")]} />
                 <div className="day-workouts-compact">
                   {dayWorkouts.length === 0 ? (
                     <div className="no-workout-indicator"><SessionArt type="rest" name="rest day" size={44} /><span>Rest Day</span></div>

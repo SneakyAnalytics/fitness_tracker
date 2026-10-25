@@ -6,7 +6,8 @@ import { ChevronLeft, ChevronRight, Save, Send, Zap } from "lucide-react";
 import { coachAPI, streamSSE } from "../api/client";
 import Markdown from "../components/Markdown";
 import WeekReview from "../components/WeekReview";
-import { CoachBoard, CoachWave } from "../components/CoachLogo";
+import { CoachAvatar, CoachBoard, CoachWave } from "../components/CoachLogo";
+import { peep, whistle } from "../lib/sounds";
 import { useWeekParam } from "../hooks/useWeekParam";
 import apiClient from "../api/client";
 import "../styles/pages.css";
@@ -116,6 +117,7 @@ function WeeklyCoaching() {
     try {
       await streamSSE(path, { week_start: weekStr, model, ...extra }, (event) => {
         if (event.type === "text") {
+          if (!text) peep(); // the coach starts talking
           text += event.text;
           setStreaming(text);
           setStatus("");
@@ -163,6 +165,7 @@ function WeeklyCoaching() {
         job = (await coachAPI.saveStatus(weekStr)).data;
       }
       if (job.state === "error") throw new Error(job.message || "Saving failed");
+      whistle(); // plan saved
       setNotice(`${job.message} · ${job.zwift_files?.length || 0} Zwift files`);
       await queryClient.invalidateQueries();
     } catch (err) {
@@ -254,15 +257,27 @@ function WeeklyCoaching() {
             )}
           </div>
         )}
-        {messages.map((m, i) => (
-          <div key={i} className={`chat-msg ${m.role}`}>
-            {m.role === "assistant" ? <Markdown>{m.content}</Markdown> : m.content}
-          </div>
-        ))}
+        {messages.map((m, i) =>
+          m.role === "assistant" ? (
+            <div key={i} className="chat-row">
+              <CoachAvatar />
+              <div className="chat-msg assistant">
+                <Markdown>{m.content}</Markdown>
+              </div>
+            </div>
+          ) : (
+            <div key={i} className={`chat-msg ${m.role}`}>
+              {m.content}
+            </div>
+          )
+        )}
         {busy && (
-          <div className="chat-msg assistant">
-            {status && <div className="chat-status">🔎 {status}…</div>}
-            {streaming ? <Markdown>{streaming}</Markdown> : !status && <span className="chat-status">Thinking…</span>}
+          <div className="chat-row">
+            <CoachAvatar speaking />
+            <div className="chat-msg assistant">
+              {status && <div className="chat-status">🔎 {status}…</div>}
+              {streaming ? <Markdown>{streaming}</Markdown> : !status && <span className="chat-status">Thinking…</span>}
+            </div>
           </div>
         )}
         <div ref={bottomRef} />

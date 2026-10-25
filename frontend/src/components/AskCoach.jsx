@@ -2,6 +2,8 @@ import React, { useRef, useState } from "react";
 import { MessageCircle, Send } from "lucide-react";
 import { streamSSE } from "../api/client";
 import Markdown from "./Markdown";
+import { CoachAvatar } from "./CoachLogo";
+import { peep } from "../lib/sounds";
 import "./AskCoach.css";
 
 const SUGGESTIONS = [
@@ -35,6 +37,7 @@ function AskCoach({ date }) {
         { date, question: q, history },
         (event) => {
           if (event.type === "text") {
+            if (!full) peep();
             full += event.text;
             setAnswer(full);
             setStatus("");
@@ -66,12 +69,14 @@ function AskCoach({ date }) {
       <div className="ask-thread">
         {history.map((turn, i) => (
           <div key={i} className={`ask-turn ${turn.role}`}>
-            {turn.role === "assistant" ? <Markdown>{turn.content}</Markdown> : turn.content}
+            {turn.role === "assistant" && <CoachAvatar size={32} />}
+            <div>{turn.role === "assistant" ? <Markdown>{turn.content}</Markdown> : turn.content}</div>
           </div>
         ))}
         {busy && (
           <div className="ask-turn assistant">
-            {answer ? <Markdown>{answer}</Markdown> : <span className="ask-status">{status ? `🔎 ${status}…` : "Thinking…"}</span>}
+            <CoachAvatar size={32} speaking />
+            <div>{answer ? <Markdown>{answer}</Markdown> : <span className="ask-status">{status ? `🔎 ${status}…` : "Thinking…"}</span>}</div>
           </div>
         )}
         {error && <div className="ask-error">{error}</div>}

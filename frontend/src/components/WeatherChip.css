@@ -1,0 +1,30 @@
+.weather-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0 var(--spacing-sm) var(--spacing-xs);
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(20, 38, 58, 0.06);
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.weather-chip.wet {
+  background: rgba(63, 208, 224, 0.16);
+  color: #14606b;
+}
+
+.weather-low {
+  opacity: 0.65;
+}
+
+.weather-rain {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  font-weight: 600;
+}

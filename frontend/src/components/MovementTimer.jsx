@@ -1,32 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play, RotateCcw } from "lucide-react";
+import { beep, ding, audio } from "../lib/sounds";
 import "./MovementTimer.css";
-
-let audioCtx = null;
-// Browsers (iOS especially) only allow sound after a tap, so this is created on Play.
-function audio() {
-  const Ctx = window.AudioContext || window.webkitAudioContext;
-  if (!Ctx) return null;
-  if (!audioCtx) audioCtx = new Ctx();
-  if (audioCtx.state === "suspended") audioCtx.resume();
-  return audioCtx;
-}
-
-function beep(freq, ms, delay = 0) {
-  const ctx = audio();
-  if (!ctx) return;
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.frequency.value = freq;
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-  const t = ctx.currentTime + delay / 1000;
-  gain.gain.setValueAtTime(0.0001, t);
-  gain.gain.exponentialRampToValueAtTime(0.4, t + 0.01);
-  gain.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
-  osc.start(t);
-  osc.stop(t + ms / 1000 + 0.02);
-}
 
 const fmt = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
@@ -50,8 +25,7 @@ function MovementTimer({ seconds, perSide }) {
       if (remaining === 0) {
         setRunning(false);
         setDone((d) => d + 1);
-        beep(1046, 250);
-        beep(1318, 400, 260);
+        ding();
         navigator.vibrate?.([200, 100, 200]);
       }
     }, 200);

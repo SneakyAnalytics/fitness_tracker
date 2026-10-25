@@ -1,13 +1,17 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import { Menu, Moon, Sun, Volume2, VolumeX, X } from "lucide-react";
 import { CoachAdmin, CoachBadge, CoachBoard, CoachCalendar, CoachDashboard } from "./CoachLogo";
 import UserProfile from "./UserProfile";
+import { applyTheme } from "../lib/theme";
+import { isMuted, setMuted } from "../lib/sounds";
 import "./AppLayout.css";
 
 function AppLayout({ children }) {
   const isNarrow = () => window.matchMedia("(max-width: 768px)").matches;
   const [sidebarOpen, setSidebarOpen] = useState(() => !isNarrow());
+  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme || "light");
+  const [muted, setMutedState] = useState(isMuted);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -18,6 +22,16 @@ function AppLayout({ children }) {
   ];
   // Import, matching and analysis stay in the Streamlit admin app.
   const adminUrl = import.meta.env.VITE_ADMIN_URL || `${window.location.protocol}//${window.location.hostname}:8501`;
+
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    applyTheme(next);
+    setTheme(next);
+  };
+  const toggleMute = () => {
+    setMuted(!muted);
+    setMutedState(!muted);
+  };
 
   const isActive = (path) => location.pathname === path;
 
@@ -65,7 +79,17 @@ function AppLayout({ children }) {
             {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
 
-          <UserProfile />
+          <div className="top-bar-actions">
+            <button className="icon-toggle" onClick={toggleMute} aria-label={muted ? "Unmute sounds" : "Mute sounds"}
+                    title={muted ? "Sounds off" : "Sounds on"}>
+              {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+            </button>
+            <button className="icon-toggle" onClick={toggleTheme} aria-label="Switch light or dark theme"
+                    title={theme === "dark" ? "Switch to light" : "Switch to dark"}>
+              {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+            <UserProfile />
+          </div>
         </header>
 
         <main className="main-content">{children}</main>

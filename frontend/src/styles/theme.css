@@ -290,3 +290,234 @@
   border-color: rgba(255, 255, 255, 0.2);
   color: var(--panel-text);
 }
+
+/* ── Page transition ── */
+.page-transition {
+  animation: page-in 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition {
+    animation: none;
+  }
+}
+
+/* ── Top bar toggles ── */
+.top-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.icon-toggle {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(20, 38, 58, 0.14);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.icon-toggle:hover {
+  background: rgba(63, 208, 224, 0.14);
+  border-color: var(--color-cyan);
+  color: var(--color-forest);
+}
+
+/* ── Today's call ── */
+.todays-call {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  margin: 1rem 0;
+}
+
+.todays-call img {
+  flex-shrink: 0;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4));
+}
+
+.call-label {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-cyan-soft);
+}
+
+.dashboard-page .todays-call .call-headline {
+  margin: 0.15rem 0 0.4rem;
+  font-size: 1.35rem;
+}
+
+.dashboard-page .todays-call .call-headline::before {
+  display: none;
+}
+
+.todays-call.rest {
+  border-color: rgba(229, 138, 74, 0.55);
+}
+
+.todays-call.easy {
+  border-color: rgba(240, 200, 90, 0.5);
+}
+
+.call-reasons {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--panel-muted);
+  font-size: 0.9rem;
+}
+
+/* ── Consistency ribbon ── */
+.consistency-body {
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+  flex-wrap: wrap;
+}
+
+.streak {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 96px;
+}
+
+.streak-number {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #f4d27a;
+  text-shadow: 0 0 18px rgba(244, 210, 122, 0.45);
+}
+
+.streak-label {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--panel-muted);
+}
+
+.pips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  list-style: none;
+  margin: 0 0 0.35rem;
+  padding: 0;
+}
+
+.pip {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  cursor: default;
+}
+
+.pip.hit {
+  border-color: #8a6a1f;
+  background: radial-gradient(circle at 35% 30%, #fff1b8, #e1b650 55%, #a67c1e);
+  box-shadow: 0 0 10px rgba(244, 210, 122, 0.45);
+}
+
+.pip.miss {
+  border-color: rgba(229, 138, 74, 0.8);
+  background: rgba(229, 138, 74, 0.12);
+}
+
+.pip.none {
+  border-style: dashed;
+}
+
+/* ── Chat: avatar beside the coach's messages ── */
+.chat-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  align-self: flex-start;
+  max-width: 92%;
+}
+
+.chat-row .chat-msg.assistant {
+  max-width: none;
+  min-width: 0;
+}
+
+.coach-avatar {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-flex;
+}
+
+.coach-avatar img {
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 2px 5px rgba(20, 38, 58, 0.3));
+}
+
+.coach-avatar.speaking img {
+  animation: avatar-blow 0.9s ease-in-out infinite;
+}
+
+.coach-avatar.speaking::before,
+.coach-avatar.speaking::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--color-cyan);
+  animation: avatar-ring 1.6s ease-out infinite;
+}
+
+.coach-avatar.speaking::after {
+  animation-delay: 0.8s;
+}
+
+@keyframes avatar-blow {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  30% { transform: rotate(-5deg) scale(1.05); }
+  60% { transform: rotate(4deg) scale(1.05); }
+}
+
+@keyframes avatar-ring {
+  from { transform: scale(1); opacity: 0.7; }
+  to { transform: scale(1.7); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coach-avatar.speaking img,
+  .coach-avatar.speaking::before,
+  .coach-avatar.speaking::after {
+    animation: none;
+  }
+}
+
+.ask-turn.assistant {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.ask-turn.assistant > div {
+  min-width: 0;
+}

@@ -1,0 +1,189 @@
+/*
+ * Dark mode (data-theme="dark" on <html>). The dashboard panels, sidebar and workout headers are already
+ * dark, so this re-tints the remaining light surfaces and text to the same forest/navy family.
+ */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-background: #0b1620;
+  --color-surface: #12212e;
+  --color-cream: #162836;
+  --color-cream-dark: #243a4a;
+  --color-text-primary: #e8f1ee;
+  --color-text-secondary: #aebcc2;
+  --color-text-tertiary: #7f929b;
+  /* brand greens lifted so they read as text and borders on navy */
+  --color-forest: #4aa356;
+  --color-forest-light: #5db76a;
+  --color-forest-dark: #1e4620;
+  --color-mountain: #5fb0b3;
+  --color-gravel: #cfa774;
+  --color-gravel-dark: #b8956a;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 28px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] body {
+  background: var(--color-background);
+  color: var(--color-text-primary);
+}
+
+[data-theme="dark"] .main-wrapper {
+  background: var(--color-background) url("../assets/page-contour-dark.webp") 0 0 / 800px 800px repeat;
+}
+
+[data-theme="dark"] .top-bar {
+  background: rgba(14, 29, 44, 0.92);
+  border-bottom-color: rgba(63, 208, 224, 0.2);
+}
+
+[data-theme="dark"] .menu-toggle,
+[data-theme="dark"] .icon-toggle {
+  color: var(--color-text-secondary);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .icon-toggle:hover {
+  color: #fff;
+}
+
+/* Light surfaces that were hard-coded white */
+[data-theme="dark"] .btn-outline,
+[data-theme="dark"] .profile-button,
+[data-theme="dark"] .settings-panel,
+[data-theme="dark"] .exercise-sets,
+[data-theme="dark"] .exercise-link,
+[data-theme="dark"] .exercise-cues,
+[data-theme="dark"] .review-row,
+[data-theme="dark"] .match-pill.suggested,
+[data-theme="dark"] .icon-action,
+[data-theme="dark"] .calendar-day-compact,
+[data-theme="dark"] .workout-mini-card,
+[data-theme="dark"] .intervals-table,
+[data-theme="dark"] .ask-turn.assistant,
+[data-theme="dark"] .chat .chat-msg.assistant,
+[data-theme="dark"] .workout-detail-expandable {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+[data-theme="dark"] .calendar-day-compact.today {
+  background: linear-gradient(to bottom, rgba(63, 208, 224, 0.12) 0%, var(--color-surface) 100%);
+}
+
+[data-theme="dark"] .calendar-grid-compact > * {
+  background-color: var(--color-surface);
+}
+
+[data-theme="dark"] .calendar-grid-compact {
+  background: var(--color-cream-dark);
+  border-color: var(--color-cream-dark);
+}
+
+[data-theme="dark"] .mini-check {
+  background: var(--color-surface);
+}
+
+[data-theme="dark"] .btn-outline {
+  border-color: rgba(255, 255, 255, 0.35);
+  color: var(--color-text-primary);
+}
+
+[data-theme="dark"] .btn-outline:hover {
+  background: rgba(63, 208, 224, 0.16);
+  border-color: var(--color-cyan);
+}
+
+[data-theme="dark"] .card:not(.panel-dark) {
+  background: var(--color-surface);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--color-text-primary);
+}
+
+[data-theme="dark"] .workout-mini-card .workout-mini-title,
+[data-theme="dark"] .review-title,
+[data-theme="dark"] .page-title,
+[data-theme="dark"] .header-title h1 {
+  color: var(--color-text-primary);
+}
+
+[data-theme="dark"] .workout-detail-content {
+  color: var(--color-text-primary);
+}
+
+[data-theme="dark"] .workout-description-section,
+[data-theme="dark"] .workout-notes,
+[data-theme="dark"] .summary-card,
+[data-theme="dark"] .workout-summary > * {
+  background: var(--color-cream);
+  color: var(--color-text-primary);
+}
+
+[data-theme="dark"] .intervals-table th {
+  color: #fff;
+}
+
+[data-theme="dark"] .intervals-table td {
+  border-bottom-color: var(--color-cream-dark);
+}
+
+[data-theme="dark"] .data-table th,
+[data-theme="dark"] .data-table td {
+  border-bottom-color: var(--color-cream-dark);
+}
+
+[data-theme="dark"] .input,
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: var(--color-cream);
+  color: var(--color-text-primary);
+  border-color: var(--color-cream-dark);
+}
+
+[data-theme="dark"] .weather-chip {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-secondary);
+}
+
+[data-theme="dark"] .weather-chip.wet {
+  background: rgba(63, 208, 224, 0.2);
+  color: var(--color-cyan-soft);
+}
+
+[data-theme="dark"] .error-message {
+  background: rgba(239, 83, 80, 0.14);
+}
+
+[data-theme="dark"] .spinner,
+[data-theme="dark"] .no-exercises,
+[data-theme="dark"] .no-workout-indicator {
+  color: var(--color-text-secondary);
+}
+
+[data-theme="dark"] .no-exercises {
+  background: var(--color-cream);
+}
+
+[data-theme="dark"] .step-tab.active {
+  color: var(--color-cyan-soft);
+}
+
+[data-theme="dark"] .link-btn {
+  color: var(--color-cyan-soft);
+}
+
+[data-theme="dark"] .page-header,
+[data-theme="dark"] .coaching-steps {
+  border-bottom-color: var(--color-cream-dark);
+}
+
+[data-theme="dark"] .markdown-body,
+[data-theme="dark"] .chat-msg.assistant {
+  color: var(--color-text-primary);
+}
+
+/* keep the interval table header dark enough for white text */
+[data-theme="dark"] .intervals-table thead {
+  background: linear-gradient(90deg, #1e4620, #1f5a55 60%, #25506a);
+}

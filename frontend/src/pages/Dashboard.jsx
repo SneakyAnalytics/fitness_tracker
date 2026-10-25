@@ -14,6 +14,8 @@ import {
 } from "recharts";
 import { CoachDashboard } from "../components/CoachLogo";
 import Achievements from "../components/Achievements";
+import { ArtByKey } from "../components/CoachLogo";
+import { todaysCall } from "../lib/readiness";
 import { format, parseISO } from "date-fns";
 import { dashboardAPI } from "../api/client";
 import "../styles/pages.css";
@@ -168,6 +170,54 @@ function Progression({ progression }) {
   );
 }
 
+function TodaysCall({ load, readiness }) {
+  const call = todaysCall({ tsb: load?.tsb, flags: readiness?.flags || [] });
+  return (
+    <div className={`card panel-dark todays-call ${call.state}`}>
+      <ArtByKey name={call.art} size={104} />
+      <div>
+        <span className="call-label">Today's call</span>
+        <h3 className="call-headline">{call.headline}</h3>
+        <ul className="call-reasons">
+          {call.reasons.map((r) => (
+            <li key={r}>{r}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function Consistency({ consistency }) {
+  const weeks = consistency?.weeks || [];
+  if (weeks.length === 0) return null;
+  const hits = weeks.filter((w) => w.status === "hit").length;
+  const planned = weeks.filter((w) => w.status !== "none").length;
+  return (
+    <div className="card panel-dark consistency">
+      <h3>Consistency</h3>
+      <div className="consistency-body">
+        <div className="streak">
+          <span className="streak-number">{consistency.streak}</span>
+          <span className="streak-label">week streak</span>
+        </div>
+        <div>
+          <ol className="pips" aria-label="Plan adherence by week">
+            {weeks.map((w) => (
+              <li key={w.week_start} className={`pip ${w.status}`}
+                  title={`Week of ${fmtWeek(w.week_start)}: ${Math.round(w.tss)} TSS` +
+                         (w.planned_min ? ` (plan ${w.planned_min}-${w.planned_max})` : " (no plan)")} />
+            ))}
+          </ol>
+          <p className="chart-note">
+            {hits} of {planned} planned weeks landed within 15% of the plan's TSS band.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Dashboard() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["trends"],
@@ -177,7 +227,7 @@ function Dashboard() {
   if (isLoading) return <div className="page-container spinner">Loading trends…</div>;
   if (error) return <div className="page-container error-message">Could not load trends: {error.message}</div>;
 
-  const { load, weekly, power_curve: curve, zwift_ftp: zftp, readiness, progression, goals } = data;
+  const { load, weekly, power_curve: curve, zwift_ftp: zftp, readiness, progression, goals, consistency } = data;
   const m = readiness?.metrics || {};
 
   return (
@@ -202,17 +252,14 @@ function Dashboard() {
         <Tile label="Sleep (7d)" value={m.sleep_hours ? `${m.sleep_hours.last7}h` : "—"} />
       </div>
 
-      {(readiness?.flags?.length > 0 || zftp?.test_due) && (
+      <TodaysCall load={load} readiness={readiness} />
+
+      {zftp?.test_due && (
         <div className="card flags">
-          {readiness.flags.map((f) => (
-            <p key={f}>⚠️ {f}</p>
-          ))}
-          {zftp?.test_due && (
-            <p>
-              ⏱️ Zwift FTP hasn't changed in {zftp.weeks_since_change} weeks — the coach will schedule a Zwift Ramp
-              Test (or a race) on a fresh day so Zwift can update it.
-            </p>
-          )}
+          <p>
+            ⏱️ Zwift FTP hasn't changed in {zftp.weeks_since_change} weeks — the coach will schedule a Zwift Ramp
+            Test (or a race) on a fresh day so Zwift can update it.
+          </p>
         </div>
       )}
 
@@ -252,6 +299,8 @@ function Dashboard() {
           </ResponsiveContainer>
         </div>
       </div>
+
+      <Consistency consistency={consistency} />
 
       <Achievements goals={goals} />
 
