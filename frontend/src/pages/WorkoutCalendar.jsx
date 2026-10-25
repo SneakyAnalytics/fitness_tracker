@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay } from "date-fns";
 import { workoutAPI, proposedWorkoutAPI } from "../api/client";
-import { CoachCalendar, SessionArt, sessionArtKey } from "../components/CoachLogo";
+import { CoachBadge, CoachCalendar, SessionArt, sessionArtKey } from "../components/CoachLogo";
 import { useWeekParam } from "../hooks/useWeekParam";
 import { useAthleteSettings } from "../hooks/useAthleteSettings";
 import {
@@ -111,7 +111,7 @@ function WorkoutCalendar() {
     <div className="workout-calendar-container">
       <div className="calendar-header">
         <div className="header-title">
-          <CoachCalendar size={72} />
+          <CoachCalendar size={116} />
           <div>
             <h1>Workout Calendar</h1>
             <p className="header-subtitle">
@@ -203,15 +203,20 @@ function WorkoutCalendar() {
       {selected && (
         <div className="workout-detail-expandable">
           <div className="workout-detail-header">
+            {sessionArtKey(selected.type, displayName(selected)) ? (
+              <SessionArt type={selected.type} name={displayName(selected)} size={132} className="detail-art" />
+            ) : (
+              <CoachBadge size={132} className="detail-art" />
+            )}
             <div className="workout-detail-title-section">
               <h2>{displayName(selected)}</h2>
               <div className="workout-detail-meta">
                 <span>{selected.type}</span>
-                <span>•</span>
+                <span className="dot">•</span>
                 <span>{minutes(selected)} minutes</span>
                 {tssLabel(selected) && (
                   <>
-                    <span>•</span>
+                    <span className="dot">•</span>
                     <span>{tssLabel(selected)}</span>
                   </>
                 )}

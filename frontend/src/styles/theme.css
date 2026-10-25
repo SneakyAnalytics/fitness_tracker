@@ -1,0 +1,153 @@
+/*
+ * Coach Claude theme layer: the badge artwork's palette (deep forest, navy steel, cyan glow, copper)
+ * applied to surfaces, panels and charts. Loaded after index.css so it refines the base styles.
+ */
+:root {
+  --color-navy: #14263a;
+  --color-navy-deep: #0e1d2c;
+  --color-cyan: #3fd0e0;
+  --color-cyan-soft: #8be3ee;
+  --color-copper: #d9783b;
+  --color-steel: #8fa3ad;
+  --panel-bg: linear-gradient(155deg, #12301f 0%, #17403a 52%, #14263a 100%);
+  --panel-text: #e8f1ee;
+  --panel-muted: rgba(232, 241, 238, 0.66);
+}
+
+/* Page ground: faint topographic contour lines over the cream */
+.main-wrapper {
+  background: var(--color-background) url("../assets/page-contour.webp") 0 0 / 800px 800px repeat;
+}
+
+/* Cards: hairline steel border, a gradient accent along the top edge, a cooler shadow */
+.card {
+  position: relative;
+  border: 1px solid rgba(20, 38, 58, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(20, 38, 58, 0.06), 0 8px 22px rgba(20, 38, 58, 0.05);
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  border-radius: 12px 12px 0 0;
+  background: linear-gradient(90deg, var(--color-forest), var(--color-mountain) 60%, var(--color-cyan));
+  pointer-events: none;
+}
+
+/* Instrument panels: dark forest-to-navy glass with the misty-forest texture and a cyan edge light */
+.card.panel-dark {
+  background: var(--panel-bg);
+  color: var(--panel-text);
+  border: 1px solid rgba(63, 208, 224, 0.3);
+  box-shadow: 0 10px 26px rgba(10, 30, 24, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.card.panel-dark::before {
+  background: linear-gradient(90deg, var(--color-cyan), rgba(63, 208, 224, 0) 75%);
+}
+
+.card.panel-dark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("../assets/sidebar-forest.webp") center / cover;
+  opacity: 0.16;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.card.panel-dark > * {
+  position: relative;
+  z-index: 1;
+}
+
+.panel-dark h3,
+.panel-dark h4 {
+  color: #f3f8f6;
+}
+
+.panel-dark .chart-note {
+  color: var(--panel-muted);
+}
+
+.panel-dark .data-table th,
+.panel-dark .data-table td {
+  color: var(--panel-text);
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+.panel-dark .data-table th {
+  color: var(--color-cyan-soft);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+}
+
+/* Chart glow on dark panels */
+.panel-dark .recharts-bar-rectangle path {
+  filter: drop-shadow(0 0 6px rgba(111, 227, 176, 0.35));
+}
+
+.panel-dark .recharts-area-curve {
+  filter: drop-shadow(0 0 6px rgba(63, 208, 224, 0.8));
+}
+
+.panel-dark .recharts-legend-item-text {
+  color: var(--panel-text) !important;
+}
+
+/* Title logos: bigger and prominent, with a soft lift off the page */
+.hero-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+}
+
+.hero-title > img,
+.header-title > img {
+  flex-shrink: 0;
+  filter: drop-shadow(0 4px 10px rgba(20, 38, 58, 0.28));
+}
+
+.hero-title .page-title {
+  margin: 0;
+}
+
+/* A hairline that fades out under each page header */
+.page-header::after,
+.calendar-header::after {
+  content: "";
+  display: block;
+  flex-basis: 100%;
+  height: 2px;
+  margin-top: var(--spacing-md);
+  background: linear-gradient(90deg, var(--color-forest), var(--color-cyan) 35%, transparent 80%);
+  opacity: 0.55;
+}
+
+/* the gradient hairline replaces the plain border */
+.page-header {
+  border-bottom: none;
+}
+
+/* Keep the contour lines out from behind the calendar's day columns */
+.calendar-grid-compact > * {
+  background-color: rgba(251, 251, 248, 0.97);
+}
+
+/* Coaching chat: the coach speaks from a cyan-edged card, the athlete from a forest-gradient bubble */
+.chat .chat-msg.assistant {
+  background: #fff;
+  border: 1px solid rgba(20, 38, 58, 0.1);
+  border-left: 4px solid var(--color-cyan);
+  box-shadow: 0 2px 10px rgba(20, 38, 58, 0.06);
+}
+
+.chat .chat-msg.user {
+  background: linear-gradient(135deg, var(--color-forest-dark), var(--color-forest) 55%, var(--color-mountain-dark));
+  box-shadow: 0 2px 10px rgba(30, 70, 32, 0.28);
+}

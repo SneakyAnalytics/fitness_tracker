@@ -185,15 +185,16 @@ function WeeklyCoaching() {
   return (
     <div className="page-container coaching-page">
       <div className="page-header coaching-header">
-        <div>
-          <h1 className="page-title">
-            <CoachBoard size={72} /> Weekly Coaching
-          </h1>
-          <p className="header-subtitle">
-            {weekFinished
-              ? <>Recap of {range}{phase === "SAVED" ? " · plan saved" : ""}</>
-              : <>This week, {range} · match workouts as you go; the coach opens Sunday</>}
-          </p>
+        <div className="hero-title">
+          <CoachBoard size={116} />
+          <div>
+            <h1 className="page-title">Weekly Coaching</h1>
+            <p className="header-subtitle">
+              {weekFinished
+                ? <>Recap of {range}{phase === "SAVED" ? " · plan saved" : ""}</>
+                : <>This week, {range} · match workouts as you go; the coach opens Sunday</>}
+            </p>
+          </div>
         </div>
         <div className="coaching-controls">
           <button className="btn btn-outline icon-btn" title="Previous week" onClick={() => goToWeek(subWeeks(weekStart, 1))}>

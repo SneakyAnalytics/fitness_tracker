@@ -1,12 +1,12 @@
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
+  Area,
+  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
   Legend,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -18,12 +18,32 @@ import { dashboardAPI } from "../api/client";
 import "../styles/pages.css";
 import "./Dashboard.css";
 
-// Validated (scripts/validate_palette.js): forest/gravel failed chroma + contrast.
-const SERIES_RECENT = "#2a78d6";
-const SERIES_PRIOR = "#eb6834";
-const BAR_FILL = "var(--color-forest)";
-const LINE_STROKE = "var(--color-mountain)";
-const AXIS = { stroke: "var(--color-text-tertiary)", fontSize: 12 };
+// Charts sit on dark instrument panels: bright gradient fills with a soft glow (see theme.css).
+const CYAN = "#3fd0e0";
+const COPPER = "#e58a4a";
+const AXIS = { fill: "rgba(232, 241, 238, 0.7)", fontSize: 12 };
+const GRID = { stroke: "rgba(255, 255, 255, 0.14)", strokeDasharray: "3 5", vertical: false };
+const CURSOR = { fill: "rgba(63, 208, 224, 0.09)" };
+const TOOLTIP = {
+  contentStyle: {
+    background: "#0e1d2c",
+    border: "1px solid rgba(63, 208, 224, 0.45)",
+    borderRadius: 8,
+    color: "#e8f1ee",
+    boxShadow: "0 6px 18px rgba(0, 0, 0, 0.35)",
+  },
+  labelStyle: { color: "#8be3ee", fontWeight: 600 },
+  itemStyle: { color: "#e8f1ee" },
+};
+
+function Gradient({ id, top, bottom, topOpacity = 1, bottomOpacity = 1 }) {
+  return (
+    <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stopColor={top} stopOpacity={topOpacity} />
+      <stop offset="100%" stopColor={bottom} stopOpacity={bottomOpacity} />
+    </linearGradient>
+  );
+}
 const DURATIONS = [
   ["p5s", "5s"],
   ["p1m", "1m"],
@@ -45,7 +65,7 @@ const signed = (n) => (n == null ? "—" : `${n > 0 ? "+" : ""}${n}`);
 
 function Tile({ label, value, sub }) {
   return (
-    <div className="stat-tile card">
+    <div className="stat-tile card panel-dark">
       <span className="stat-label">{label}</span>
       <span className="stat-value">{value}</span>
       {sub && <span className="stat-sub">{sub}</span>}
@@ -62,20 +82,24 @@ function PowerCurve({ curve }) {
     change: curve.change_pct?.[key],
   }));
   return (
-    <div className="card chart-card">
+    <div className="card chart-card panel-dark">
       <h3>Best power — last {curve.window_days} days{hasPrior ? " vs a year ago" : ""}</h3>
       {!hasPrior && (
         <p className="chart-note">No ride files from a year ago yet (the FIT archive starts in late 2025).</p>
       )}
       <ResponsiveContainer width="100%" height={240}>
         <BarChart data={rows} barGap={2}>
-          <CartesianGrid stroke="var(--color-cream-dark)" vertical={false} />
+          <defs>
+            <Gradient id="recentFill" top="#7ff0f7" bottom="#1f8fa6" />
+            <Gradient id="priorFill" top="#ffb27a" bottom="#b9561f" />
+          </defs>
+          <CartesianGrid {...GRID} />
           <XAxis dataKey="label" tick={AXIS} axisLine={false} tickLine={false} />
           <YAxis tick={AXIS} axisLine={false} tickLine={false} unit="W" width={56} />
-          <Tooltip cursor={{ fill: "var(--color-cream)" }} formatter={(v) => (v == null ? "—" : `${v} W`)} />
+          <Tooltip {...TOOLTIP} cursor={CURSOR} formatter={(v) => (v == null ? "—" : `${v} W`)} />
           {hasPrior && <Legend />}
-          <Bar dataKey="recent" name={`Last ${curve.window_days} days`} fill={SERIES_RECENT} radius={[4, 4, 0, 0]} maxBarSize={36} />
-          {hasPrior && <Bar dataKey="prior" name="Year ago" fill={SERIES_PRIOR} radius={[4, 4, 0, 0]} maxBarSize={36} />}
+          <Bar dataKey="recent" name={`Last ${curve.window_days} days`} fill="url(#recentFill)" radius={[6, 6, 0, 0]} maxBarSize={36} />
+          {hasPrior && <Bar dataKey="prior" name="Year ago" fill="url(#priorFill)" radius={[6, 6, 0, 0]} maxBarSize={36} />}
         </BarChart>
       </ResponsiveContainer>
       <table className="data-table">
@@ -158,9 +182,10 @@ function Dashboard() {
   return (
     <div className="page-container dashboard-page">
       <div className="page-header">
-        <h1 className="page-title">
-          <CoachDashboard size={72} /> Training Dashboard
-        </h1>
+        <div className="hero-title">
+          <CoachDashboard size={116} />
+          <h1 className="page-title">Training Dashboard</h1>
+        </div>
       </div>
 
       <div className="tile-row">
@@ -191,31 +216,38 @@ function Dashboard() {
       )}
 
       <div className="chart-row">
-        <div className="card chart-card">
+        <div className="card chart-card panel-dark">
           <h3>Weekly TSS</h3>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={weekly}>
-              <CartesianGrid stroke="var(--color-cream-dark)" vertical={false} />
+              <defs>
+                <Gradient id="tssFill" top="#8af0bd" bottom="#2a8a5e" />
+              </defs>
+              <CartesianGrid {...GRID} />
               <XAxis dataKey="week_start" tickFormatter={fmtWeek} tick={AXIS} axisLine={false} tickLine={false} />
               <YAxis tick={AXIS} axisLine={false} tickLine={false} width={44} />
-              <Tooltip cursor={{ fill: "var(--color-cream)" }} labelFormatter={(d) => `Week of ${fmtWeek(d)}`}
+              <Tooltip {...TOOLTIP} cursor={CURSOR} labelFormatter={(d) => `Week of ${fmtWeek(d)}`}
                        formatter={(v) => [`${Math.round(v)} TSS`, "Load"]} />
-              <Bar dataKey="tss" fill={BAR_FILL} radius={[4, 4, 0, 0]} maxBarSize={28} />
+              <Bar dataKey="tss" fill="url(#tssFill)" radius={[6, 6, 0, 0]} maxBarSize={28} />
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <div className="card chart-card">
+        <div className="card chart-card panel-dark">
           <h3>Fitness (CTL) at end of week</h3>
           <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={weekly}>
-              <CartesianGrid stroke="var(--color-cream-dark)" vertical={false} />
+            <AreaChart data={weekly}>
+              <defs>
+                <Gradient id="ctlFill" top={CYAN} bottom={CYAN} topOpacity={0.45} bottomOpacity={0} />
+              </defs>
+              <CartesianGrid {...GRID} />
               <XAxis dataKey="week_start" tickFormatter={fmtWeek} tick={AXIS} axisLine={false} tickLine={false} />
               <YAxis tick={AXIS} axisLine={false} tickLine={false} width={44} allowDecimals={false}
                      domain={[(min) => Math.floor(min - 5), (max) => Math.ceil(max + 5)]} />
-              <Tooltip labelFormatter={(d) => `Week of ${fmtWeek(d)}`} formatter={(v) => [Math.round(v), "CTL"]} />
-              <Line type="monotone" dataKey="ctl_end" stroke={LINE_STROKE} strokeWidth={2}
-                    dot={{ r: 4, strokeWidth: 2, fill: "var(--color-surface)" }} activeDot={{ r: 6 }} />
-            </LineChart>
+              <Tooltip {...TOOLTIP} labelFormatter={(d) => `Week of ${fmtWeek(d)}`} formatter={(v) => [Math.round(v), "CTL"]} />
+              <Area type="monotone" dataKey="ctl_end" stroke={CYAN} strokeWidth={3} fill="url(#ctlFill)"
+                    dot={{ r: 4, strokeWidth: 2, stroke: CYAN, fill: "#0e1d2c" }}
+                    activeDot={{ r: 6, stroke: "#fff", strokeWidth: 2, fill: CYAN }} />
+            </AreaChart>
           </ResponsiveContainer>
         </div>
       </div>

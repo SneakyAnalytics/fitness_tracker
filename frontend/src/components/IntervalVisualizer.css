@@ -1,8 +1,35 @@
 .interval-visualizer {
-  background: white;
+  position: relative;
+  overflow: hidden;
+  background: var(--panel-bg);
+  color: var(--panel-text);
+  border: 1px solid rgba(63, 208, 224, 0.3);
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 10px 26px rgba(10, 30, 24, 0.25);
+}
+
+.interval-visualizer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("../assets/sidebar-forest.webp") center / cover;
+  opacity: 0.14;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.interval-visualizer > * {
+  position: relative;
+}
+
+.interval-visualizer .recharts-area-curve,
+.interval-visualizer .recharts-line-curve {
+  filter: drop-shadow(0 0 5px rgba(63, 208, 224, 0.6));
+}
+
+.interval-visualizer .recharts-area-curve {
+  filter: drop-shadow(0 0 4px rgba(229, 138, 74, 0.5));
 }
 
 .interval-visualizer.empty {

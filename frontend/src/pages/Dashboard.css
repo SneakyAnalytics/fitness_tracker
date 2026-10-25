@@ -19,19 +19,21 @@
 }
 
 .stat-label {
-  font-size: 0.8rem;
-  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  color: var(--color-cyan-soft);
 }
 
 .stat-value {
-  font-size: 1.8rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #fff;
+  text-shadow: 0 0 14px rgba(63, 208, 224, 0.45);
 }
 
 .stat-sub {
   font-size: 0.8rem;
-  color: var(--color-text-tertiary);
+  color: var(--panel-muted);
 }
 
 .flags p {

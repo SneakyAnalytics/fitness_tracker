@@ -14,8 +14,9 @@ import { resolvePowerTarget } from "../lib/workouts";
 import "./IntervalVisualizer.css";
 
 // Validated pair (scripts/validate_palette.js): planned vs actual.
-const PLANNED = "#eb6834";
-const ACTUAL = "#2a78d6";
+const PLANNED = "#e58a4a";   // target band: copper
+const ACTUAL = "#3fd0e0";    // what you rode: cyan
+const TICK = { fontSize: 12, fill: "rgba(232, 241, 238, 0.7)" };
 
 // Steps on a numeric time axis: a steady/range interval is flat at its band's
 // middle; only real ramps slope. `actuals` (optional) adds what was ridden.
@@ -78,25 +79,25 @@ function IntervalVisualizer({ intervals, ftp, actuals = [] }) {
     <div className="interval-visualizer">
       <ResponsiveContainer width="100%" height={280}>
         <ComposedChart margin={{ top: 10, right: 16, left: 0, bottom: 4 }}>
-          <CartesianGrid stroke="var(--color-cream-dark)" vertical={false} />
+          <CartesianGrid stroke="rgba(255, 255, 255, 0.14)" strokeDasharray="3 5" vertical={false} />
           <XAxis
             type="number"
             dataKey="time"
             domain={[0, total]}
             ticks={ticks}
             tickFormatter={(v) => `${v}m`}
-            tick={{ fontSize: 12 }}
+            tick={TICK}
             allowDuplicatedCategory={false}
           />
-          <YAxis domain={[0, Math.ceil(peak / 50) * 50]} tick={{ fontSize: 12 }} unit="W" width={56} />
+          <YAxis domain={[0, Math.ceil(peak / 50) * 50]} tick={TICK} unit="W" width={56} />
           <Tooltip content={<TooltipBody />} />
-          {actual.length > 0 && <Legend verticalAlign="top" height={28} />}
-          <ReferenceLine y={ftp} stroke="var(--color-text-tertiary)" strokeDasharray="5 5"
-                         label={{ value: `FTP ${ftp}W`, position: "insideTopRight", fontSize: 11 }} />
+          {actual.length > 0 && <Legend verticalAlign="top" height={28} wrapperStyle={{ color: "#e8f1ee" }} />}
+          <ReferenceLine y={ftp} stroke="rgba(232, 241, 238, 0.45)" strokeDasharray="5 5"
+                         label={{ value: `FTP ${ftp}W`, position: "insideTopRight", fontSize: 11, fill: "rgba(232, 241, 238, 0.8)" }} />
           <Area data={planned} dataKey="planned" name="Target band" type="linear" stroke={PLANNED} strokeWidth={1.5}
-                fill={PLANNED} fillOpacity={0.25} isAnimationActive={false} />
+                fill={PLANNED} fillOpacity={0.3} isAnimationActive={false} />
           {actual.length > 0 && (
-            <Line data={actual} dataKey="actual" name="Actual" type="linear" stroke={ACTUAL} strokeWidth={2}
+            <Line data={actual} dataKey="actual" name="Actual" type="linear" stroke={ACTUAL} strokeWidth={2.5}
                   dot={false} isAnimationActive={false} />
           )}
         </ComposedChart>
