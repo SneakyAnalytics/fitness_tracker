@@ -33,7 +33,7 @@ function currentWeek() {
 function PlanPreview({ plan }) {
   if (!plan) return null;
   return (
-    <div className="plan-preview card">
+    <div className="plan-preview card panel-dark">
       <h3>
         Plan for week of {plan.startDate} · {plan.plannedTSS?.min}-{plan.plannedTSS?.max} TSS · FTP {plan.ftp}W
       </h3>

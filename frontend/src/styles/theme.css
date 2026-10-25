@@ -151,3 +151,142 @@
   background: linear-gradient(135deg, var(--color-forest-dark), var(--color-forest) 55%, var(--color-mountain-dark));
   box-shadow: 0 2px 10px rgba(30, 70, 32, 0.28);
 }
+
+/* ── Night-mode sidebar: the same forest-to-navy glass as the dashboard panels ── */
+.sidebar {
+  background: linear-gradient(180deg, #12301f 0%, #15382f 45%, #14263a 100%);
+  border-right: 1px solid rgba(63, 208, 224, 0.28);
+  box-shadow: 4px 0 24px rgba(10, 30, 24, 0.25);
+}
+
+.sidebar .sidebar-header {
+  border-bottom: 1px solid rgba(63, 208, 224, 0.25);
+}
+
+.sidebar .nav-item {
+  color: rgba(232, 241, 238, 0.78);
+}
+
+.sidebar .nav-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+}
+
+.sidebar .nav-item.active {
+  background: linear-gradient(90deg, rgba(63, 208, 224, 0.24), rgba(63, 208, 224, 0.03));
+  border-right: 3px solid var(--color-cyan);
+  color: #fff;
+  text-shadow: 0 0 12px rgba(63, 208, 224, 0.5);
+}
+
+.sidebar .nav-item img {
+  filter: drop-shadow(0 0 6px rgba(63, 208, 224, 0.28));
+}
+
+.sidebar .nav-item[href] {
+  text-decoration-color: rgba(232, 241, 238, 0.35);
+}
+
+.sidebar .sidebar-footer {
+  border-top: 1px solid rgba(63, 208, 224, 0.25);
+}
+
+/* ── Section lettering: squared type with a cyan marker, on every sub-heading ── */
+.workout-detail-content h3,
+.workout-detail-content h4,
+.dashboard-page .card h3,
+.dashboard-page .card h4,
+.plan-preview h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+}
+
+.workout-detail-content h3::before,
+.workout-detail-content h4::before,
+.dashboard-page .card h3::before,
+.dashboard-page .card h4::before,
+.plan-preview h3::before {
+  content: "";
+  flex-shrink: 0;
+  width: 4px;
+  height: 1.15em;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--color-cyan), var(--color-forest));
+  box-shadow: 0 0 8px rgba(63, 208, 224, 0.45);
+}
+
+.data-table th {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.72rem;
+  color: var(--color-forest);
+}
+
+/* ── Plan preview: glass day tiles on the dark panel ── */
+.plan-preview .plan-day {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+}
+
+.plan-preview .plan-day-date {
+  font-family: var(--font-display);
+  color: var(--color-cyan-soft);
+  letter-spacing: 0.06em;
+}
+
+.plan-preview .plan-workout strong {
+  color: #fff;
+}
+
+.plan-preview .plan-workout span {
+  color: var(--panel-muted);
+  opacity: 1;
+}
+
+/* ── Movement timer: a small dark instrument ── */
+.movement-timer {
+  background: var(--panel-bg);
+  border: 1px solid rgba(63, 208, 224, 0.35);
+  color: var(--panel-text);
+}
+
+.movement-timer.running {
+  border-color: var(--color-cyan);
+  box-shadow: 0 0 0 1px var(--color-cyan), 0 0 14px rgba(63, 208, 224, 0.4);
+}
+
+.movement-timer .mt-time {
+  color: #fff;
+  font-family: var(--font-display);
+  text-shadow: 0 0 10px rgba(63, 208, 224, 0.5);
+}
+
+.movement-timer.finished .mt-time {
+  color: #8af0bd;
+  text-shadow: 0 0 10px rgba(138, 240, 189, 0.5);
+}
+
+.movement-timer .mt-label {
+  color: var(--panel-muted);
+}
+
+.movement-timer .mt-btn {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.movement-timer .mt-btn.primary {
+  background: var(--color-cyan);
+  color: var(--color-navy-deep);
+}
+
+.movement-timer .mt-small {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--panel-text);
+}
