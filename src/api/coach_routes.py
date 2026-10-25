@@ -261,6 +261,25 @@ def ask_coach(req: AskRequest):
 
 # ── Dashboard ────────────────────────────────────────────────────────────────
 
+def _goal_medals(db_path: str) -> Dict[str, Any]:
+    """Completed goals (newest first) and the next dated target, for the dashboard's Achievements strip."""
+    from src.storage import goals as goals_store
+    rows = goals_store.list_goals(include_inactive=True, db_path=db_path)
+    done = []
+    for g in rows:
+        if g["status"] != "completed":
+            continue
+        # events carry their own date; open-ended goals fall back to when they were ticked off
+        when = (g.get("target_date") or (g.get("updated_at") or "")[:10] or None)
+        done.append({"id": g["id"], "description": g["description"], "category": g.get("category"), "date": when})
+    done.sort(key=lambda d: d["date"] or "", reverse=True)
+    upcoming = [g for g in rows if g["status"] == "active" and g.get("days_until") is not None and g["days_until"] >= 0]
+    upcoming.sort(key=lambda g: g["days_until"])
+    nxt = ({"id": upcoming[0]["id"], "description": upcoming[0]["description"],
+            "date": upcoming[0]["target_date"], "days_until": upcoming[0]["days_until"]} if upcoming else None)
+    return {"completed": done, "next": nxt}
+
+
 @router.get("/dashboard/trends")
 def dashboard_trends(weeks: int = 16):
     db = WorkoutDatabase()
@@ -271,6 +290,7 @@ def dashboard_trends(weeks: int = 16):
         "power_curve": training_load.compare_power_curves(90, db_path=db.db_path),
         "zwift_ftp": zwift_ftp.current(db.db_path),
         "readiness": training_load.readiness(db_path=db.db_path),
+        "goals": _goal_medals(db.db_path),
         "progression": {a: progression.get_progression(a, 6, db.db_path)
                         for a in ("threshold", "sweet_spot", "over_under", "vo2max", "tempo", "endurance")},
     }

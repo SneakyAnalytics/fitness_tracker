@@ -1,0 +1,110 @@
+.achievements-body {
+  display: flex;
+  align-items: stretch;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.medal-row {
+  flex: 1 1 520px;
+  display: flex;
+  gap: 0.75rem 1rem;
+  flex-wrap: wrap;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.medal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 118px;
+}
+
+.medal-art {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 212 / 288;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.45));
+}
+
+.medal-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* The blank gold face measured on the artwork: centre 50% / 62.5%, about 63% of the width across */
+.medal-face {
+  position: absolute;
+  left: 18.5%;
+  top: 39.2%;
+  width: 63%;
+  height: 46.5%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 4px;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: 0.02em;
+  color: #4a3410;
+  text-shadow: 0 1px 0 rgba(255, 244, 205, 0.7);
+  overflow: hidden;
+  overflow-wrap: break-word;
+}
+
+.medal-face.tight {
+  font-size: 0.6rem;
+  letter-spacing: 0;
+}
+
+.medal-date {
+  margin-top: 0.3rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--panel-muted);
+}
+
+.next-up {
+  flex: 0 1 190px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.15rem;
+  padding: 0.9rem 1.1rem;
+  border-radius: 12px;
+  background: rgba(63, 208, 224, 0.08);
+  border: 1px dashed rgba(63, 208, 224, 0.55);
+}
+
+.next-label {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-cyan-soft);
+}
+
+.next-days {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #fff;
+  text-shadow: 0 0 14px rgba(63, 208, 224, 0.45);
+}
+
+.next-name {
+  font-weight: 600;
+  color: var(--panel-text);
+}
+
+.next-date {
+  font-size: 0.8rem;
+  color: var(--panel-muted);
+}

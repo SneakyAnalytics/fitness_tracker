@@ -13,6 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import { CoachDashboard } from "../components/CoachLogo";
+import Achievements from "../components/Achievements";
 import { format, parseISO } from "date-fns";
 import { dashboardAPI } from "../api/client";
 import "../styles/pages.css";
@@ -176,7 +177,7 @@ function Dashboard() {
   if (isLoading) return <div className="page-container spinner">Loading trends…</div>;
   if (error) return <div className="page-container error-message">Could not load trends: {error.message}</div>;
 
-  const { load, weekly, power_curve: curve, zwift_ftp: zftp, readiness, progression } = data;
+  const { load, weekly, power_curve: curve, zwift_ftp: zftp, readiness, progression, goals } = data;
   const m = readiness?.metrics || {};
 
   return (
@@ -251,6 +252,8 @@ function Dashboard() {
           </ResponsiveContainer>
         </div>
       </div>
+
+      <Achievements goals={goals} />
 
       <PowerCurve curve={curve} />
       <Progression progression={progression} />
