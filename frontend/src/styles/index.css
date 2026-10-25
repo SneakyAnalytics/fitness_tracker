@@ -1,7 +1,10 @@
 /* Pacific Northwest Fitness Tracker - Global Styles */
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
 
 :root {
+  /* Type: Chakra Petch's squared, techy letterforms echo the badge lettering; Inter keeps data and prose readable. */
+  --font-display: "Chakra Petch", "Rajdhani", "Segoe UI", sans-serif;
+  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
   /* Pacific Northwest Color Palette */
   --color-forest: #2c5f2d;
   --color-forest-light: #3a7a3c;
@@ -66,6 +69,7 @@
 
 body {
   font-family:
+    var(--font-body),
     "Inter",
     -apple-system,
     BlinkMacSystemFont,
@@ -197,4 +201,27 @@ code {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-mountain-dark);
+}
+
+/* Display type: headings, navigation, buttons, tabs, labels and big numbers */
+h1, h2, h3, h4,
+.sidebar-title,
+.nav-label,
+.btn,
+.step-tab,
+.day-name,
+.day-number,
+.stat-label,
+.stat-value {
+  font-family: var(--font-display);
+}
+
+h1, .sidebar-title, .stat-value {
+  letter-spacing: 0.01em;
+}
+
+.stat-label,
+.day-name {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
