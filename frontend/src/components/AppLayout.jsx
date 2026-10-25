@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Menu, X, Wrench } from "lucide-react";
-import { CoachBadge, CoachBoard, CoachCalendar, CoachDashboard } from "./CoachLogo";
+import { Menu, X } from "lucide-react";
+import { CoachAdmin, CoachBadge, CoachBoard, CoachCalendar, CoachDashboard } from "./CoachLogo";
 import UserProfile from "./UserProfile";
 import "./AppLayout.css";
 
@@ -45,7 +45,7 @@ function AppLayout({ children }) {
             </button>
           ))}
           <a className="nav-item" href={adminUrl} target="_blank" rel="noopener noreferrer">
-            <Wrench size={20} />
+            <CoachAdmin size={30} />
             <span className="nav-label">Admin (import &amp; matching)</span>
           </a>
         </nav>
