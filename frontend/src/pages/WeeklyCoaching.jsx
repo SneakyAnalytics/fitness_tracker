@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { addDays, format, startOfWeek, subWeeks, addWeeks } from "date-fns";
-import { Brain, ChevronLeft, ChevronRight, Save, Send, Zap } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, Send, Zap } from "lucide-react";
 import { coachAPI, streamSSE } from "../api/client";
 import Markdown from "../components/Markdown";
 import WeekReview from "../components/WeekReview";
+import CoachLogo from "../components/CoachLogo";
 import apiClient from "../api/client";
 import "../styles/pages.css";
 import "./WeeklyCoaching.css";
@@ -183,7 +184,7 @@ function WeeklyCoaching() {
       <div className="page-header coaching-header">
         <div>
           <h1 className="page-title">
-            <Brain size={28} /> Weekly Coaching
+            <CoachLogo size={28} /> Weekly Coaching
           </h1>
           <p className="header-subtitle">
             {weekFinished

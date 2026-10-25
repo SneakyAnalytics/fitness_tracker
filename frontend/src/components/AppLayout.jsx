@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Calendar, Brain, BarChart3, Menu, X, Wrench } from "lucide-react";
+import { Calendar, BarChart3, Menu, X, Wrench } from "lucide-react";
+import CoachLogo from "./CoachLogo";
 import UserProfile from "./UserProfile";
 import "./AppLayout.css";
 
@@ -12,7 +13,7 @@ function AppLayout({ children }) {
 
   const navItems = [
     { path: "/calendar", icon: Calendar, label: "Workout Calendar" },
-    { path: "/coaching", icon: Brain, label: "Weekly Coaching" },
+    { path: "/coaching", icon: CoachLogo, label: "Weekly Coaching" },
     { path: "/dashboard", icon: BarChart3, label: "Dashboard" },
   ];
   // Import, matching and analysis stay in the Streamlit admin app.
@@ -25,7 +26,7 @@ function AppLayout({ children }) {
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? "open" : "closed"}`}>
         <div className="sidebar-header gradient-forest">
-          <Brain className="sidebar-logo" size={32} />
+          <CoachLogo className="sidebar-logo" size={32} />
           <h1 className="sidebar-title">Coach Claude</h1>
         </div>
 
