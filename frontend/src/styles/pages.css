@@ -45,3 +45,9 @@ ul li {
 ul li strong {
   color: var(--color-text-primary);
 }
+
+/* Section artwork beside a page title */
+.page-title img {
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.18));
+}

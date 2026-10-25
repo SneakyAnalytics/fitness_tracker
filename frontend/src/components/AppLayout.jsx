@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Calendar, BarChart3, Menu, X, Wrench } from "lucide-react";
-import CoachLogo from "./CoachLogo";
+import { Menu, X, Wrench } from "lucide-react";
+import { CoachBadge, CoachBoard, CoachCalendar, CoachDashboard } from "./CoachLogo";
 import UserProfile from "./UserProfile";
 import "./AppLayout.css";
 
@@ -12,9 +12,9 @@ function AppLayout({ children }) {
   const location = useLocation();
 
   const navItems = [
-    { path: "/calendar", icon: Calendar, label: "Workout Calendar" },
-    { path: "/coaching", icon: CoachLogo, label: "Weekly Coaching" },
-    { path: "/dashboard", icon: BarChart3, label: "Dashboard" },
+    { path: "/calendar", icon: CoachCalendar, label: "Workout Calendar" },
+    { path: "/coaching", icon: CoachBoard, label: "Weekly Coaching" },
+    { path: "/dashboard", icon: CoachDashboard, label: "Dashboard" },
   ];
   // Import, matching and analysis stay in the Streamlit admin app.
   const adminUrl = import.meta.env.VITE_ADMIN_URL || `${window.location.protocol}//${window.location.hostname}:8501`;
@@ -26,7 +26,7 @@ function AppLayout({ children }) {
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? "open" : "closed"}`}>
         <div className="sidebar-header gradient-forest">
-          <CoachLogo className="sidebar-logo" size={32} />
+          <CoachBadge className="sidebar-logo" size={48} />
           <h1 className="sidebar-title">Coach Claude</h1>
         </div>
 
@@ -40,7 +40,7 @@ function AppLayout({ children }) {
               }}
               className={`nav-item ${isActive(path) ? "active" : ""}`}
             >
-              <Icon size={20} />
+              <Icon size={30} />
               <span className="nav-label">{label}</span>
             </button>
           ))}

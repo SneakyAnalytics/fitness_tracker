@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -17,6 +16,7 @@ import {
 } from "lucide-react";
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay } from "date-fns";
 import { workoutAPI, proposedWorkoutAPI } from "../api/client";
+import { CoachCalendar } from "../components/CoachLogo";
 import { useAthleteSettings } from "../hooks/useAthleteSettings";
 import {
   flattenExercises,
@@ -110,7 +110,7 @@ function WorkoutCalendar() {
     <div className="workout-calendar-container">
       <div className="calendar-header">
         <div className="header-title">
-          <CalendarIcon size={32} />
+          <CoachCalendar size={72} />
           <div>
             <h1>Workout Calendar</h1>
             <p className="header-subtitle">

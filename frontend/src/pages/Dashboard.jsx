@@ -12,7 +12,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { BarChart3 } from "lucide-react";
+import { CoachDashboard } from "../components/CoachLogo";
 import { format, parseISO } from "date-fns";
 import { dashboardAPI } from "../api/client";
 import "../styles/pages.css";
@@ -159,7 +159,7 @@ function Dashboard() {
     <div className="page-container dashboard-page">
       <div className="page-header">
         <h1 className="page-title">
-          <BarChart3 size={28} /> Training Dashboard
+          <CoachDashboard size={72} /> Training Dashboard
         </h1>
       </div>
 

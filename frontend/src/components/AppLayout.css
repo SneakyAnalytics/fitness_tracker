@@ -199,3 +199,8 @@
     padding: 0 12px;
   }
 }
+
+/* The coach artwork is 30px against the 20px line icons; pull the margins in so every nav label lines up. */
+.nav-item img {
+  margin: -5px;
+}
