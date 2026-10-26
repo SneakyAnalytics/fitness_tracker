@@ -222,3 +222,47 @@
 .sidebar .footer-text {
   color: rgba(245, 245, 240, 0.9);
 }
+
+/* Bottom tab bar (phones only). Respects the iPhone home-indicator inset. */
+.tab-bar { display: none; }
+@media (max-width: 768px) {
+  .tab-bar {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    background: var(--color-forest, #1e4a2a);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px));
+  }
+  .tab {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 0;
+    background: none;
+    border: 0;
+    border-radius: 10px;
+    color: rgba(255, 255, 255, 0.72);
+    font: inherit;
+    font-size: 0.68rem;
+    cursor: pointer;
+  }
+  .tab.active { color: #fff; background: rgba(255, 255, 255, 0.12); }
+  .tab img { margin: -2px; }
+  .main-content { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* Installed on a phone's home screen the status bar overlays the page; keep the bars clear of the notch. */
+.top-bar {
+  height: calc(64px + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.sidebar {
+  padding-top: env(safe-area-inset-top, 0px);
+}

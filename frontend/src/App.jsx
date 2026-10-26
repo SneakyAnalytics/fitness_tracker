@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Navigate, Route, Routes, useLocation } from "r
 import AppLayout from "./components/AppLayout";
 import PlanPrint from "./pages/PlanPrint";
 import WorkoutCalendar from "./pages/WorkoutCalendar";
+import Today from "./pages/Today";
 // Chart-heavy pages load on demand so the calendar opens fast on a phone.
 const WeeklyCoaching = lazy(() => import("./pages/WeeklyCoaching"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -17,13 +18,13 @@ function Pages() {
   return (
     <div key={pathname} className="page-transition">
       <Routes>
-        <Route path="/" element={<Navigate to="/calendar" replace />} />
+        <Route path="/" element={<Today />} />
         <Route path="/calendar" element={<WorkoutCalendar />} />
         <Route path="/coaching" element={<WeeklyCoaching />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/metrics" element={<MetricGuide />} />
-        <Route path="*" element={<Navigate to="/calendar" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
   );

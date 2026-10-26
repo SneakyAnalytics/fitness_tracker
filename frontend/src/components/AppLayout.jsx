@@ -16,10 +16,11 @@ function AppLayout({ children }) {
   const location = useLocation();
 
   const navItems = [
-    { path: "/calendar", icon: CoachCalendar, label: "Workout Calendar" },
-    { path: "/coaching", icon: CoachBoard, label: "Weekly Coaching" },
-    { path: "/dashboard", icon: CoachDashboard, label: "Dashboard" },
-    { path: "/admin", icon: CoachAdmin, label: "Admin" },
+    { path: "/", icon: CoachBadge, label: "Today", short: "Today" },
+    { path: "/calendar", icon: CoachCalendar, label: "Workout Calendar", short: "Calendar" },
+    { path: "/coaching", icon: CoachBoard, label: "Weekly Coaching", short: "Coach" },
+    { path: "/dashboard", icon: CoachDashboard, label: "Dashboard", short: "Stats" },
+    { path: "/admin", icon: CoachAdmin, label: "Admin", short: "Admin" },
   ];
 
   const toggleTheme = () => {
@@ -89,6 +90,17 @@ function AppLayout({ children }) {
 
         <main className="main-content">{children}</main>
       </div>
+
+      {/* Phones: the five pages one thumb-tap away */}
+      <nav className="tab-bar" aria-label="Pages">
+        {navItems.map(({ path, icon: Icon, short, label }) => (
+          <button key={path} className={`tab ${isActive(path) ? "active" : ""}`} onClick={() => navigate(path)}
+                  aria-label={label} aria-current={isActive(path) ? "page" : undefined}>
+            <Icon size={26} />
+            <span>{short}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }

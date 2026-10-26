@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   ChevronLeft,
   ChevronRight,
@@ -17,7 +17,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { format, parseISO, startOfWeek, addDays, addWeeks, subWeeks, isSameDay } from "date-fns";
-import { workoutAPI, proposedWorkoutAPI, weatherAPI } from "../api/client";
+import { useWeek, useWeather } from "../hooks/useWeekData";
 import WeatherChip from "../components/WeatherChip";
 import WeekStrip from "../components/WeekStrip";
 import { summarizeWeek } from "../lib/weekSummary";
@@ -29,7 +29,10 @@ import {
   flattenExercises,
   isCardioType,
   isRoutineType,
+  displayName,
   mergeDayWorkouts,
+  minutes,
+  tssLabel,
   parseJSONField,
   resolvePowerTarget,
 } from "../lib/workouts";
@@ -37,37 +40,6 @@ import IntervalVisualizer from "../components/IntervalVisualizer";
 import ExerciseDetail from "../components/ExerciseDetail";
 import AskCoach from "../components/AskCoach";
 import "./WorkoutCalendar.css";
-
-function useWeek(weekStart) {
-  const startStr = format(weekStart, "yyyy-MM-dd");
-  const endStr = format(addDays(weekStart, 6), "yyyy-MM-dd");
-  return useQuery({
-    queryKey: ["week", startStr],
-    queryFn: async () => {
-      const [proposedRes, completedRes] = await Promise.all([
-        proposedWorkoutAPI.getWeek(startStr, endStr),
-        workoutAPI.getWeek(startStr, endStr),
-      ]);
-      return {
-        proposed: proposedRes.data?.daily_workouts || [],
-        completed: completedRes.data?.completed_workouts || [],
-        plan: proposedRes.data?.weekly_plan || null,
-      };
-    },
-  });
-}
-
-// Forecast for the visible week (the API returns nothing for weeks outside its window, so no chips appear).
-function useWeather(weekStart) {
-  const startStr = format(weekStart, "yyyy-MM-dd");
-  const endStr = format(addDays(weekStart, 6), "yyyy-MM-dd");
-  return useQuery({
-    queryKey: ["weather", startStr],
-    queryFn: async () => (await weatherAPI.get(startStr, endStr)).data?.days || {},
-    staleTime: 15 * 60 * 1000,
-    retry: false,
-  });
-}
 
 function getWorkoutIcon(type) {
   const t = type?.toLowerCase() || "";
@@ -79,13 +51,6 @@ function getWorkoutIcon(type) {
   return { Icon: Clock, color: "var(--color-other)" };
 }
 
-// Plan name if matched; your own label for unplanned sessions; TrainingPeaks title otherwise.
-function displayName(w) {
-  if (w.completed && w.plan) return w.plan.name;
-  if (w.completed && w.proposed_workout_name) return w.proposed_workout_name;
-  return w.name;
-}
-
 function cardState(w, date) {
   if (w.completed) return w.plan ? "completed" : "unplanned";
   const today = new Date();
@@ -93,15 +58,6 @@ function cardState(w, date) {
   return date < today ? "missed" : "planned";
 }
 
-function minutes(w) {
-  return w.completed ? Math.round(w.actualDuration || 0) : w.plannedDuration || 0;
-}
-
-function tssLabel(w) {
-  if (w.completed) return w.actualTSS != null ? `${Math.round(w.actualTSS)} TSS` : null;
-  if (w.plannedTSS_min) return `${w.plannedTSS_min}${w.plannedTSS_max ? `-${w.plannedTSS_max}` : ""} TSS`;
-  return null;
-}
 
 function WorkoutCalendar() {
   const [weekStart, setWeekStart] = useWeekParam(startOfWeek(new Date(), { weekStartsOn: 1 }));
@@ -135,6 +91,20 @@ function WorkoutCalendar() {
   const selectWorkout = (w) => {
     setSelectedKey(w.key === selectedKey ? null : w.key);
   };
+
+  // A link from the Today page (?open=plan-12) opens that session once the week has loaded.
+  const [params, setParams] = useSearchParams();
+  const openKey = params.get("open");
+  useEffect(() => {
+    if (!openKey || !data) return;
+    if (Object.values(byDay).flat().some((w) => w.key === openKey)) setSelectedKey(openKey);
+    setParams((p) => {
+      const q = new URLSearchParams(p);
+      q.delete("open");
+      return q;
+    }, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openKey, data]);
 
   // Opening a session brings its detail into view instead of leaving it below the fold.
   const detailRef = useRef(null);

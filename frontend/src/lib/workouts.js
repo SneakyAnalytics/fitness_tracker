@@ -122,3 +122,20 @@ export function movementTiming(exercise) {
   if (!seconds || seconds < 5 || seconds > 1800) return null;
   return { seconds, perSide };
 }
+
+// Plan name if matched; your own label for unplanned sessions; TrainingPeaks title otherwise.
+export function displayName(w) {
+  if (w.completed && w.plan) return w.plan.name;
+  if (w.completed && w.proposed_workout_name) return w.proposed_workout_name;
+  return w.name;
+}
+
+export function minutes(w) {
+  return w.completed ? Math.round(w.actualDuration || 0) : w.plannedDuration || 0;
+}
+
+export function tssLabel(w) {
+  if (w.completed) return w.actualTSS != null ? `${Math.round(w.actualTSS)} TSS` : null;
+  if (w.plannedTSS_min) return `${w.plannedTSS_min}${w.plannedTSS_max ? `-${w.plannedTSS_max}` : ""} TSS`;
+  return null;
+}

@@ -19,8 +19,7 @@ import PowerProfile from "../components/PowerProfile";
 import ReadinessChart from "../components/ReadinessChart";
 import FtpTestCard from "../components/FtpTestCard";
 import { Link } from "react-router-dom";
-import { ArtByKey } from "../components/CoachLogo";
-import { todaysCall } from "../lib/readiness";
+import TodaysCall from "../components/TodaysCall";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
 import apiClient, { dashboardAPI } from "../api/client";
 import "../styles/pages.css";
@@ -55,24 +54,6 @@ function Gradient({ id, top, bottom, topOpacity = 1, bottomOpacity = 1 }) {
 
 const fmtWeek = (d) => format(parseISO(d), "MMM d");
 const signed = (n) => (n == null ? "—" : `${n > 0 ? "+" : ""}${n}`);
-
-function TodaysCall({ load, readiness }) {
-  const call = todaysCall({ tsb: load?.tsb, flags: readiness?.flags || [] });
-  return (
-    <div className={`card panel-dark todays-call ${call.state}`}>
-      <ArtByKey name={call.art} size={104} />
-      <div>
-        <span className="call-label">Today's call</span>
-        <h3 className="call-headline">{call.headline}</h3>
-        <ul className="call-reasons">
-          {call.reasons.map((r) => (
-            <li key={r}>{r}</li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-}
 
 function Consistency({ consistency }) {
   const weeks = consistency?.weeks || [];
