@@ -35,3 +35,20 @@ export function summarizeProgression(sessions, mode = "watts") {
   if (sinceFirst != null) trend = sinceFirst >= MODES[mode].trendMin ? "up" : sinceFirst <= -MODES[mode].trendMin ? "down" : "flat";
   return { rows, latest, previous, first, best, delta, sinceFirst, vsPlan, trend, count: rows.length, mode };
 }
+
+/**
+ * One line comparing a ride's work intervals with the plan, from the intervals endpoint's `work` summary:
+ * { text, tone: "good" | "warn" | "plain" } or null. Within 3% of the plan counts as on plan.
+ */
+export function workVsPlan(work, planFtp) {
+  if (!work?.avg_power) return null;
+  const rode = Math.round(work.avg_power);
+  if (!work.target_power) return { tone: "plain", text: `Work intervals averaged ${rode} W.` };
+  const plan = Math.round(work.target_power);
+  const diff = Math.round(work.diff_w);
+  const pct = Math.abs(work.diff_pct);
+  if (pct <= 3) return { tone: "good", text: `Work intervals averaged ${rode} W against ${plan} W planned: on plan.` };
+  const way = diff < 0 ? "under" : "over";
+  const hint = diff < 0 && planFtp ? ` The plan assumed an FTP of ${planFtp} W; if Zwift's FTP was lower, that alone lowers every ERG target.` : "";
+  return { tone: "warn", text: `Work intervals averaged ${rode} W against ${plan} W planned: ${Math.abs(diff)} W ${way} (${pct}%).${hint}` };
+}

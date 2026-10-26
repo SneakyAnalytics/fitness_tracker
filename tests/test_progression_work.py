@@ -41,3 +41,25 @@ def test_work_target_power_is_the_duration_weighted_middle_of_the_bands():
     assert work_target_power(longer) == 280.0                    # weighted toward the longer block
     assert work_target_power([iv("Block", "WORK", 600, None, None, 290)]) is None
     assert work_target_power([]) is None
+
+
+def test_work_summary_compares_the_work_intervals_with_the_plan():
+    from src.utils.progression import work_summary
+    rows = [
+        iv("Warmup", "WARMUP", 900, 140, 205, 170),
+        iv("Sweet Spot 1", "WORK", 720, 277, 290, 276),
+        iv("Recovery", "RECOVERY", 420, 165, 180, 170),
+        iv("Sweet Spot 2", "WORK", 720, 280, 293, 276),
+        iv("Cooldown", "COOLDOWN", 420, 120, 150, 130),
+    ]
+    out = work_summary(rows)
+    assert (out["intervals"], out["seconds"], out["avg_power"], out["target_power"]) == (2, 1440, 276.0, 285.0)
+    assert (out["diff_w"], out["diff_pct"]) == (-9.0, -3.2)
+
+
+def test_work_summary_without_targets_or_power_is_still_safe():
+    from src.utils.progression import work_summary
+    out = work_summary([iv("Block", "WORK", 1200, None, None, 290)])
+    assert out["avg_power"] == 290.0 and out["target_power"] is None and out["diff_w"] is None
+    assert work_summary([]) is None
+    assert work_summary([iv("Block", "WORK", 1200, 280, 290, None)]) is None

@@ -17,6 +17,7 @@ import MetricTile from "../components/MetricTile";
 import KeySessions from "../components/KeySessions";
 import PowerProfile from "../components/PowerProfile";
 import ReadinessChart from "../components/ReadinessChart";
+import FtpTestCard from "../components/FtpTestCard";
 import { Link } from "react-router-dom";
 import { ArtByKey } from "../components/CoachLogo";
 import { todaysCall } from "../lib/readiness";
@@ -163,14 +164,7 @@ function Dashboard() {
 
       <TodaysCall load={load} readiness={readiness} />
 
-      {zftp?.test_due && (
-        <div className="card flags">
-          <p>
-            ⏱️ Zwift FTP hasn't changed in {zftp.weeks_since_change} weeks — the coach will schedule a Zwift Ramp
-            Test (or a race) on a fresh day so Zwift can update it.
-          </p>
-        </div>
-      )}
+      <FtpTestCard zftp={zftp} />
 
       <div className="chart-row">
         <div className="card chart-card panel-dark">

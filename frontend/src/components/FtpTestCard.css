@@ -1,0 +1,67 @@
+.ftp-test {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  margin: 1rem 0;
+  padding-top: 0.9rem;
+  padding-bottom: 0.9rem;
+}
+
+.ftp-test-icon {
+  flex-shrink: 0;
+  color: var(--color-cyan);
+  filter: drop-shadow(0 0 8px rgba(63, 208, 224, 0.5));
+}
+
+.ftp-test-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.dashboard-page .ftp-test .ftp-test-title {
+  margin: 0.1rem 0 0.25rem;
+  font-size: 1.1rem;
+}
+
+.dashboard-page .ftp-test .ftp-test-title::before {
+  display: none;
+}
+
+.ftp-test p {
+  margin: 0 0 0.45rem;
+  font-size: 0.88rem;
+  color: var(--panel-muted);
+}
+
+.ftp-test-bar {
+  height: 6px;
+  max-width: 360px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+
+.ftp-test-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #8af0bd, var(--color-cyan));
+}
+
+.ftp-test.soon .ftp-test-bar i {
+  background: linear-gradient(90deg, #f4d27a, #e1b650);
+}
+
+.ftp-test.due {
+  border-color: rgba(229, 138, 74, 0.6);
+}
+
+.ftp-test.due .ftp-test-bar i {
+  background: #e58a4a;
+}
+
+@media (max-width: 560px) {
+  .ftp-test {
+    flex-wrap: wrap;
+  }
+}

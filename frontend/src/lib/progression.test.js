@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { progressionRows, summarizeProgression } from "./progression";
+import { progressionRows, summarizeProgression, workVsPlan } from "./progression";
 
 const s = (date, w, extra = {}) => ({ workout_date: date, work_avg_power: w, ...extra });
 
@@ -46,5 +46,28 @@ describe("% of FTP mode", () => {
     expect(rising.trend).toBe("up");
     expect(rising.sinceFirst).toBe(2);
     expect(summarizeProgression([s("a", 1, { pct_ftp: 0.9 }), s("b", 1, { pct_ftp: 0.9100 })], "ftp").trend).toBe("flat");
+  });
+});
+
+describe("workVsPlan", () => {
+  const work = (avg, target) => ({ avg_power: avg, target_power: target, diff_w: avg - target, diff_pct: Math.round(((avg - target) / target) * 1000) / 10 });
+
+  it("calls a ride within 3% of plan on plan", () => {
+    expect(workVsPlan(work(284, 285), 314)).toEqual({ tone: "good", text: "Work intervals averaged 284 W against 285 W planned: on plan." });
+  });
+
+  it("says how far under or over, and points at FTP only when under", () => {
+    const under = workVsPlan(work(276, 285.4), 314);
+    expect(under.tone).toBe("warn");
+    expect(under.text).toContain("9 W under (3.3%)");
+    expect(under.text).toContain("FTP of 314 W");
+    const over = workVsPlan(work(300, 285), 314);
+    expect(over.text).toContain("15 W over (5.3%)");
+    expect(over.text).not.toContain("FTP");
+  });
+
+  it("copes with no plan power and no summary", () => {
+    expect(workVsPlan({ avg_power: 290, target_power: null })).toEqual({ tone: "plain", text: "Work intervals averaged 290 W." });
+    expect(workVsPlan(null)).toBeNull();
   });
 });

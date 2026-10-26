@@ -97,6 +97,19 @@ def work_target_power(work: List[Dict[str, Any]]) -> Optional[float]:
     return round(sum(w * d for w, d in pairs) / seconds, 1) if seconds else None
 
 
+def work_summary(rows: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """What a ride's work intervals averaged against what the plan asked for (same selection as the ledger)."""
+    work = pick_work([r for r in rows if r.get("actual_avg_w")])
+    if not work:
+        return None
+    seconds = sum(r["duration_sec"] for r in work)
+    avg = sum(r["actual_avg_w"] * r["duration_sec"] for r in work) / seconds
+    target = work_target_power(work)
+    return {"intervals": len(work), "seconds": seconds, "avg_power": round(avg, 1), "target_power": target,
+            "diff_w": round(avg - target, 1) if target else None,
+            "diff_pct": round((avg - target) / target * 100, 1) if target else None}
+
+
 def refresh_progression(db_path: Optional[str] = None) -> int:
     """Rebuild workout_progression from interval_results (deterministic, cheap)."""
     conn = sqlite3.connect(db_path or get_db_path())

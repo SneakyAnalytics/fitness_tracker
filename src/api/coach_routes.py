@@ -360,7 +360,9 @@ def workout_intervals(workout_id: int):
             (workout_id,)).fetchall()
     finally:
         conn.close()
-    return {"workout_id": workout_id, "intervals": [dict(r) for r in rows]}
+    from src.utils.progression import work_summary
+    intervals = [dict(r) for r in rows]
+    return {"workout_id": workout_id, "intervals": intervals, "work": work_summary(intervals)}
 
 
 # ── Weekly review: import + confirm matches ─────────────────────────────────

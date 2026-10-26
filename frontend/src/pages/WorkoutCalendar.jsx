@@ -21,6 +21,7 @@ import { workoutAPI, proposedWorkoutAPI, weatherAPI } from "../api/client";
 import WeatherChip from "../components/WeatherChip";
 import WeekStrip from "../components/WeekStrip";
 import { summarizeWeek } from "../lib/weekSummary";
+import { workVsPlan } from "../lib/progression";
 import { CoachBadge, CoachCalendar, SessionArt, sessionArtKey } from "../components/CoachLogo";
 import { useWeekParam } from "../hooks/useWeekParam";
 import { useAthleteSettings } from "../hooks/useAthleteSettings";
@@ -318,18 +319,21 @@ const COMPLIANCE_LABEL = { on_target: "✓", close: "~", low: "low", high: "high
 function IntervalSection({ workout, ftp }) {
   const intervals = parseJSONField(workout.intervals, []);
   const workoutId = workout.completed ? workout.id : null;
-  const { data: actuals = [] } = useQuery({
+  const { data: ride } = useQuery({
     queryKey: ["intervals", workoutId],
     enabled: Boolean(workoutId),
-    queryFn: async () => (await workoutAPI.getIntervals(workoutId)).data.intervals,
+    queryFn: async () => (await workoutAPI.getIntervals(workoutId)).data,
   });
+  const actuals = ride?.intervals || [];
   if (!Array.isArray(intervals) || intervals.length === 0) return null;
   const planFtp = workout.prescribed_ftp || workout.plan?.prescribed_ftp || ftp;
   const hasActuals = actuals.length > 0;
+  const workNote = workVsPlan(ride?.work, planFtp);
   return (
     <>
       <div className="intervals-section">
         <h4>{hasActuals ? "Target vs actual power" : "Power Profile"}</h4>
+        {workNote && <p className={`work-note ${workNote.tone}`}>{workNote.text}</p>}
         <IntervalVisualizer intervals={intervals} ftp={planFtp} actuals={actuals} />
       </div>
       <div className="intervals-table-section">
