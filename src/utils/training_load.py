@@ -10,6 +10,7 @@ being asked to infer load and progression from prose.
 from __future__ import annotations
 
 import json
+import math
 import sqlite3
 from datetime import date, datetime, timedelta
 from statistics import mean, median
@@ -113,6 +114,58 @@ def weekly_load(db_path: Optional[str] = None, weeks: int = 12, end: Optional[da
             "ctl_end": series.get(sunday, {}).get("ctl"),
         })
     return out
+
+
+def planned_tss_by_day(start: date, end: date, db_path: Optional[str] = None):
+    """Planned TSS (midpoint of each session's range) per day, and the set of days that have a saved plan.
+
+    A planned day with no sessions is a rest day (0 TSS); a day with no plan at all is unknown.
+    """
+    conn = _connect(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT dp.date AS day, pw.plannedTSS_min AS lo, pw.plannedTSS_max AS hi "
+            "FROM daily_plans dp LEFT JOIN proposed_workouts pw ON pw.dailyPlanId = dp.id "
+            "WHERE dp.date BETWEEN ? AND ?", (start.isoformat(), end.isoformat())).fetchall()
+    finally:
+        conn.close()
+    totals: Dict[date, float] = {}
+    for r in rows:
+        day = _d(r["day"])
+        lo, hi = r["lo"], r["hi"]
+        mid = (lo + hi) / 2 if lo is not None and hi is not None else (lo if lo is not None else hi or 0)
+        totals[day] = totals.get(day, 0.0) + float(mid or 0)
+    return totals, set(totals)
+
+
+def project_load(db_path: Optional[str] = None, days: int = 28, as_of: Optional[date] = None,
+                 history_days: int = 90) -> Dict[str, Any]:
+    """Recent CTL/ATL/TSB plus the next `days` days projected from the saved plan.
+
+    Days covered by a plan use its planned TSS. Days beyond the plan are assumed to repeat the last four
+    weeks' average daily TSS, and are marked `assumed` so the chart can say so.
+    """
+    as_of = min(as_of or date.today(), date.today())
+    series = compute_load_series(daily_tss(db_path), as_of)
+    if not series:
+        return {}
+    ctl, atl = series[-1]["ctl"], series[-1]["atl"]
+    recent = [r["tss"] for r in series[-28:]]
+    assumed_daily = sum(recent) / len(recent)
+    planned, plan_days = planned_tss_by_day(as_of + timedelta(days=1), as_of + timedelta(days=days), db_path)
+    projection = []
+    for i in range(1, days + 1):
+        day = as_of + timedelta(days=i)
+        kind = "planned" if day in plan_days else "assumed"
+        tss = planned[day] if kind == "planned" else assumed_daily
+        tsb = ctl - atl
+        ctl += (tss - ctl) / CTL_DAYS
+        atl += (tss - atl) / ATL_DAYS
+        projection.append({"date": day.isoformat(), "tss": round(tss, 1), "ctl": round(ctl, 1),
+                           "atl": round(atl, 1), "tsb": round(tsb, 1), "kind": kind})
+    return {"history": series[-history_days:], "projection": projection,
+            "plan_through": max(plan_days).isoformat() if plan_days else None,
+            "assumed_daily_tss": round(assumed_daily, 1)}
 
 
 def load_snapshot(db_path: Optional[str] = None, as_of: Optional[date] = None) -> Dict[str, Any]:
@@ -435,6 +488,46 @@ def body_metrics(db_path: Optional[str] = None) -> Dict[str, Any]:
         return {}
     lb = _metric_value(row["metric_data"], "Weight Pounds")
     return {"date": row["date"][:10], "weight_lb": round(lb, 1), "weight_kg": round(lb * 0.4536, 1)} if lb else {}
+
+
+def power_to_weight(ftp: Optional[float], target: Optional[float] = None, db_path: Optional[str] = None,
+                    days: int = 120, as_of: Optional[date] = None) -> Dict[str, Any]:
+    """W/kg from FTP and the average of the last week of scale readings, with progress toward a target.
+
+    A single weigh-in swings with hydration, so the latest week is averaged. `weekly` is the average
+    weight per Monday-Sunday week for the trend line.
+    """
+    as_of = as_of or date.today()
+    conn = _connect(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT date, metric_data FROM daily_metrics WHERE metric_type = 'Weight Pounds' AND date >= ? "
+            "ORDER BY date", ((as_of - timedelta(days=days)).isoformat(),)).fetchall()
+    finally:
+        conn.close()
+    readings = []
+    for r in rows:
+        lb = _metric_value(r["metric_data"], "Weight Pounds")
+        if lb:
+            readings.append((_d(r["date"][:10]), lb * 0.45359237))
+    if not readings or not ftp:
+        return {}
+    latest_day = readings[-1][0]
+    recent = [kg for d, kg in readings if (latest_day - d).days < 7]
+    kg = sum(recent) / len(recent)
+    weeks: Dict[date, List[float]] = {}
+    for d, w in readings:
+        weeks.setdefault(d - timedelta(days=d.weekday()), []).append(w)
+    out: Dict[str, Any] = {
+        "ftp": round(ftp), "weight_kg": round(kg, 1), "weight_date": latest_day.isoformat(),
+        "wkg": round(ftp / kg, 2),
+        "weekly": [{"week_start": w.isoformat(), "kg": round(sum(v) / len(v), 1)} for w, v in sorted(weeks.items())],
+    }
+    if target:
+        out.update({"target": target,
+                    "watts_needed": max(0, math.ceil(target * kg - ftp)),
+                    "kg_to_lose": round(max(0.0, kg - ftp / target), 1)})
+    return out
 
 
 def refresh_all(db_path: Optional[str] = None) -> Dict[str, int]:

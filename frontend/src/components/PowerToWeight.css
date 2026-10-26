@@ -1,0 +1,10 @@
+.power-to-weight { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 1.25rem 2rem; align-items: center; min-width: 0; }
+.ptw-label { font-family: var(--font-display); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--color-cyan-soft); }
+.ptw-number { font-family: var(--font-display); font-size: 2.6rem; font-weight: 700; color: #fff; line-height: 1.1; }
+.ptw-number small { font-size: 1rem; font-weight: 600; color: var(--panel-muted); }
+.ptw-sub, .ptw-sentence { margin: .25rem 0 0; color: var(--panel-muted); font-size: .9rem; }
+.ptw-sentence { color: #e8f1ee; }
+.ptw-bar { height: 10px; border-radius: 6px; background: rgba(255, 255, 255, .14); margin: .7rem 0 .3rem; overflow: hidden; }
+.ptw-bar span { display: block; height: 100%; border-radius: 6px; background: #3fd0e0; }
+.ptw-bar span.done { background: #8af0bd; }
+@media (max-width: 640px) { .power-to-weight { grid-template-columns: minmax(0, 1fr); } }

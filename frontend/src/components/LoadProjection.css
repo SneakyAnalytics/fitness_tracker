@@ -1,0 +1,7 @@
+.lp-legend { display: flex; flex-wrap: wrap; gap: .4rem 1.1rem; margin: .6rem 0 .2rem; font-size: .8rem; color: var(--panel-muted); }
+.lp-legend span { display: inline-flex; align-items: center; gap: .4rem; }
+.lp-legend i { width: 18px; height: 3px; border-radius: 2px; display: inline-block; }
+.lp-legend i.dash { background: repeating-linear-gradient(90deg, #e8f1ee 0 5px, transparent 5px 9px); }
+.lp-zone { opacity: .85; }
+.load-projection { min-width: 0; }
+.load-projection .recharts-wrapper { max-width: 100%; }

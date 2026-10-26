@@ -327,6 +327,17 @@ def confirm_zwift_ftp(req: ConfirmFtp):
         raise HTTPException(status_code=400, detail=str(exc))
 
 
+def _wkg_target(db_path: str) -> Optional[float]:
+    """The W/kg figure in an active goal such as "Achieve 4.0+ W/kg", if there is one."""
+    import re
+    from src.storage import goals as goals_store
+    for g in goals_store.list_goals(db_path=db_path):
+        m = re.search(r"(\d+(?:\.\d+)?)\s*\+?\s*W/kg", g["description"], re.IGNORECASE)
+        if m:
+            return float(m.group(1))
+    return None
+
+
 @router.get("/dashboard/trends")
 def dashboard_trends(weeks: int = 16):
     db = WorkoutDatabase()
@@ -334,9 +345,12 @@ def dashboard_trends(weeks: int = 16):
     return {
         "load": training_load.load_snapshot(db.db_path),
         "weekly": training_load.weekly_load(db.db_path, weeks=weeks),
+        "load_projection": training_load.project_load(db.db_path),
         "power_curve": training_load.compare_power_curves(90, db_path=db.db_path),
         "power_profile": training_load.power_profile(db.db_path),
         "zwift_ftp": zwift_ftp.current(db.db_path),
+        "power_to_weight": training_load.power_to_weight(
+            (zwift_ftp.current(db.db_path) or {}).get("ftp") or ftp, _wkg_target(db.db_path), db.db_path),
         "readiness": training_load.readiness(db_path=db.db_path),
         "readiness_series": training_load.readiness_series(db_path=db.db_path),
         "goals": _goal_medals(db.db_path),

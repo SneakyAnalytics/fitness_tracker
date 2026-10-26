@@ -18,6 +18,8 @@ import KeySessions from "../components/KeySessions";
 import PowerProfile from "../components/PowerProfile";
 import ReadinessChart from "../components/ReadinessChart";
 import FtpTestCard from "../components/FtpTestCard";
+import LoadProjection from "../components/LoadProjection";
+import PowerToWeight from "../components/PowerToWeight";
 import { Link } from "react-router-dom";
 import TodaysCall from "../components/TodaysCall";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
@@ -146,6 +148,10 @@ function Dashboard() {
       <TodaysCall load={load} readiness={readiness} />
 
       <FtpTestCard zftp={zftp} />
+
+      <PowerToWeight data={data.power_to_weight} />
+
+      <LoadProjection projection={data.load_projection} goal={data.goals?.next} />
 
       <div className="chart-row">
         <div className="card chart-card panel-dark">
