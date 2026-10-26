@@ -53,7 +53,7 @@ export default function MetricTile({ metricId, label, value, raw, sub, ctx, acti
         className="stat-tile card panel-dark metric-tile"
         aria-expanded={open}
         aria-describedby={metric ? `metric-card-${metricId}` : undefined}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(true)}   /* a tap also fires hover on touch screens; toggling would shut it again. Outside taps and Escape close it. */
       >
         <span className="stat-label">
           {label}

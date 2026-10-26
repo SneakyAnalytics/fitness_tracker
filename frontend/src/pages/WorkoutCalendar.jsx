@@ -156,8 +156,8 @@ function WorkoutCalendar() {
           >
             Today
           </button>
-          <Link className="btn btn-outline" to={`/print?week=${format(weekStart, "yyyy-MM-dd")}`} title="A clean page of this week's plan to print, save as a PDF or send">
-            <Printer size={16} /> Print / share
+          <Link className="btn btn-outline" to={`/print?week=${format(weekStart, "yyyy-MM-dd")}`} title="A clean page of this week's plan to print, save as a PDF or send" aria-label="Print or share this week's plan">
+            <Printer size={16} /> <span className="btn-label">Print / share</span>
           </Link>
           <div className="week-nav">
             <button className="btn btn-outline icon-btn" onClick={() => setWeekStart((w) => subWeeks(w, 1))}>

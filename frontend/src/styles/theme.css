@@ -582,3 +582,23 @@
 .saving-runner {
   margin: 0 auto 0.25rem;
 }
+
+/* ── Phone fixes ── */
+/* Hidden hover cards still take up room; never let them (or anything else) scroll the page sideways. */
+.main-content {
+  overflow-x: clip;
+}
+
+@media (max-width: 768px) {
+  /* a closed sidebar is off-screen, but its shadow used to leak a grey strip down the left edge */
+  .sidebar.closed {
+    box-shadow: none;
+    border-right-color: transparent;
+  }
+}
+
+@media (max-width: 560px) {
+  .btn-label {
+    display: none;
+  }
+}
