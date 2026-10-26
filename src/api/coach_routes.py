@@ -338,6 +338,7 @@ def dashboard_trends(weeks: int = 16):
         "power_profile": training_load.power_profile(db.db_path),
         "zwift_ftp": zwift_ftp.current(db.db_path),
         "readiness": training_load.readiness(db_path=db.db_path),
+        "readiness_series": training_load.readiness_series(db_path=db.db_path),
         "goals": _goal_medals(db.db_path),
         "consistency": _consistency(db.db_path, weeks=12),
         "progression": {a: progression.get_progression(a, 6, db.db_path)

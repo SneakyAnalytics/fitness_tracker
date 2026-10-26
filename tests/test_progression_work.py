@@ -31,3 +31,13 @@ def test_short_vo2_efforts_fall_back_to_all_work_labelled_intervals():
 def test_progression_session_without_targets_uses_actual_power():
     rows = [iv("Block 1", "WORK", 1200, None, None, 290), iv("Easy block", "WORK", 600, None, None, 180)]
     assert [r["name"] for r in pick_work(rows)] == ["Block 1"]    # 180 W is under 85% of 290 W
+
+
+def test_work_target_power_is_the_duration_weighted_middle_of_the_bands():
+    from src.utils.progression import work_target_power
+    work = [iv("Sweet Spot 1", "WORK", 720, 277, 290, 284), iv("Sweet Spot 2", "WORK", 720, 280, 293, 286)]
+    assert work_target_power(work) == 285.0                      # (283.5 + 286.5) / 2
+    longer = [iv("A", "WORK", 600, 300, 300, 300), iv("B", "WORK", 1200, 270, 270, 270)]
+    assert work_target_power(longer) == 280.0                    # weighted toward the longer block
+    assert work_target_power([iv("Block", "WORK", 600, None, None, 290)]) is None
+    assert work_target_power([]) is None

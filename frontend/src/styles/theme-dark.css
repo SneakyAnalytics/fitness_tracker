@@ -206,3 +206,20 @@
 [data-theme="dark"] .guide-link:hover {
   color: #fff;
 }
+
+[data-theme="dark"] .ks-toggle {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+[data-theme="dark"] .week-strip {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .ws-item.wet .ws-value {
+  color: var(--color-cyan-soft);
+}
+
+[data-theme="dark"] .ws-bar {
+  background: rgba(255, 255, 255, 0.12);
+}

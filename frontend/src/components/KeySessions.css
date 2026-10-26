@@ -194,3 +194,79 @@
   text-transform: uppercase;
   color: var(--color-cyan-soft);
 }
+
+.ks-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.ks-toggle {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(20, 38, 58, 0.1);
+  border: 1px solid rgba(20, 38, 58, 0.14);
+}
+
+.ks-toggle button {
+  padding: 0.25rem 0.85rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ks-toggle button.on {
+  background: var(--color-forest);
+  color: #fff;
+  box-shadow: 0 1px 6px rgba(20, 38, 58, 0.3);
+}
+
+.ks-plan-chip {
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  border: 1px dashed rgba(255, 255, 255, 0.45);
+  color: var(--panel-text);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.ks-plan-chip.ok {
+  border-color: rgba(138, 240, 189, 0.6);
+  color: #8af0bd;
+}
+
+.ks-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--panel-muted);
+}
+
+.ks-key {
+  display: inline-block;
+  width: 16px;
+  height: 0;
+  margin-left: 0.4rem;
+  border-top: 3px solid;
+  border-radius: 2px;
+}
+
+.ks-key.actual {
+  border-color: currentColor;
+  height: 3px;
+  border-top: 0;
+}
+
+.ks-key.plan {
+  border-top: 2px dashed rgba(255, 255, 255, 0.75);
+}

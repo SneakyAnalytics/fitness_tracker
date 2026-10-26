@@ -1,0 +1,56 @@
+.rd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(430px, 100%), 1fr));
+  gap: 1rem 1.5rem;
+}
+
+.rd-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.dashboard-page .rd-head h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.dashboard-page .rd-head h4::before {
+  display: none;
+}
+
+.rd-now {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.rd-now small {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--panel-muted);
+}
+
+.rd-diff {
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--panel-muted);
+}
+
+.rd-diff.good {
+  color: #8af0bd;
+}
+
+.rd-diff.bad {
+  color: #ffb27a;
+}
+
+.rd-note {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--panel-muted);
+}

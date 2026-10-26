@@ -9,6 +9,8 @@ import WeekReview from "../components/WeekReview";
 import { CoachAvatar, CoachBoard, CoachWave } from "../components/CoachLogo";
 import { peep, whistle } from "../lib/sounds";
 import { useWeekParam } from "../hooks/useWeekParam";
+import WeekStrip from "../components/WeekStrip";
+import { summarizeReview } from "../lib/weekSummary";
 import apiClient from "../api/client";
 import "../styles/pages.css";
 import "./WeeklyCoaching.css";
@@ -216,6 +218,18 @@ function WeeklyCoaching() {
           </select>
         </div>
       </div>
+
+      {review?.workouts && (() => {
+        const r = summarizeReview(review.workouts);
+        return (
+          <WeekStrip label={weekFinished ? "That week" : "This week"} items={[
+            { label: "Sessions", value: r.total, sub: `${r.hours} h · ${r.tss} TSS` },
+            { label: "Confirmed", value: r.confirmed, tone: "good" },
+            { label: "To confirm", value: r.toConfirm, tone: r.toConfirm ? "warn" : "", sub: r.toConfirm ? "check them in step 1" : "nothing waiting" },
+            phase === "SAVED" && { label: "Next week's plan", value: "Saved", tone: "good" },
+          ]} />
+        );
+      })()}
 
       <div className="coaching-steps" role="tablist">
         <button role="tab" aria-selected={activeStep === "review"}

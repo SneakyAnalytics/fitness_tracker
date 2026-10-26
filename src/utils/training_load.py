@@ -374,6 +374,54 @@ def readiness(as_of: Optional[date] = None, db_path: Optional[str] = None) -> Di
     return out
 
 
+# Daily series for the readiness chart. Bands mirror the flags: HRV 10 % and resting HR 5 % from baseline.
+READINESS_BANDS = {"hrv": 0.10, "resting_hr": 0.05}
+SLEEP_TARGET_HOURS = 7.0
+
+
+def readiness_series(days: int = 90, as_of: Optional[date] = None, db_path: Optional[str] = None) -> Dict[str, Any]:
+    """Daily HRV, resting HR, sleep and Body Battery for the last `days`, each with its baseline and a reference band.
+
+    Baseline is the median of everything before the last 7 days of the window, as in readiness(). Today's
+    sleep is dropped while it is still being recorded (a partial night would read as a collapse).
+    """
+    as_of = as_of or date.today()
+    start = (as_of - timedelta(days=days - 1)).isoformat()
+    conn = _connect(db_path)
+    try:
+        rows = conn.execute(
+            f"SELECT date, metric_type, metric_data FROM daily_metrics WHERE date BETWEEN ? AND ? "
+            f"AND metric_type IN ({','.join('?' * len(READINESS_METRICS))})",
+            (start, as_of.isoformat(), *READINESS_METRICS),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    per_day: Dict[str, Dict[str, Any]] = {}
+    for r in rows:
+        value = _metric_value(r["metric_data"], r["metric_type"])
+        key = READINESS_METRICS[r["metric_type"]]
+        day = r["date"][:10]
+        if value is None or (key == "sleep_hours" and day == as_of.isoformat() and value < 4):
+            continue
+        per_day.setdefault(day, {"date": day})[key] = round(value, 1)
+
+    series = [per_day[d] for d in sorted(per_day)]
+    cut = (as_of - timedelta(days=7)).isoformat()
+    baselines: Dict[str, Any] = {}
+    for key in READINESS_METRICS.values():
+        base = [p[key] for p in series if key in p and p["date"] <= cut]
+        if not base:
+            continue
+        b = round(median(base), 1)
+        spread = READINESS_BANDS.get(key)
+        baselines[key] = {"baseline": b,
+                          "low": round(b * (1 - spread), 1) if spread else None,
+                          "high": round(b * (1 + spread), 1) if spread else None,
+                          "target": SLEEP_TARGET_HOURS if key == "sleep_hours" else None}
+    return {"days": series, "baselines": baselines, "window_days": days}
+
+
 def body_metrics(db_path: Optional[str] = None) -> Dict[str, Any]:
     """Most recent scale reading (needed for fueling and W/kg)."""
     conn = _connect(db_path)

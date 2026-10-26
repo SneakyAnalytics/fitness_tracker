@@ -16,6 +16,7 @@ import Achievements from "../components/Achievements";
 import MetricTile from "../components/MetricTile";
 import KeySessions from "../components/KeySessions";
 import PowerProfile from "../components/PowerProfile";
+import ReadinessChart from "../components/ReadinessChart";
 import { Link } from "react-router-dom";
 import { ArtByKey } from "../components/CoachLogo";
 import { todaysCall } from "../lib/readiness";
@@ -131,7 +132,7 @@ function Dashboard() {
     }
   };
 
-  const { load, weekly, power_profile, zwift_ftp: zftp, readiness, progression, goals, consistency } = data;
+  const { load, weekly, power_profile, zwift_ftp: zftp, readiness, readiness_series, progression, goals, consistency } = data;
   const m = readiness?.metrics || {};
 
   return (
@@ -207,6 +208,8 @@ function Dashboard() {
           </ResponsiveContainer>
         </div>
       </div>
+
+      <ReadinessChart series={readiness_series} />
 
       <Consistency consistency={consistency} />
 

@@ -89,6 +89,14 @@ def pick_work(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return [r for r in sustained if target(r) >= WORK_INTENSITY_FLOOR * top]
 
 
+def work_target_power(work: List[Dict[str, Any]]) -> Optional[float]:
+    """Duration-weighted middle of the prescribed power bands over a session's work intervals (None if unprescribed)."""
+    pairs = [((r["target_low_w"] + r["target_high_w"]) / 2, r["duration_sec"])
+             for r in work if r.get("target_low_w") and r.get("target_high_w")]
+    seconds = sum(d for _, d in pairs)
+    return round(sum(w * d for w, d in pairs) / seconds, 1) if seconds else None
+
+
 def refresh_progression(db_path: Optional[str] = None) -> int:
     """Rebuild workout_progression from interval_results (deterministic, cheap)."""
     conn = sqlite3.connect(db_path or get_db_path())
@@ -122,10 +130,10 @@ def refresh_progression(db_path: Optional[str] = None) -> int:
             conn.execute(
                 "INSERT INTO workout_progression (workout_id, workout_date, archetype, proposed_workout_id,"
                 " work_intervals, work_seconds, work_avg_power, normalized_power, pct_ftp, ftp, execution_score,"
-                " structure) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " structure, work_target_power) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (w["workout_id"], w["workout_day"], classify_archetype(w["name"], pct), w["proposed_workout_id"],
                  len(work), seconds, round(avg_power, 1), w["np"], round(pct, 3) if pct else None, ftp,
-                 w["execution_score"], describe_structure([r["duration_sec"] for r in work])),
+                 w["execution_score"], describe_structure([r["duration_sec"] for r in work]), work_target_power(work)),
             )
         conn.commit()
         return conn.execute("SELECT COUNT(*) FROM workout_progression").fetchone()[0]
@@ -142,7 +150,7 @@ def get_progression(archetype: Optional[str] = None, limit: int = 6,
         where, params = ("WHERE p.archetype = ?", [archetype]) if archetype else ("", [])
         rows = conn.execute(f"""
             SELECT p.workout_date, p.archetype, pw.name, p.structure, p.work_intervals, p.work_seconds,
-                   p.work_avg_power, p.pct_ftp, p.ftp, p.execution_score
+                   p.work_avg_power, p.pct_ftp, p.ftp, p.execution_score, p.work_target_power
             FROM workout_progression p LEFT JOIN proposed_workouts pw ON pw.id = p.proposed_workout_id
             {where} ORDER BY p.workout_date DESC LIMIT ?
         """, (*params, limit)).fetchall()

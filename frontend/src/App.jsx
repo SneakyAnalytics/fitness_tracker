@@ -1,6 +1,7 @@
 import React, { lazy, Suspense } from "react";
 import { BrowserRouter as Router, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import AppLayout from "./components/AppLayout";
+import PlanPrint from "./pages/PlanPrint";
 import WorkoutCalendar from "./pages/WorkoutCalendar";
 // Chart-heavy pages load on demand so the calendar opens fast on a phone.
 const WeeklyCoaching = lazy(() => import("./pages/WeeklyCoaching"));
@@ -29,11 +30,20 @@ function Pages() {
 function App() {
   return (
     <Router>
-      <AppLayout>
-        <Suspense fallback={<div className="spinner">Loading…</div>}>
-        <Pages />
-        </Suspense>
-      </AppLayout>
+      <Routes>
+        {/* the print view is a bare page: no sidebar or top bar */}
+        <Route path="/print" element={<PlanPrint />} />
+        <Route
+          path="*"
+          element={
+            <AppLayout>
+              <Suspense fallback={<div className="spinner">Loading…</div>}>
+                <Pages />
+              </Suspense>
+            </AppLayout>
+          }
+        />
+      </Routes>
     </Router>
   );
 }

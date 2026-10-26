@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import {
   ChevronLeft,
   ChevronRight,
@@ -7,6 +8,7 @@ import {
   Target,
   TrendingUp,
   X,
+  Printer,
   Bike,
   Footprints,
   Dumbbell,
@@ -14,9 +16,11 @@ import {
   TreePine,
   CheckCircle2,
 } from "lucide-react";
-import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay } from "date-fns";
+import { format, parseISO, startOfWeek, addDays, addWeeks, subWeeks, isSameDay } from "date-fns";
 import { workoutAPI, proposedWorkoutAPI, weatherAPI } from "../api/client";
 import WeatherChip from "../components/WeatherChip";
+import WeekStrip from "../components/WeekStrip";
+import { summarizeWeek } from "../lib/weekSummary";
 import { CoachBadge, CoachCalendar, SessionArt, sessionArtKey } from "../components/CoachLogo";
 import { useWeekParam } from "../hooks/useWeekParam";
 import { useAthleteSettings } from "../hooks/useAthleteSettings";
@@ -115,6 +119,16 @@ function WorkoutCalendar() {
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, weekStart]);
+  const today = format(new Date(), "yyyy-MM-dd");
+  const week = data ? summarizeWeek({ proposed: data.proposed, completed: data.completed, plan: data.plan, weather, today }) : null;
+  const dayName = (d) => format(parseISO(d), "EEE");
+  const stripItems = week && [
+    week.band && { label: "Load", value: `${week.tss} TSS`, bar: { value: week.tss, min: week.band.min, max: week.band.max }, sub: `plan ${week.band.min}-${week.band.max}` },
+    week.planned > 0 && { label: "Planned sessions done", value: `${week.matched} of ${week.planned}`, tone: week.missed ? "warn" : "good",
+                          sub: week.missed ? `${week.missed} missed` : week.upcoming ? `${week.upcoming} still to come` : "all done" },
+    { label: "Unplanned", value: week.unplanned, sub: "commutes, saunas, extras" },
+    week.wetDays.length > 0 && { label: "Rain ahead", value: week.wetDays.map(dayName).join(", "), tone: "wet", sub: "50%+ chance" },
+  ];
   const selected = Object.values(byDay).flat().find((w) => w.key === selectedKey) || null;
 
   const selectWorkout = (w) => {
@@ -141,6 +155,9 @@ function WorkoutCalendar() {
           >
             Today
           </button>
+          <Link className="btn btn-outline" to={`/print?week=${format(weekStart, "yyyy-MM-dd")}`} title="A clean page of this week's plan to print, save as a PDF or send">
+            <Printer size={16} /> Print / share
+          </Link>
           <div className="week-nav">
             <button className="btn btn-outline icon-btn" onClick={() => setWeekStart((w) => subWeeks(w, 1))}>
               <ChevronLeft size={20} />
@@ -151,6 +168,8 @@ function WorkoutCalendar() {
           </div>
         </div>
       </div>
+
+      {stripItems && <WeekStrip items={stripItems} label={weekStart.getTime() === startOfWeek(new Date(), { weekStartsOn: 1 }).getTime() ? "This week" : "That week"} />}
 
       {error && <div className="error-message">Could not load this week: {error.message}</div>}
 
