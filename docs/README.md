@@ -12,7 +12,7 @@ Start with the [project README](../README.md): what the system does, the sports 
 | [`features/`](features) | Original per-feature notes: TrainingPeaks sync, workout analysis, AI coaching |
 
 The architecture and feature notes were written for the first, Streamlit-based version and carry a status line saying so.
-The app has since been rebuilt (computed training load, measured execution scoring, a tool-using coach, a React front end);
+The app has since grown (computed training load, measured execution scoring, a tool-using coach, a React front end);
 the README and the runbook reflect that.
 
 Machine-specific details (server address, usernames, folders) are deliberately not in this repository.

@@ -16,7 +16,7 @@
   <b><a href="#-the-sports-science">The science</a></b> ·
   <b><a href="#-the-ai-coach">The AI coach</a></b> ·
   <b><a href="#-architecture">Architecture</a></b> ·
-  <b><a href="#-field-notes-what-the-data-taught-me">Field notes</a></b> ·
+  <b><a href="#-engineering-notes-lessons-from-real-data">Engineering notes</a></b> ·
   <b><a href="#-running-it">Running it</a></b>
 </p>
 
@@ -29,9 +29,9 @@
 - prescribes next week's training with an AI coach that works inside the numbers rather than inventing them
 - writes the week as Zwift workout files that land on my bike computer at 5 AM Monday
 
-It began as a weekend project in January 2025. I rebuilt it in October 2026 after noticing that rides from a year earlier felt harder than the current ones. That turned out to be true. The cause was that **an LLM was choosing my weekly training load with no computed training state to anchor it**, and the plans had become a random walk.
+It began as a weekend project in January 2025 and has grown around the questions I kept asking of my own training: am I actually getting fitter, was that session executed well, and what should next week be? Each answer pushed the design toward one rule: **a language model should reason over numbers, never be the source of them.**
 
-> **The principle the rebuild is built on:** compute everything that can be computed. Fitness, fatigue, ramp rate, execution quality and FTP are deterministic. The language model reasons, asks questions and explains, but it works inside numbers it is handed and never grades or invents them.
+> **The principle the design is built on:** compute everything that can be computed. Fitness, fatigue, ramp rate, execution quality and FTP are deterministic. The language model reasons, asks questions and explains, but it works inside numbers it is handed and never grades or invents them.
 
 | 21 months | 762 | 738 | 5,898 | 837 | 125 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
@@ -120,11 +120,11 @@ $$
 \text{TSS}_{\text{week}} = 7 \cdot \frac{\text{CTL} + \Delta - \text{CTL}\cdot k}{1-k}
 $$
 
-The coach plans inside this band, and every generated plan is **checked against it**. A plan outside the band goes back to the model to fix, and is flagged before saving if it still misses. Under the old system, planned load swung 550 → 300 → 480 TSS from week to week.
+The coach plans inside this band, and every generated plan is **checked against it**. A plan outside the band goes back to the model to fix, and is flagged before saving if it still misses. Weekly load follows a ramp with a recovery week after every third build week, instead of being picked fresh each time.
 
 ### 3. Execution scoring: measured, not judged
 
-The original system asked a model to rate each ride from a prose description. Perfectly executed ERG rides came back 4–7/10. [`erg_execution.py`](src/utils/erg_execution.py) now **measures** execution instead:
+Execution quality is **measured, not judged by a language model**: a model grading a ride from a prose description can mark a perfectly executed ERG ride down, but a computed number can't. [`erg_execution.py`](src/utils/erg_execution.py) does the measuring:
 
 <table>
 <tr>
@@ -282,19 +282,19 @@ flowchart LR
 
 ---
 
-## 📓 Field notes: what the data taught me
+## 📓 Engineering notes: lessons from real data
 
-Every one of these bugs was **silent**: a wrong key or column returned null, and a broad `except` hid it. They are the most transferable thing in this repo. The full post-mortems are in [`AGENTS.md`](AGENTS.md).
+Building this against my own training data taught a few lessons that carry well beyond cycling. Most started as a number that looked slightly off, and most came down to a failure that returned nothing instead of raising an error: a wrong key or column came back empty and a broad `except` swallowed it. Longer write-ups are in [`AGENTS.md`](AGENTS.md).
 
-- **Manual matches were discarded for months.** A lookup queried snake_case columns in a camelCase schema, the error was swallowed, and every ride was re-matched by an AI guess and graded against the wrong workout. **Lesson:** run every query against the real schema, and never catch broad exceptions around data lookups.
-- **Every week looked like 0 TSS** to the planner, because the summary read `$.TSS` while the data stored `metrics.actual_tss`. The model "corrected" for the anomaly with a default 400–500 TSS. **Lesson:** a model will happily reason from a broken input; validate inputs before they reach the prompt.
-- **UTC vs local time.** Garmin and Zwift record UTC, but TrainingPeaks days are Pacific. Evening commutes were attached to the next day's sessions. **Lesson:** convert to the athlete's local date before any join.
-- **A read path that wrote.** A weekly summary "helpfully" attached any same-day FIT file to sessions without one and saved the link. A sauna inherited a 4-hour gravel ride, and the coach saw 735 TSS for a 520 TSS week. **Lesson:** derived joins belong in one matcher; summaries must be read-only.
-- **Re-imports must keep identity.** The nightly re-import deletes and re-inserts rows. Without restoring ids and user decisions, it silently undid the athlete's Sunday review and detached analyses. **Lesson:** test idempotency by running everything twice.
-- **A mislabelled interval became a fake regression.** Intervals were tagged "work" by name, so a 1-minute opener and a Zone 2 flush counted as work. A 276 W sweet-spot session was recorded as 246 W, a 30 W "drop" that never happened. Work is now the sustained hard intervals judged by their prescribed targets, with a test on that exact session. **Lesson:** when a chart shows a surprise, check the inputs before believing the trend.
-- **Plan vs ridden, side by side, told a story.** Once the key-session cards drew the planned power next to the ridden power, nearly every type sat 8 to 11 W under plan. The likely cause was upstream: the plan was written for an FTP of 315 W while Zwift was still using about 305 W, so every ERG interval would run about 3% low, which the target band and the execution score's 5% tolerance quietly absorbed. **Lesson:** a tolerance that hides a consistent bias needs a chart that shows the bias.
-- **An average across a changepoint.** Zwift's FTP only changes at a ramp test, but the dashboard took the median of the last three rides, which straddled the test and read 314 W when the true value was 320 W. Rides before a test and rides after it are different populations; treat the test as a changepoint, and let the athlete confirm the value Zwift shows.
-- **Ask the data before tuning the prompt.** The "coaching doesn't progress" complaint looked like a prompt problem. It was a missing model of training load. Compute the state, then let the model reason over it.
+- **Make failures loud.** A lookup that used the wrong column names returned nothing, the error was swallowed, and the fallback (an AI guess) quietly took over. Run every query against the real schema, and never catch broad exceptions around data lookups.
+- **Validate what the model is given.** A weekly summary read a field that the data stored under a different name, so the planner saw zero load and reached for a default. A model will reason from a broken input without complaint; check inputs before they reach the prompt.
+- **Convert to local time before joining.** Garmin and Zwift record UTC but TrainingPeaks days are Pacific, so an evening commute landed on the next day's sessions.
+- **Read paths must not write.** A summary that attached a same-day ride file to sessions without one (and saved the link) once counted a long gravel ride twice: 735 TSS for a 520 TSS week. Derived joins belong in one matcher; summaries stay read-only.
+- **Re-imports must preserve identity.** A nightly delete-and-reinsert dropped ids and the athlete's own decisions. Test idempotency by running everything twice.
+- **Check the inputs before believing the trend.** "Work" intervals were picked by name, so a one-minute opener and an easy flush were counted, producing a 30 W "drop" in a sweet-spot session that never happened. Work is now the sustained hard intervals judged by their prescribed targets, with a test on that exact session.
+- **A tolerance that hides a bias needs a chart that shows it.** Once the key-session cards drew planned power next to ridden power, nearly every type sat 8 to 11 W under plan. The likely cause is plans written for an FTP of 315 W while Zwift used about 305 W, which the target band and the 5% tolerance absorbed.
+- **Treat a test as a changepoint.** Zwift's FTP only changes at a ramp test, but averaging the last three rides straddled it and read 314 W against a true 320 W. Rides before and after a test are different populations; let the athlete confirm the value Zwift shows.
+- **Compute the state, then let the model reason.** "The coaching doesn't progress" looked like a prompt problem; it was a missing model of training load.
 
 ---
 
