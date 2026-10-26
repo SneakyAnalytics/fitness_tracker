@@ -27,3 +27,5 @@
 .goal-form .grow.input { width: auto; }
 .btn-danger { background: var(--color-error, #b3261e); color: #fff; border: 0; }
 @media (max-width: 560px) { .admin-section { padding: .9rem; } .event { grid-template-columns: auto 1fr; } .event .btn { grid-column: 1 / -1; } }
+.admin-table td:first-child { white-space: nowrap; }
+.admin-table td:nth-child(4) { word-break: break-all; }

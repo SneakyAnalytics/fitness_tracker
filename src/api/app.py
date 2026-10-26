@@ -1403,7 +1403,7 @@ async def get_athlete_settings(athlete_id: Optional[str] = 'default'):
 
 
 async def _read_body(request: Request) -> Dict[str, Any]:
-    """JSON (React) or form fields (Streamlit) — both are accepted."""
+    """JSON (React) or form fields — both are accepted."""
     if "application/json" in (request.headers.get("content-type") or ""):
         body = await request.json()
         return body if isinstance(body, dict) else {}

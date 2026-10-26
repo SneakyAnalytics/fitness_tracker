@@ -848,4 +848,3 @@ ZWIFT_WORKOUTS_DIR=/Users/username/Documents/Zwift/Workouts/6870291
 ## Next Steps
 
 - **Database Schema**: [database-schema.md](./database-schema.md) - Understand data structure
-- **Streamlit UI**: [streamlit-app.md](./streamlit-app.md) - See how UI calls these endpoints

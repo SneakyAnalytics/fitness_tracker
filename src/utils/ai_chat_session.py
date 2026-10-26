@@ -18,7 +18,7 @@ from datetime import datetime
 from typing import Any, Dict, Generator, List, Optional
 
 # ---------------------------------------------------------------------------
-# Path bootstrap (works whether imported from streamlit or run directly)
+# Path bootstrap (works whether imported by the API or run directly)
 # ---------------------------------------------------------------------------
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _SRC = os.path.dirname(_HERE)
@@ -35,7 +35,7 @@ class AIChatSession:
     Usage
     -----
     session = AIChatSession.load_or_create(week_start_date, db, coach, db_queries)
-    # Then in Streamlit:
+    # Then stream the chunks to the client:
     for chunk in session.begin_analysis():
         yield chunk
     for chunk in session.chat(user_message):
@@ -235,7 +235,7 @@ class AIChatSession:
 
         self._append_user(user_message)
 
-        # A session rebuilt from the DB (e.g. after a Streamlit rerun) has no
+        # A session rebuilt from the DB (e.g. after an API restart) has no
         # context loaded yet; previously it silently chatted with an empty prompt.
         self._ensure_context(self._week_end_date())
         yield from self._converse(self._build_conversation_prompt())

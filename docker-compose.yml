@@ -50,34 +50,6 @@ services:
     mem_limit: 768m
     cpus: 1.5
 
-  streamlit:
-    <<: *app
-    container_name: fitness-tracker-ui
-    ports:
-      - "8501:8501"
-    environment:
-      - PYTHONUNBUFFERED=1
-      - TZ=America/Los_Angeles
-      - API_URL=http://fastapi:8000
-      - ZWIFT_WORKOUTS_DIR=/app/shareable/zwift_workouts
-      - OLLAMA_HOST=http://host.docker.internal:11434
-      - OLLAMA_MODEL=llama3.1:8b
-    command: >
-      streamlit run src/ui/streamlit_app.py --server.port=8501 --server.address=0.0.0.0
-      --server.headless=true --server.enableCORS=false --server.enableXsrfProtection=false
-      --server.fileWatcherType=none
-    depends_on:
-      fastapi:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
-      interval: 30s
-      timeout: 30s
-      retries: 5
-      start_period: 60s
-    mem_limit: 384m
-    cpus: 0.5
-
   frontend:
     image: ghcr.io/sneakyanalytics/fitness-tracker-web:${APP_VERSION:-main}
     build: ./frontend

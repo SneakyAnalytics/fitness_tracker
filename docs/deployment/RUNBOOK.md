@@ -4,8 +4,7 @@ The app runs on the Beelink (Windows + Docker Desktop/WSL2), reached over Tailsc
 
 | What | URL (Tailscale) |
 |---|---|
-| Training app (calendar, coaching, dashboard) | http://<beelink-ip>:3000 |
-| Admin (import, workout matching, analysis) | http://<beelink-ip>:8501 |
+| Training app (calendar, coaching, dashboard, admin) | http://<beelink-ip>:3000 |
 | API health | http://<beelink-ip>:8000/health |
 
 ## How code gets there
@@ -13,7 +12,7 @@ The app runs on the Beelink (Windows + Docker Desktop/WSL2), reached over Tailsc
 1. Merge to `main` and push.
 2. GitHub Actions (`.github/workflows/docker.yml`) runs the tests, then builds two
    images and pushes them to GitHub Container Registry, tagged `:main` and `:<commit sha>`:
-   - `ghcr.io/sneakyanalytics/fitness-tracker` (API + Streamlit)
+   - `ghcr.io/sneakyanalytics/fitness-tracker` (API)
    - `ghcr.io/sneakyanalytics/fitness-tracker-web` (React app behind nginx)
 3. From the Mac: `./deploy_to_beelink.sh`. It checks Docker and the images, **backs up the
    database** (newest 10 kept in `/app/data/backups/`), copies `docker-compose.yml`,
@@ -27,20 +26,11 @@ The Beelink builds nothing and runs no source tree. It needs only
 deploy method. It is lost on the next pull, and before October 2026 it made production
 silently diverge from git.
 
-## Fallback: the old app
+## The old Streamlit admin
 
-The images that ran before the October 2026 overhaul are kept as
-`fitness-tracker-legacy-{api,ui}:2026-10-05`. To use the old Streamlit app (same data):
-
-```powershell
-cd C:\Users\<user>\fitness_tracker
-docker compose -f docker-compose.legacy.yml -p fitness-legacy up -d     # http://<beelink-ip>:8601
-docker compose -f docker-compose.legacy.yml -p fitness-legacy down      # when done
-```
-
-It runs alongside the new app (different ports). Matches made in it are picked up by
-the new app. Don't delete the `.py` files in the data volume: the legacy containers copy
-them over their source at startup, exactly as before.
+It was retired in October 2026 once the React app (including its `/admin` page) had covered everything
+for a month. The last commit that contains it is tagged `streamlit-final`
+(`git checkout streamlit-final`). Its container is removed by the deploy (`--remove-orphans`).
 
 ## Common tasks
 
@@ -92,7 +82,7 @@ start tasks. Docker Desktop runs as that task's process, so the default limit ki
 days after each start (2026-10-09).
 
 Already in place: Docker Desktop auto-start tasks, `restart: unless-stopped`, health checks
-(Streamlit and the web app wait for a healthy API), container log rotation (10 MB × 3),
+(the web app waits for a healthy API), container log rotation (10 MB × 3),
 image pruning after each deploy, sleep disabled, and the network watchdog task.
 
 WSL settings (`C:\Users\<user>\.wslconfig`, applied 2026-10-06; previous file kept as
@@ -115,8 +105,8 @@ To apply changes: quit Docker Desktop, `wsl --shutdown`, then `schtasks /run /tn
 come back on their own.
 
 If the stack is down: start Docker Desktop, wait for it to say "running", then
-`docker compose up -d`. Check `GET /health`. The Streamlit sidebar shows any recorded
-background failures (nightly sync, analysis) under "problem(s) need attention".
+`docker compose up -d`. Check `GET /health`. The Admin page (`/admin`) lists any recorded
+background failures (nightly sync, analysis) under "Problems and updates".
 
 ## 2026-10-14: Docker after reboots (automatic login)
 

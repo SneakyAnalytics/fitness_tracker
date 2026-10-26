@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 from .trainingpeaks_file_processor import TrainingPeaksFileProcessor
 import nest_asyncio
 
-# Allow nested event loops (needed when running from Streamlit)
+# Allow nested event loops (the sync runs inside the API's event loop)
 nest_asyncio.apply()
 
 

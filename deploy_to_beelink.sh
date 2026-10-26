@@ -83,16 +83,8 @@ merge_env() {
   remote "powershell -NoProfile -ExecutionPolicy Bypass -File ${BEELINK_HOME}/ft_merge_env.ps1 -EnvFile $REMOTE_DIR_FWD/.env -Updates ${BEELINK_HOME}/ft_env_updates.txt"
 }
 
-# Keep the pre-overhaul app runnable as a fallback (docker-compose.legacy.yml, port 8601).
-if ! remote "docker image inspect fitness-tracker-legacy-ui:2026-10-05" >/dev/null 2>&1; then
-  remote "docker tag fitness_tracker-streamlit:latest fitness-tracker-legacy-ui:2026-10-05 && docker tag fitness_tracker-fastapi:latest fitness-tracker-legacy-api:2026-10-05" \
-    && echo "🏷️  Tagged the current images as the legacy fallback" \
-    || echo "⚠️  Could not tag legacy images (already replaced?)"
-fi
-
 echo "📤 Sending compose files and host-side scripts..."
 scp -q docker-compose.yml "$BEELINK:$REMOTE_DIR_FWD/docker-compose.yml"
-scp -q docker-compose.legacy.yml "$BEELINK:$REMOTE_DIR_FWD/docker-compose.legacy.yml"
 # The 05:00 ZwiftSyncToMac task runs this from the Beelink's disk.
 scp -q scripts/beelink_sync_zwift_to_mac.ps1 "$BEELINK:$REMOTE_DIR_FWD/scripts/beelink_sync_zwift_to_mac.ps1"
 scp -q scripts/beelink_nightly_sync.ps1 "$BEELINK:$REMOTE_DIR_FWD/scripts/beelink_nightly_sync.ps1"
@@ -139,9 +131,5 @@ fi
 
 cat <<EOF
 
-Deployed ${VERSION:0:12}.  Calendar & coaching: http://${BEELINK_HOST}:3000   Admin: http://${BEELINK_HOST}:8501
-
-Old app (fallback), only if needed:
-  ssh $BEELINK "cd /d $REMOTE_DIR && docker compose -f docker-compose.legacy.yml -p fitness-legacy up -d"
-  then http://${BEELINK_HOST}:8601  (stop it again with ... down)
+Deployed ${VERSION:0:12}.  App: http://${BEELINK_HOST}:3000   (Admin page at /admin)
 EOF

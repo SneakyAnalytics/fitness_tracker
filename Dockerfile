@@ -56,8 +56,7 @@ RUN chmod +x docker-entrypoint.sh || true
 
 # Expose ports
 # 8000 - FastAPI
-# 8501 - Streamlit
-EXPOSE 8000 8501
+EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \

@@ -252,7 +252,6 @@ flowchart LR
         CALC[Training state<br/>load · periodization ·<br/>execution · readiness]
         API[FastAPI<br/>REST + SSE]
         WEB[React 19 app<br/>nginx]
-        ADMIN[Streamlit admin]
     end
 
     LLM[Claude Opus 5<br/>tool use]
@@ -265,7 +264,6 @@ flowchart LR
     DB <--> API
     API <--> LLM
     API --> WEB
-    API --> ADMIN
     API -- weekly plan --> ZW
 ```
 
@@ -275,7 +273,7 @@ flowchart LR
 | Storage | SQLite with an ordered migration runner and a `schema_version` table |
 | Computation | Plain Python: no LLM in the numeric path |
 | API | FastAPI: REST, Server-Sent Events for the coach, background jobs for sync and save |
-| Frontend | React 19, Vite, react-router, TanStack Query, Recharts, Web Audio for sounds, self-hosted fonts; Streamlit kept as an admin surface |
+| Frontend | React 19, Vite, react-router, TanStack Query, Recharts, Web Audio for sounds, self-hosted fonts |
 | AI | Claude Opus 5 (coach, tool use, prompt caching), Claude Sonnet 5 (planned-ride narratives), Gemini (unplanned rides over an hour) |
 | Delivery | GitHub Actions runs the tests, builds images and pushes them to GHCR. The server **pulls** a pinned commit, backs up the database first, and health-checks after. |
 | Operations | Nightly sync, 05:00 Zwift delivery, a 10-minute Docker watchdog, and background failures surfaced in the UI |
@@ -301,12 +299,11 @@ Building this against my own training data taught a few lessons that carry well 
 ## 🚀 Running it
 
 ```bash
-# API (http://localhost:8000) and admin (http://localhost:8501)
+# API (http://localhost:8000)
 python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env            # TrainingPeaks + API keys
 uvicorn src.api.app:app --reload
-streamlit run src/ui/streamlit_app.py
 
 # Training app (http://localhost:5173, proxies /api to :8000)
 cd frontend && npm install && npm run dev
@@ -333,8 +330,7 @@ src/
     coach_tools.py      tools exposed to the coach
     ai_chat_session.py  the weekly coaching session
     trainingpeaks_sync.py, nightly_sync.py, week_review.py
-  ui/             Streamlit admin
-frontend/         React 19 app: pages (calendar, coaching, dashboard, metric guide), components,
+frontend/         React 19 app: pages (calendar, coaching, dashboard, metric guide, admin), components,
                   lib/ (metric glossary, readiness call, sounds, theme, weather)
 tests/            pytest suite (80) · frontend/src/**/*.test.js (57)
 docs/             runbook, architecture notes, images

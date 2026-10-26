@@ -1,6 +1,7 @@
 """Maintenance endpoints behind the React Admin page.
 
-These replace the actions that used to live only in the Streamlit admin app: the
+These replace the actions that used to live only in the old Streamlit admin app (last seen at the
+`streamlit-final` git tag): the
 problems list, deleting a workout, moving a ride file between workouts, and
 managing goals.
 """

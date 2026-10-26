@@ -26,7 +26,7 @@ import errorArt from "../assets/coach-error.webp";
  *   CoachBoard      the coach studying a holographic tactics board (Weekly Coaching)
  *   CoachCalendar   "Calendar Strategist" (Workout Calendar)
  *   CoachDashboard  the dashboard badge (Training Dashboard)
- *   CoachAdmin      the admin badge (import & matching, in the Streamlit app)
+ *   CoachAdmin      the admin badge (problems, ride files, goals)
  */
 function Art({ src, size, className, ...rest }) {
   return <img src={src} alt="" height={size} style={{ height: size, width: size, objectFit: "contain" }} className={className} {...rest} />;

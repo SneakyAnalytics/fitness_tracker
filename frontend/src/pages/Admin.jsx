@@ -8,6 +8,7 @@ import "../styles/pages.css";
 import "./Admin.css";
 
 const iso = (d) => format(d, "yyyy-MM-dd");
+const round = (n) => (n == null ? "?" : Math.round(n));
 const errorText = (e) => e?.response?.data?.detail || e?.message || "Something went wrong";
 
 function Problems() {
@@ -56,7 +57,7 @@ function RideFileChanger({ workout, onDone }) {
     mutationFn: () => adminAPI.assignFit(workout.id, choice === "" ? null : Number(choice)),
     onSuccess: onDone,
   });
-  const label = (f) => `${f.filename} · ${f.tss ?? "?"} TSS · ${f.duration ?? "?"} h`;
+  const label = (f) => `${f.filename} · ${round(f.tss)} TSS · ${round(f.duration)} min`;
   return (
     <div className="inline-editor">
       <select className="input" value={choice} onChange={(e) => setChoice(e.target.value)}>
@@ -108,12 +109,12 @@ function Workouts() {
                 <tr key={w.id}>
                   <td>{format(parseISO(w.workout_date), "EEE MMM d")}</td>
                   <td>{w.title}</td>
-                  <td>{w.workout_tss ?? "–"} TSS · {w.workout_duration ?? "–"} h</td>
+                  <td>{round(w.workout_tss)} TSS · {round(w.workout_duration)} min</td>
                   <td>
                     {editing === w.id ? (
                       <RideFileChanger workout={w} onDone={refresh} />
                     ) : w.fit_filename ? (
-                      <span>{w.fit_filename}<small> · {w.fit_tss ?? "?"} TSS</small></span>
+                      <span>{w.fit_filename}<small> · {round(w.fit_tss)} TSS</small></span>
                     ) : <span className="muted">none</span>}
                   </td>
                   <td className="row-actions">
@@ -140,7 +141,7 @@ function Workouts() {
   );
 }
 
-const CATEGORIES = ["event", "performance", "fitness", "health", "other"];
+const CATEGORIES = ["event", "performance", "endurance", "fitness", "health", "other"];
 const STATUSES = ["active", "completed", "paused", "abandoned"];
 
 function Goals() {

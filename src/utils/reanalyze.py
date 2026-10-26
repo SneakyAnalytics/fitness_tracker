@@ -1,6 +1,6 @@
 """Re-run workout analysis the one correct way.
 
-Every re-analysis (Streamlit buttons, nightly automation, backfills) should go
+Every re-analysis (the review page, nightly automation, backfills) should go
 through `reanalyze_workout` so the athlete's manual match is always honored and
 results are persisted identically.
 

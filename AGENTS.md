@@ -90,7 +90,7 @@ Generated plans were cut off mid-JSON; the save would fail silently or produce a
   overwriting every fix. `docker cp` into a running container is fine for a quick experiment, but it is lost on rebuild.
 - Live DB lives **inside the `fitness_tracker_data` volume** (`/app/data/fitness_data.db`), not the Windows host path.
   `./sync_db_from_beelink.sh` snapshots it with SQLite's backup API.
-- Services: API :8000, Streamlit admin :8501, React app :3000 (nginx proxies `/api` → FastAPI).
+- Services: API :8000, React app :3000 (nginx proxies `/api` → FastAPI). Maintenance (problems, ride files, goals, Zwift files) is the React `/admin` page. The Streamlit admin was retired; its last commit is tagged `streamlit-final`.
 - `GET /health` reports schema version, API-key presence and open problems.
 - Schema changes go in `src/storage/schema_migrations.py` as a new numbered migration; they run on startup.
 - SQLite column names are **camelCase** in the plan tables (`weekNumber`, `startDate`, `dailyPlanId`).
