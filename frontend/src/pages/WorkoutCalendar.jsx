@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
@@ -136,6 +136,14 @@ function WorkoutCalendar() {
     setSelectedKey(w.key === selectedKey ? null : w.key);
   };
 
+  // Opening a session brings its detail into view instead of leaving it below the fold.
+  const detailRef = useRef(null);
+  useEffect(() => {
+    if (!selectedKey || !detailRef.current) return;
+    const calm = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    detailRef.current.scrollIntoView({ behavior: calm ? "auto" : "smooth", block: "start" });
+  }, [selectedKey]);
+
   return (
     <div className="workout-calendar-container">
       <div className="calendar-header">
@@ -236,7 +244,7 @@ function WorkoutCalendar() {
       </div>
 
       {selected && (
-        <div className="workout-detail-expandable">
+        <div className="workout-detail-expandable" ref={detailRef}>
           <div className="workout-detail-header">
             {sessionArtKey(selected.type, displayName(selected)) ? (
               <SessionArt type={selected.type} name={displayName(selected)} size={132} className="detail-art" />

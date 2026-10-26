@@ -602,3 +602,7 @@
     display: none;
   }
 }
+
+/* Leave a little air above the detail panel when a calendar click scrolls to it. */
+.workout-detail-expandable { scroll-margin-top: 12px; }
+@media (max-width: 768px) { .workout-detail-expandable { scroll-margin-top: 64px; } }
