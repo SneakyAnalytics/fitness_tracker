@@ -33,13 +33,47 @@ It began as a weekend project in January 2025. I rebuilt it in October 2026 afte
 
 > **The principle the rebuild is built on:** compute everything that can be computed. Fitness, fatigue, ramp rate, execution quality and FTP are deterministic. The language model reasons, asks questions and explains, but it works inside numbers it is handed and never grades or invents them.
 
-| 20 months | 727 | 708 | 5,772 | 798 | 66 |
+| 21 months | 762 | 738 | 5,898 | 837 | 89 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| continuous data, Feb 2025 → today | completed workouts | FIT files parsed (Zwift + Garmin) | daily biometric records (HRV · RHR · sleep · Body Battery) | prescribed sessions across 82 planned weeks | automated tests run on every push |
+| continuous data, Feb 2025 → today | completed workouts | FIT files parsed (Zwift + Garmin) | daily biometric records (HRV · RHR · sleep · Body Battery) | prescribed sessions across 85 planned weeks | automated tests run on every push |
 
 <p align="center">
   <img src="docs/images/calendar.jpg" alt="Training calendar: a completed week with execution scores on each structured session, commutes and saunas recorded as unplanned" width="100%">
-  <br><sub><i>A completed week: each structured ride carries its computed execution score; commutes, saunas and strength are matched to the plan or marked as unplanned.</i></sub>
+</p>
+<p align="center">
+  <sub><i>A week on the calendar: a forecast chip on every day (wet days tinted), a badge per session type, and each structured ride's computed execution score. Commutes and saunas are matched to the plan or marked as unplanned.</i></sub>
+</p>
+
+---
+
+## 🖥 The app
+
+The training app is built to be used daily, on a laptop at the desk or a phone on the trainer, and to explain itself.
+
+| Area | What it does |
+|---|---|
+| **Calendar** | The week at a glance with a forecast chip on each day, a badge per session type, execution scores, and `?week=` deep links to any week. Open a day for a hero header and the full session: target-vs-actual power chart, interval breakdown, and for strength and mobility days every movement with its own countdown timer. Any day has an **Ask the coach** thread for fueling, substitutions or "what is this movement?" |
+| **Weekly review → coach** | Sunday starts with a review step (confirm each session against its planned workout), then the coaching conversation, then the saved plan, which becomes Zwift files. The coach has an avatar that rocks and sends out rings while it answers; a referee whistle sounds when the plan is saved (there is a mute switch). |
+| **Dashboard** | *Today's call* (green light, easy or rest, from readiness and form), the KPI tiles, weekly load and fitness charts, a **consistency** ribbon, **achievements** as medals with a countdown to the next target, the power curve, and a card per kind of key session. |
+| **Self-explaining numbers** | Hover (or tap, or focus) any KPI tile for what it means, a plain-language reading of today's value, and a link to the **metric guide**: how each number is calculated here, how to read it, what the coach does with it, and where it misleads. |
+| **Look and feel** | Chakra Petch display type over Inter, a topographic page background, commissioned badge art for every section and session type, light and dark themes that follow the device, and quiet motion that respects reduced-motion settings. |
+
+<p align="center">
+  <img src="docs/images/workout.jpg" alt="An opened workout: the cycling badge as a hero on a dark forest header, with the session title and type, minutes and TSS chips" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/images/kpi-hover.jpg" alt="Hovering the Form (TSB) tile: a card explains the metric, reads today's value as Fresh, and links to the full explanation" width="88%">
+</p>
+<p align="center">
+  <sub><i>Hover any KPI tile: what it measures, what today's value means, and a link to the full explanation.</i></sub>
+</p>
+
+<p align="center">
+  <img src="docs/images/dark.jpg" alt="The dashboard in dark mode" width="88%">
+</p>
+<p align="center">
+  <sub><i>Dark mode: the dashboard panels were already dark; the rest follows.</i></sub>
 </p>
 
 ---
@@ -121,13 +155,22 @@ The app's FTP follows that value automatically. A Zwift FTP unchanged for 6 week
 
 | Signal | How it's computed | Why it matters |
 |---|---|---|
-| **Progression ledger** | Every structured ride is classified by archetype (threshold, sweet spot, VO2max, over/under, tempo, endurance). For each one it records work-interval structure, average watts, normalized power, %FTP and execution score ([`progression.py`](src/utils/progression.py)). | The coach sees a trajectory such as `3×12 @ 279W → 3×15 @ 284W` instead of an aggregate, and can progress *within* a type. Silent regressions become visible. |
+| **Progression ledger** | Every structured ride is classified by archetype (threshold, sweet spot, VO2max, over/under, tempo, endurance). For each one it records work-interval structure, average watts, normalized power, %FTP and execution score ([`progression.py`](src/utils/progression.py)). "Work" means the sustained hard intervals, judged by their prescribed targets, so openers and a Zone 2 flush don't count. | The coach sees a trajectory such as `3×12 @ 279W → 3×15 @ 284W` instead of an aggregate, and can progress *within* a type. Silent regressions become visible. |
 | **Mean-max power curve** | Best rolling 5 s / 1 m / 5 m / 20 m / 60 m power per ride, compared over 90-day windows against the same window a year earlier. | Answers "am I fitter than last year?" with data. It also feeds a power-curve FTP estimate that flags divergence from the working FTP. |
 | **Readiness** | Last 7 days of HRV, resting HR, sleep and Body Battery against a **60-day median baseline**, with plain-language flags (for example HRV ≤ −10 % or RHR ≥ +5 %). | Lets the coach tell a strategic recovery week from a reactive one. |
 
 <p align="center">
-  <img src="docs/images/dashboard.jpg" alt="Training dashboard: CTL, ATL, TSB, ramp rate, Zwift FTP and readiness tiles; weekly TSS and CTL charts; best power over 90 days; progression tables per workout archetype" width="75%">
-  <br><sub><i>The dashboard: load and readiness tiles, weekly TSS against end-of-week CTL, the 90-day power curve, and progression for each workout type.</i></sub>
+  <img src="docs/images/dashboard.jpg" alt="Training dashboard: KPI tiles, today's call, weekly TSS and CTL charts, consistency ribbon, achievements as medals, best power over 90 days and key-session cards" width="75%">
+</p>
+<p align="center">
+  <sub><i>The dashboard: load and readiness tiles, today's call, weekly TSS against end-of-week CTL, consistency, achievements and the 90-day power curve.</i></sub>
+</p>
+
+<p align="center">
+  <img src="docs/images/key-sessions.jpg" alt="Key sessions: a card per session type with latest average power, change since the last session, a trend line, best ever and execution dots" width="88%">
+</p>
+<p align="center">
+  <sub><i>Key sessions: the latest average power for each kind of session, the change since last time, the trend, the best ever and an execution dot per session.</i></sub>
 </p>
 
 ---
@@ -170,6 +213,7 @@ flowchart LR
         TP[TrainingPeaks<br/>web export]
         RX[TrainingPeaks<br/>strength feed]
         FIT[Garmin + Zwift<br/>FIT files]
+        WX[Open-Meteo<br/>forecast]
     end
 
     subgraph Beelink["Home server (Windows · Docker)"]
@@ -186,6 +230,7 @@ flowchart LR
     ZW[Zwift on the Mac<br/>.zwo at 05:00]
 
     TP & RX & FIT --> SYNC --> LINK --> DB
+    WX --> API
     DB <--> CALC
     CALC --> API
     DB <--> API
@@ -201,7 +246,7 @@ flowchart LR
 | Storage | SQLite with an ordered migration runner and a `schema_version` table |
 | Computation | Plain Python: no LLM in the numeric path |
 | API | FastAPI: REST, Server-Sent Events for the coach, background jobs for sync and save |
-| Frontend | React 19, Vite, TanStack Query, Recharts; Streamlit kept as an admin surface |
+| Frontend | React 19, Vite, react-router, TanStack Query, Recharts, Web Audio for sounds, self-hosted fonts; Streamlit kept as an admin surface |
 | AI | Claude Opus 5 (coach, tool use, prompt caching), Claude Sonnet 5 (planned-ride narratives), Gemini (unplanned rides over an hour) |
 | Delivery | GitHub Actions runs the tests, builds images and pushes them to GHCR. The server **pulls** a pinned commit, backs up the database first, and health-checks after. |
 | Operations | Nightly sync, 05:00 Zwift delivery, a 10-minute Docker watchdog, and background failures surfaced in the UI |
@@ -217,6 +262,7 @@ Every one of these bugs was **silent**: a wrong key or column returned null, and
 - **UTC vs local time.** Garmin and Zwift record UTC, but TrainingPeaks days are Pacific. Evening commutes were attached to the next day's sessions. **Lesson:** convert to the athlete's local date before any join.
 - **A read path that wrote.** A weekly summary "helpfully" attached any same-day FIT file to sessions without one and saved the link. A sauna inherited a 4-hour gravel ride, and the coach saw 735 TSS for a 520 TSS week. **Lesson:** derived joins belong in one matcher; summaries must be read-only.
 - **Re-imports must keep identity.** The nightly re-import deletes and re-inserts rows. Without restoring ids and user decisions, it silently undid the athlete's Sunday review and detached analyses. **Lesson:** test idempotency by running everything twice.
+- **A mislabelled interval became a fake regression.** Intervals were tagged "work" by name, so a 1-minute opener and a Zone 2 flush counted as work. A 285 W sweet-spot session was recorded as 246 W, a 38 W "drop" that never happened. Work is now the sustained hard intervals judged by their prescribed targets, with a test on that exact session. **Lesson:** when a chart shows a surprise, check the inputs before believing the trend.
 - **Ask the data before tuning the prompt.** The "coaching doesn't progress" complaint looked like a prompt problem. It was a missing model of training load. Compute the state, then let the model reason over it.
 
 ---
@@ -257,8 +303,9 @@ src/
     ai_chat_session.py  the weekly coaching session
     trainingpeaks_sync.py, nightly_sync.py, week_review.py
   ui/             Streamlit admin
-frontend/         React 19 training app (calendar, coaching, dashboard)
-tests/            pytest suite (54) · frontend/src/**/*.test.js (12)
+frontend/         React 19 app: pages (calendar, coaching, dashboard, metric guide), components,
+                  lib/ (metric glossary, readiness call, sounds, theme, weather)
+tests/            pytest suite (60) · frontend/src/**/*.test.js (29)
 docs/             runbook, architecture notes, images
 ```
 </details>
