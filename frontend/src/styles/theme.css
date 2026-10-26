@@ -521,3 +521,39 @@
 .ask-turn.assistant > div {
   min-width: 0;
 }
+
+/* the guide page's cards sit on the same contour page; no dark panel, so keep the top accent */
+.guide-card::before {
+  background: linear-gradient(90deg, var(--color-forest), var(--color-cyan));
+}
+
+/* the metric tile is a <button> inside a grid cell: let the grid size it */
+.tile-row .metric-wrap {
+  display: flex;
+}
+
+.guide-link {
+  align-self: center;
+  margin-left: auto;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(20, 38, 58, 0.18);
+  background: var(--color-surface);
+  color: var(--color-forest);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.guide-link:hover {
+  border-color: var(--color-cyan);
+  background: rgba(63, 208, 224, 0.14);
+}
+
+.dashboard-page .page-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+}

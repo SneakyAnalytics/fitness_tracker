@@ -187,3 +187,22 @@
 [data-theme="dark"] .intervals-table thead {
   background: linear-gradient(90deg, #1e4620, #1f5a55 60%, #25506a);
 }
+
+[data-theme="dark"] .guide-grid h3,
+[data-theme="dark"] .back-link,
+[data-theme="dark"] .guide-ranges th {
+  color: var(--color-cyan-soft);
+}
+
+[data-theme="dark"] .guide-index a,
+[data-theme="dark"] .guide-link {
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .guide-index a:hover,
+[data-theme="dark"] .guide-index a.active,
+[data-theme="dark"] .guide-link:hover {
+  color: #fff;
+}

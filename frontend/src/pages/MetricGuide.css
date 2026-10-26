@@ -1,0 +1,114 @@
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: var(--spacing-md);
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--color-forest);
+  text-decoration: none;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.guide-index {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: var(--spacing-lg);
+}
+
+.guide-index a {
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(20, 38, 58, 0.18);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.guide-index a:hover,
+.guide-index a.active {
+  border-color: var(--color-cyan);
+  background: rgba(63, 208, 224, 0.14);
+  color: var(--color-forest);
+}
+
+.guide-card {
+  margin-bottom: var(--spacing-lg);
+  scroll-margin-top: 80px;
+}
+
+.guide-card.targeted {
+  box-shadow: 0 0 0 2px var(--color-cyan), 0 10px 28px rgba(63, 208, 224, 0.2);
+}
+
+.guide-card h2 {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+}
+
+.guide-lead {
+  margin: 0 0 var(--spacing-md);
+  font-size: 1.02rem;
+  line-height: 1.55;
+}
+
+.guide-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: var(--spacing-xl);
+}
+
+.guide-grid h3 {
+  margin: var(--spacing-md) 0 0.25rem;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-mountain-dark, var(--color-mountain));
+}
+
+.guide-grid h3:first-child {
+  margin-top: 0;
+}
+
+.guide-grid p {
+  margin: 0;
+  line-height: 1.5;
+  color: var(--color-text-primary);
+}
+
+.guide-ranges {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.guide-ranges th,
+.guide-ranges td {
+  padding: 0.5rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-cream-dark);
+  font-size: 0.9rem;
+}
+
+.guide-ranges th {
+  width: 40%;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--color-forest);
+}
+
+@media (max-width: 760px) {
+  .guide-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+  }
+}

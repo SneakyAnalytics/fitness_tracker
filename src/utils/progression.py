@@ -62,6 +62,33 @@ def describe_structure(durations: List[int]) -> str:
     return " + ".join(parts)
 
 
+# Intervals shorter than this are openers/sprints, not the session's work (VO2 sets fall back below).
+MIN_WORK_SECONDS = 240
+# ...and intervals prescribed well below the session's hard target (a Zone 2 flush) aren't work either.
+WORK_INTENSITY_FLOOR = 0.85
+
+
+def pick_work(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """The intervals that make up a session's work: sustained and at the session's main intensity.
+
+    Intervals are labelled WORK by name, so "Opener" and "Zone 2 Flush" slip in; counting them
+    turned a 284 W sweet-spot session into a 246 W "regression". Targets decide instead.
+    """
+    candidates = [r for r in rows if r["label"] == "WORK" and r["actual_avg_w"]]
+    if not candidates:
+        candidates = [r for r in rows if r["label"] not in ("WARMUP", "COOLDOWN") and r["actual_avg_w"]]
+    sustained = [r for r in candidates if r["duration_sec"] >= MIN_WORK_SECONDS]
+    if not sustained:
+        return candidates                        # e.g. 30 s VO2max efforts
+
+    def target(r):
+        lo, hi = r.get("target_low_w"), r.get("target_high_w")
+        return (lo + hi) / 2 if lo and hi else r["actual_avg_w"]
+
+    top = max(target(r) for r in sustained)
+    return [r for r in sustained if target(r) >= WORK_INTENSITY_FLOOR * top]
+
+
 def refresh_progression(db_path: Optional[str] = None) -> int:
     """Rebuild workout_progression from interval_results (deterministic, cheap)."""
     conn = sqlite3.connect(db_path or get_db_path())
@@ -82,12 +109,10 @@ def refresh_progression(db_path: Optional[str] = None) -> int:
         conn.execute("DELETE FROM workout_progression")
         for w in workouts:
             rows = conn.execute(
-                "SELECT label, duration_sec, actual_avg_w FROM interval_results "
+                "SELECT label, duration_sec, actual_avg_w, target_low_w, target_high_w FROM interval_results "
                 "WHERE workout_id = ? ORDER BY interval_index", (w["workout_id"],)
             ).fetchall()
-            work = [r for r in rows if r["label"] == "WORK" and r["actual_avg_w"]]
-            if not work:
-                work = [r for r in rows if r["label"] not in ("WARMUP", "COOLDOWN") and r["actual_avg_w"]]
+            work = pick_work([dict(r) for r in rows])
             if not work:
                 continue
             seconds = sum(r["duration_sec"] for r in work)

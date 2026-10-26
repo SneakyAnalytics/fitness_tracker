@@ -14,6 +14,9 @@ import {
 } from "recharts";
 import { CoachDashboard } from "../components/CoachLogo";
 import Achievements from "../components/Achievements";
+import MetricTile from "../components/MetricTile";
+import KeySessions from "../components/KeySessions";
+import { Link } from "react-router-dom";
 import { ArtByKey } from "../components/CoachLogo";
 import { todaysCall } from "../lib/readiness";
 import { format, parseISO } from "date-fns";
@@ -54,27 +57,9 @@ const DURATIONS = [
   ["p20m", "20m"],
   ["p60m", "60m"],
 ];
-const TYPES = [
-  ["threshold", "Threshold"],
-  ["sweet_spot", "Sweet spot"],
-  ["over_under", "Over/under"],
-  ["vo2max", "VO2max"],
-  ["tempo", "Tempo"],
-  ["endurance", "Endurance"],
-];
 
 const fmtWeek = (d) => format(parseISO(d), "MMM d");
 const signed = (n) => (n == null ? "—" : `${n > 0 ? "+" : ""}${n}`);
-
-function Tile({ label, value, sub }) {
-  return (
-    <div className="stat-tile card panel-dark">
-      <span className="stat-label">{label}</span>
-      <span className="stat-value">{value}</span>
-      {sub && <span className="stat-sub">{sub}</span>}
-    </div>
-  );
-}
 
 function PowerCurve({ curve }) {
   const hasPrior = (curve.year_ago?.rides || 0) > 0;
@@ -125,47 +110,6 @@ function PowerCurve({ curve }) {
           ))}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-function Progression({ progression }) {
-  const types = TYPES.filter(([key]) => (progression[key] || []).length > 0);
-  return (
-    <div className="card">
-      <h3>Key-session progression</h3>
-      <p className="chart-note">Work intervals only, oldest → newest. Each one should be a step up from the last.</p>
-      <div className="progression-grid">
-        {types.map(([key, label]) => (
-          <div key={key}>
-            <h4>{label}</h4>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Structure</th>
-                  <th>Avg W</th>
-                  <th>%FTP</th>
-                  <th>Work</th>
-                  <th>Exec</th>
-                </tr>
-              </thead>
-              <tbody>
-                {progression[key].map((s) => (
-                  <tr key={s.workout_date}>
-                    <td>{fmtWeek(s.workout_date)}</td>
-                    <td>{s.structure}</td>
-                    <td>{Math.round(s.work_avg_power)}</td>
-                    <td>{s.pct_ftp ? `${Math.round(s.pct_ftp * 100)}%` : "—"}</td>
-                    <td>{Math.round(s.work_seconds / 60)} min</td>
-                    <td>{s.execution_score ?? "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
@@ -237,19 +181,22 @@ function Dashboard() {
           <CoachDashboard size={116} />
           <h1 className="page-title">Training Dashboard</h1>
         </div>
+        <Link to="/metrics" className="guide-link">What do these numbers mean?</Link>
       </div>
 
       <div className="tile-row">
-        <Tile label="Fitness (CTL)" value={Math.round(load.ctl)}
-              sub={load.ctl_year_ago != null ? `year ago ${Math.round(load.ctl_year_ago)}` : null} />
-        <Tile label="Fatigue (ATL)" value={Math.round(load.atl)} />
-        <Tile label="Form (TSB)" value={signed(Math.round(load.tsb))} />
-        <Tile label="CTL ramp" value={`${signed(load.ctl_ramp_28d_per_week)}/wk`} sub="last 4 weeks" />
-        <Tile label="Zwift FTP" value={zftp?.ftp ? `${zftp.ftp}W` : "—"}
-              sub={zftp?.test_due ? `test due · ${zftp.weeks_since_change} wks` : zftp?.changed_on ? `since ${fmtWeek(zftp.changed_on)}` : null} />
-        <Tile label="HRV (7d)" value={m.hrv?.last7 ?? "—"}
-              sub={m.hrv ? `${signed(m.hrv.change_pct)}% vs baseline` : null} />
-        <Tile label="Sleep (7d)" value={m.sleep_hours ? `${m.sleep_hours.last7}h` : "—"} />
+        <MetricTile metricId="ctl" label="Fitness (CTL)" value={Math.round(load.ctl)} raw={load.ctl}
+                    sub={load.ctl_year_ago != null ? `year ago ${Math.round(load.ctl_year_ago)}` : null} />
+        <MetricTile metricId="atl" label="Fatigue (ATL)" value={Math.round(load.atl)} raw={load.atl} />
+        <MetricTile metricId="tsb" label="Form (TSB)" value={signed(Math.round(load.tsb))} raw={load.tsb} />
+        <MetricTile metricId="ramp" label="CTL ramp" value={`${signed(load.ctl_ramp_28d_per_week)}/wk`}
+                    raw={load.ctl_ramp_28d_per_week} sub="last 4 weeks" />
+        <MetricTile metricId="ftp" label="Zwift FTP" value={zftp?.ftp ? `${zftp.ftp}W` : "—"} raw={zftp?.ftp ?? null}
+                    sub={zftp?.test_due ? `test due · ${zftp.weeks_since_change} wks` : zftp?.changed_on ? `since ${fmtWeek(zftp.changed_on)}` : null} />
+        <MetricTile metricId="hrv" label="HRV (7d)" value={m.hrv?.last7 ?? "—"} raw={m.hrv?.last7 ?? null}
+                    ctx={{ changePct: m.hrv?.change_pct }} sub={m.hrv ? `${signed(m.hrv.change_pct)}% vs baseline` : null} />
+        <MetricTile metricId="sleep" label="Sleep (7d)" value={m.sleep_hours ? `${m.sleep_hours.last7}h` : "—"}
+                    raw={m.sleep_hours?.last7 ?? null} />
       </div>
 
       <TodaysCall load={load} readiness={readiness} />
@@ -305,7 +252,7 @@ function Dashboard() {
       <Achievements goals={goals} />
 
       <PowerCurve curve={curve} />
-      <Progression progression={progression} />
+      <KeySessions progression={progression} />
     </div>
   );
 }

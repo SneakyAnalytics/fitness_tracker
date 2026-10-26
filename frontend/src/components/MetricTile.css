@@ -1,0 +1,129 @@
+.metric-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+/* the tile is a button now: reset the button look, keep the card look */
+.metric-tile {
+  width: 100%;
+  height: 100%;
+  text-align: left;
+  font: inherit;
+  cursor: help;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.metric-tile:hover,
+.metric-tile:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(10, 30, 24, 0.4), 0 0 0 1px rgba(63, 208, 224, 0.6);
+  outline: none;
+}
+
+.stat-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.metric-info {
+  opacity: 0.6;
+}
+
+.metric-tile:hover .metric-info,
+.metric-tile:focus-visible .metric-info {
+  opacity: 1;
+  color: var(--color-cyan);
+}
+
+/* the hover card: sits just under the tile with a bridge so the pointer can travel into it */
+.metric-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 40;
+  width: min(300px, calc(100vw - 24px));
+  padding: 0.9rem 1rem 0.8rem;
+  border-radius: 12px;
+  background: #0e1d2c;
+  border: 1px solid rgba(63, 208, 224, 0.5);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+  color: var(--panel-text);
+  text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.16s ease, visibility 0.16s;
+}
+
+.metric-card::before {
+  content: "";
+  position: absolute;
+  inset: -8px 0 auto 0;
+  height: 8px;
+}
+
+.metric-card.open {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.metric-card h4 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  color: #fff;
+}
+
+.metric-card p {
+  margin: 0 0 0.45rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--panel-text);
+}
+
+.metric-card .metric-read {
+  color: var(--panel-muted);
+}
+
+.metric-card .metric-now {
+  padding: 0.35rem 0.55rem;
+  border-radius: 8px;
+  background: rgba(63, 208, 224, 0.12);
+  border: 1px solid rgba(63, 208, 224, 0.3);
+  font-weight: 600;
+}
+
+.metric-card .metric-now span {
+  margin-right: 0.35rem;
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-cyan-soft);
+}
+
+.metric-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-cyan-soft);
+  text-decoration: none;
+}
+
+.metric-more:hover,
+.metric-more:focus-visible {
+  color: #fff;
+  text-decoration: underline;
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metric-tile,
+  .metric-card {
+    transition: none;
+  }
+}
