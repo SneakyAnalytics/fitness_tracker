@@ -33,7 +33,7 @@ It began as a weekend project in January 2025 and has grown around the questions
 
 > **The principle the design is built on:** compute everything that can be computed. Fitness, fatigue, ramp rate, execution quality and FTP are deterministic. The language model reasons, asks questions and explains, but it works inside numbers it is handed and never grades or invents them.
 
-| 21 months | 762 | 738 | 5,898 | 837 | 125 |
+| 21 months | 762 | 738 | 5,898 | 837 | 169 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | continuous data, Feb 2025 → today | completed workouts | FIT files parsed (Zwift + Garmin) | daily biometric records (HRV · RHR · sleep · Body Battery) | prescribed sessions across 85 planned weeks | automated tests run on every push |
 
@@ -52,10 +52,13 @@ The training app is built to be used daily, on a laptop at the desk or a phone o
 
 | Area | What it does |
 |---|---|
-| **Calendar** | A *this week* strip (load against the plan's TSS band, planned sessions done or missed, unplanned extras, rain ahead), then the week with a forecast chip on each day, a badge per session type, execution scores, and `?week=` deep links to any week, and a **Print / share** page: one clean sheet of the week's plan to print, save as a PDF or copy as text for a message. Open a day for a hero header and the full session: target-vs-actual power chart, interval breakdown, and for strength and mobility days every movement with its own countdown timer. Any day has an **Ask the coach** thread for fueling, substitutions or "what is this movement?" |
+| **Today** | The home page: a greeting with the day's forecast, *Today's call*, today's sessions (one tap opens the workout in the calendar), the week's load against the plan, the next three days and the next goal. On a phone there is a bottom tab bar, and the app can be added to the home screen. |
+| **Calendar** | A *this week* strip (load against the plan's TSS band, planned sessions done or missed, unplanned extras, rain ahead), then the week with a forecast chip on each day, a badge per session type, execution scores, and `?week=` deep links to any week, and a **Print / share** page: one clean sheet of the week's plan to print, save as a PDF or copy as text for a message. Open a day for a hero header and the full session: target-vs-actual power chart, interval breakdown, and for strength and mobility days every movement with its own countdown timer. Any day has an **Ask the coach** thread for fueling, substitutions or "what is this movement?" Clicking a session scrolls straight to its detail, and a planned strength session has a full-screen **gym mode**: one movement at a time, a tick for each set, a rest countdown that beeps and vibrates, and weight and reps saved as you go. |
 | **Weekly review → coach** | Sunday starts with a review step (confirm each session against its planned workout, with an optional note on why you changed it, which the coach reads so a swap isn't mistaken for a missed session), then the coaching conversation, then the saved plan, which becomes Zwift files. The coach has an avatar that rocks and sends out rings while it answers; a referee whistle sounds when the plan is saved (there is a mute switch). |
-| **Dashboard** | *Today's call* (green light, easy or rest, from readiness and form), the KPI tiles, weekly load and fitness charts, a **consistency** ribbon, **readiness over time** (HRV, resting HR, sleep and Body Battery with a 7-day average against your own baseline), **achievements** as medals with a countdown to the next target, the power curve, and a card per kind of key session, easiest to hardest, with a watts / % of FTP toggle and a dashed line for what the plan asked for. |
+| **Dashboard** | *Today's call* (green light, easy or rest, from readiness and form), the KPI tiles, weekly load and fitness charts, a **consistency** ribbon, **readiness over time** (HRV, resting HR, sleep and Body Battery with a 7-day average against your own baseline), **achievements** as medals with a countdown to the next target, a **Performance Manager** chart (fitness, fatigue and form for 90 days, then the next four weeks projected from the saved plan, with the projected low point and form on the next goal date), a **power-to-weight** card with the gap to the W/kg goal, the power curve, and a card per kind of key session, easiest to hardest, with a watts / % of FTP toggle and a dashed line for what the plan asked for. |
 | **Power, by duration** | *Best power* shows the best 5 s / 1 min / 5 min / 20 min / 60 min over the last 90 days against the 90 before, the best ever, and a 12-month trend. The year-ago comparison fills itself in once the ride archive reaches back that far. Hover any interval on the target-vs-actual chart and the whole interval lights up with its target, what was ridden and how far off the band it was. |
+| **Compare rides** | Overlay any two rides (it starts with the newest ride and the previous one of the same name): 30-second power and heart rate on one time axis, a side-by-side summary with differences, and the prescribed intervals lined up, so "is this session getting easier?" has an answer. |
+| **Admin** | Problems and updates from background work (with dismiss), moving or removing a ride file, deleting a workout, managing goals, and rebuilding a week's Zwift files. |
 | **Self-explaining numbers** | Hover (or tap, or focus) any KPI tile for what it means, a plain-language reading of today's value, and a link to the **metric guide**: how each number is calculated here, how to read it, what the coach does with it, and where it misleads. |
 | **Look and feel** | Chakra Petch display type over Inter, a topographic page background, commissioned badge art for every section and session type, light and dark themes that follow the device, and quiet motion that respects reduced-motion settings. |
 
@@ -332,7 +335,7 @@ src/
     trainingpeaks_sync.py, nightly_sync.py, week_review.py
 frontend/         React 19 app: pages (calendar, coaching, dashboard, metric guide, admin), components,
                   lib/ (metric glossary, readiness call, sounds, theme, weather)
-tests/            pytest suite (80) · frontend/src/**/*.test.js (57)
+tests/            pytest suite (91) · frontend/src/**/*.test.js (78)
 docs/             runbook, architecture notes, images
 ```
 </details>

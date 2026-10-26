@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ArrowLeft, ArrowRight, Check, ExternalLink, Plus, SkipForward, X } from "lucide-react";
 import { beep, ding, audio } from "../lib/sounds";
 import { clock, expandSets, restSeconds, sessionProgress } from "../lib/gym";
@@ -11,7 +12,12 @@ import "./GymMode.css";
  * Full-screen, one-exercise-at-a-time view for the gym: big "set done" button, a rest countdown after
  * every set, and the weight/reps you used saved with the same call the exercise list uses.
  */
-export default function GymMode({ title, exercises, logs = {}, onSave, onClose }) {
+export default function GymMode(props) {
+  // Portal to <body>: the page-transition wrapper has a transform, which would trap a fixed overlay inside the page.
+  return createPortal(<GymSession {...props} />, document.body);
+}
+
+function GymSession({ title, exercises, logs = {}, onSave, onClose }) {
   const [idx, setIdx] = useState(0);
   const [done, setDone] = useState({});               // exercise index -> sets completed
   const [rest, setRest] = useState(null);             // { endsAt, total } while resting
