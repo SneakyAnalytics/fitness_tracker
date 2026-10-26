@@ -1,5 +1,7 @@
 # Database Schema Documentation
 
+> **Status:** written for the first, Streamlit-era version of this project. The current system is described in the [README](../../README.md); deployment is in the [runbook](../deployment/RUNBOOK.md). Details below may be out of date.
+
 ## Overview
 
 The fitness tracker uses SQLite for data storage. The database file is located at `data/fitness_data.db` and contains workout data, FIT file analysis, AI coaching plans, and athlete settings.
@@ -692,5 +694,4 @@ db.conn.execute("ALTER TABLE workouts_new RENAME TO workouts")
 ## Next Steps
 
 - **Query Optimization**: [api-endpoints.md](./api-endpoints.md) - See how API queries use this schema
-- **Data Flow**: [../agent-instructions/getting-started.md](../agent-instructions/getting-started.md#understanding-the-data-flow) - Understand how data moves through the system
 - **Testing Queries**: Test database queries before integrating into code using `sqlite3 data/fitness_data.db`

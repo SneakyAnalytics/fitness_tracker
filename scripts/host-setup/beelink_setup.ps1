@@ -1,5 +1,8 @@
 # Beelink Windows Setup Script
 # Run this as Administrator in PowerShell on the Beelink
+# Usage: .\beelink_setup.ps1 -MacPublicKey "$(cat ~/.ssh/id_ed25519.pub)"
+
+param([Parameter(Mandatory = $true)][string]$MacPublicKey)   # contents of your Mac's ~/.ssh/id_ed25519.pub
 
 Write-Host "=== Beelink Permanent Access Setup ===" -ForegroundColor Cyan
 Write-Host ""
@@ -47,7 +50,7 @@ if (!(Test-Path $sshDir)) {
 
 # Create authorized_keys file with Mac's public key
 $authorizedKeysFile = "$sshDir\authorized_keys"
-$macPublicKey = "ssh-ed25519 <your-public-key>
+$macPublicKey = $MacPublicKey
 Set-Content -Path $authorizedKeysFile -Value $macPublicKey
 
 # Set proper permissions (crucial for Windows SSH)

@@ -36,7 +36,7 @@ if ($elapsed -ge $timeout) {
 
 # Start the fitness tracker containers
 Write-Host "Starting fitness-tracker containers..."
-Set-Location "C:\Users\<user>\fitness_tracker"
+Set-Location "$env:USERPROFILE\fitness_tracker"
 docker-compose up -d
 Write-Host "Done. Containers:"
 docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"

@@ -117,3 +117,14 @@ come back on their own.
 If the stack is down: start Docker Desktop, wait for it to say "running", then
 `docker compose up -d`. Check `GET /health`. The Streamlit sidebar shows any recorded
 background failures (nightly sync, analysis) under "problem(s) need attention".
+
+## 2026-10-14: Docker after reboots (automatic login)
+
+Docker Desktop only runs inside `<user>`'s desktop session (its WSL data, including the `fitness_tracker_data` volume, belongs to that profile). A Windows Update reboot on 2026-10-14 left nobody logged in, so Docker and every Interactive task (watchdog, nightly sync, Zwift) stayed down.
+
+- Automatic login is now for **`<user>`**, set with `netplwiz` (password stored as an LSA secret, not in the registry). It needed `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device\DevicePasswordLessBuildVersion = 0`; the previous value 2 ("Windows Hello only") made Windows ignore automatic login.
+- Docker Desktop `AutoStart` is true (`C:\Users\<user>\AppData\Roaming\Docker\settings-store.json`, backup `.bak-20261014`); `FitnessTrackerDockerWatchdog` remains the backstop.
+- `Beelink-LockAfterAutoLogon` runs `C:\Automations\lock_if_idle.ps1` 3 minutes after `<user>` signs in, then every 2 minutes until 12 minutes, and locks the screen only after 170 s with no keyboard/mouse input (so a person at the TV isn't locked out mid-task). The re-checks matter: on the first reboot test the idle clock read 169 s at the 3-minute mark. Log: `C:\Automations\logs\lock_if_idle.log`.
+- Docker Desktop starts from `<user>`'s `HKCU\...\CurrentVersion\Run` entry (`"...Docker Desktop.exe" -Autostart`); setting `AutoStart` in `settings-store.json` alone does not create it.
+- Verified 2026-10-14 with two remote reboots: automatic login, Docker (about 20 s after boot), fitness API healthy, TaskChoreSync, Home_Dashboard and sports lighting all came back with no one at the keyboard, and the session locked.
+- The June `<docker-user>` approach is retired: its automatic login and plain-text `DefaultPassword` were removed, and `DockerContextCheck`, `DockerDesktopAutoStart`, `DockerPipeTest`, `FitnessTrackerAutoStart` are disabled (not deleted). The `<docker-user>` account is disabled.

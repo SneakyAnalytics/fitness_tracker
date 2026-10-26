@@ -8,7 +8,7 @@ Get-Process dllhost -ErrorAction SilentlyContinue |
     }
 '@
 
-$scriptPath = "C:\Users\<user>\kill_dllhost.ps1"
+$scriptPath = "$env:USERPROFILE\kill_dllhost.ps1"
 $script | Out-File -FilePath $scriptPath -Encoding UTF8
 
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' `

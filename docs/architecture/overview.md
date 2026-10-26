@@ -1,5 +1,7 @@
 # AI Model Architecture - Cost Optimization
 
+> **Status:** written for the first, Streamlit-era version of this project. The current system is described in the [README](../../README.md); deployment is in the [runbook](../deployment/RUNBOOK.md). Details below may be out of date.
+
 ## Complete System Flow
 
 ```

@@ -1,5 +1,7 @@
 # Streamlit App Architecture
 
+> **Status:** written for the first, Streamlit-era version of this project. The current system is described in the [README](../../README.md); deployment is in the [runbook](../deployment/RUNBOOK.md). Details below may be out of date.
+
 ## Overview
 
 The Streamlit UI is the primary interface for the fitness tracker application. It's a single 4,400+ line file (`src/ui/streamlit_app.py`) that provides:
@@ -848,4 +850,3 @@ curl http://localhost:8501/_stcore/health
 
 - **Backend API**: [api-endpoints.md](./api-endpoints.md) - See what endpoints the UI calls
 - **Database**: [database-schema.md](./database-schema.md) - Understand the data structure
-- **Development**: [../agent-instructions/getting-started.md](../agent-instructions/getting-started.md) - Start contributing

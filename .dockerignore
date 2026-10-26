@@ -89,3 +89,6 @@ frontend/
 data/
 logs/
 frontend/node_modules/
+
+deploy.local.env
+AGENTS.local.md

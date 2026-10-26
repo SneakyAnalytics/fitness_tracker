@@ -1,5 +1,7 @@
 # Data Processing Pipeline
 
+> **Status:** written for the first, Streamlit-era version of this project. The current system is described in the [README](../../README.md); deployment is in the [runbook](../deployment/RUNBOOK.md). Details below may be out of date.
+
 **Complete guide to how workout data flows through the system.**
 
 ## Table of Contents
@@ -926,7 +928,6 @@ detector.work_threshold_zone = 'Z2'  # Catch tempo efforts
 - [Database Schema](./database-schema.md) - Where processed data is stored
 - [API Endpoints](./api-endpoints.md) - How to upload/retrieve data via API
 - [AI Coaching System](./ai-coaching-system.md) - How AI generates workout plans
-- [Development Workflow](../agent-instructions/development-workflow.md) - Testing and debugging
 
 ---
 

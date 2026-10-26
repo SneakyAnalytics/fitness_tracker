@@ -5,9 +5,9 @@
 #   - Docker Desktop running but the engine silent for 3 checks in a row -> restart Docker Desktop.
 #   - Engine up but the API container not running -> docker compose up -d.
 # Disable while working on Docker by hand: schtasks /change /tn FitnessTrackerDockerWatchdog /disable
-# Log: C:\Users\<user>\fitness_tracker\logs\docker_watchdog.log (only actions are logged).
+# Log: %USERPROFILE%\fitness_tracker\logs\docker_watchdog.log (only actions are logged).
 
-$root = "C:\Users\<user>\fitness_tracker"
+$root = "$env:USERPROFILE\fitness_tracker"
 $log = Join-Path $root "logs\docker_watchdog.log"
 $state = Join-Path $root "logs\docker_watchdog.failures"
 New-Item -ItemType Directory -Force -Path (Split-Path $log) | Out-Null

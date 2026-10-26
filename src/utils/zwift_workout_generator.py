@@ -156,8 +156,8 @@ def generate_zwift_workout(workout_date: str, workout_name: str, intervals: List
             raise PermissionError(
                 f"Cannot create Zwift week directory '{weekly_output_dir}'. "
                 f"On Beelink, pre-create it with: "
-                f"New-Item -Path 'C:/Users/<user>/fitness_tracker/shareable/zwift_workouts/{week_folder}' -Force; "
-                f"icacls 'C:/Users/<user>/fitness_tracker/shareable/zwift_workouts/{week_folder}' /grant Everyone:F"
+                f"New-Item -Path '<fitness_tracker folder>/shareable/zwift_workouts/{week_folder}' -Force; "
+                f"icacls '<fitness_tracker folder>/shareable/zwift_workouts/{week_folder}' /grant Everyone:F"
             )
         
         # Full path for the output file

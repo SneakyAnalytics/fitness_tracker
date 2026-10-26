@@ -17,9 +17,6 @@
 
 set -euo pipefail
 
-BEELINK="<user>@<beelink-ip>"
-REMOTE_DIR='C:\Users\<user>\fitness_tracker'
-REMOTE_DIR_FWD="C:/Users/<user>/fitness_tracker"
 ENV_KEYS=()
 VERSION=""
 FIRST_RUN=false
@@ -34,15 +31,17 @@ while [[ $# -gt 0 ]]; do
 done
 
 cd "$(dirname "$0")"
+# Server address, user and folders come from the git-ignored deploy.local.env.
+source scripts/load_local_config.sh
 remote() { ssh -o ConnectTimeout=10 "$BEELINK" "$@"; }
 # Docker Desktop's Windows credential store needs an interactive logon, so registry
 # operations over SSH fail ("A specified logon session does not exist"). Over SSH we
 # use a config whose credential helper answers "none stored" (fine for public images).
-DOCKER_SSH='set PATH=C:\Users\<user>\.docker-ssh\bin;%PATH%&& set DOCKER_CONFIG=C:\Users\<user>\.docker-ssh&&'
+DOCKER_SSH="set PATH=${BEELINK_HOME_BS}\.docker-ssh\bin;%PATH%&& set DOCKER_CONFIG=${BEELINK_HOME_BS}\.docker-ssh&&"
 setup_docker_ssh() {
-  remote 'if not exist C:\Users\<user>\.docker-ssh\bin mkdir C:\Users\<user>\.docker-ssh\bin' >/dev/null
-  scp -q scripts/deploy/docker-ssh/config.json "$BEELINK:C:/Users/<user>/.docker-ssh/config.json"
-  scp -q scripts/deploy/docker-ssh/docker-credential-anon.cmd "$BEELINK:C:/Users/<user>/.docker-ssh/bin/docker-credential-anon.cmd"
+  remote "if not exist ${BEELINK_HOME_BS}\.docker-ssh\bin mkdir ${BEELINK_HOME_BS}\.docker-ssh\bin" >/dev/null
+  scp -q scripts/deploy/docker-ssh/config.json "$BEELINK:${BEELINK_HOME}/.docker-ssh/config.json"
+  scp -q scripts/deploy/docker-ssh/docker-credential-anon.cmd "$BEELINK:${BEELINK_HOME}/.docker-ssh/bin/docker-credential-anon.cmd"
 }
 
 echo "🔌 Checking the Beelink..."
@@ -69,8 +68,8 @@ for image in fitness-tracker fitness-tracker-web; do
 done
 
 echo "💾 Backing up the live database..."
-scp -q scripts/deploy/backup_db.py "$BEELINK:C:/Users/<user>/ft_backup_db.py"
-remote "docker cp C:/Users/<user>/ft_backup_db.py fitness-tracker-api:/tmp/backup_db.py" \
+scp -q scripts/deploy/backup_db.py "$BEELINK:${BEELINK_HOME}/ft_backup_db.py"
+remote "docker cp ${BEELINK_HOME}/ft_backup_db.py fitness-tracker-api:/tmp/backup_db.py" \
   && remote "docker exec fitness-tracker-api python3 /tmp/backup_db.py" \
   || { echo "❌ Backup failed; not deploying."; exit 1; }
 
@@ -78,10 +77,10 @@ remote "docker cp C:/Users/<user>/ft_backup_db.py fitness-tracker-api:/tmp/backu
 merge_env() {
   local updates; updates=$(mktemp)
   cat > "$updates"
-  scp -q scripts/deploy/merge_env.ps1 "$BEELINK:C:/Users/<user>/ft_merge_env.ps1"
-  scp -q "$updates" "$BEELINK:C:/Users/<user>/ft_env_updates.txt"
+  scp -q scripts/deploy/merge_env.ps1 "$BEELINK:${BEELINK_HOME}/ft_merge_env.ps1"
+  scp -q "$updates" "$BEELINK:${BEELINK_HOME}/ft_env_updates.txt"
   rm -f "$updates"
-  remote "powershell -NoProfile -ExecutionPolicy Bypass -File C:/Users/<user>/ft_merge_env.ps1 -EnvFile $REMOTE_DIR_FWD/.env -Updates C:/Users/<user>/ft_env_updates.txt"
+  remote "powershell -NoProfile -ExecutionPolicy Bypass -File ${BEELINK_HOME}/ft_merge_env.ps1 -EnvFile $REMOTE_DIR_FWD/.env -Updates ${BEELINK_HOME}/ft_env_updates.txt"
 }
 
 # Keep the pre-overhaul app runnable as a fallback (docker-compose.legacy.yml, port 8601).
@@ -140,9 +139,9 @@ fi
 
 cat <<EOF
 
-Deployed ${VERSION:0:12}.  Calendar & coaching: http://<beelink-ip>:3000   Admin: http://<beelink-ip>:8501
+Deployed ${VERSION:0:12}.  Calendar & coaching: http://${BEELINK_HOST}:3000   Admin: http://${BEELINK_HOST}:8501
 
 Old app (fallback), only if needed:
   ssh $BEELINK "cd /d $REMOTE_DIR && docker compose -f docker-compose.legacy.yml -p fitness-legacy up -d"
-  then http://<beelink-ip>:8601  (stop it again with ... down)
+  then http://${BEELINK_HOST}:8601  (stop it again with ... down)
 EOF

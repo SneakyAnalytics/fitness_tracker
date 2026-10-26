@@ -1,10 +1,13 @@
 # Fix SSH Key Authentication on Beelink
 # Run this as Administrator on the Beelink
+# Usage: .\fix_beelink_ssh.ps1 -MacPublicKey "$(cat ~/.ssh/id_ed25519.pub)"
+
+param([Parameter(Mandatory = $true)][string]$MacPublicKey)   # contents of your Mac's ~/.ssh/id_ed25519.pub
 
 Write-Host "Fixing SSH key authentication..." -ForegroundColor Cyan
 
 # Mac's public key
-$macPublicKey = "ssh-ed25519 <your-public-key>
+$macPublicKey = $MacPublicKey
 
 # Check if current user is in Administrators group
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -54,5 +57,5 @@ Restart-Service sshd
 Write-Host ""
 Write-Host "SSH key authentication configured!" -ForegroundColor Green
 Write-Host ""
-Write-Host "Test from Mac with: ssh <user>@<lan-ip> hostname" -ForegroundColor Cyan
+Write-Host "Test from Mac with: ssh <user>@<beelink-ip> hostname" -ForegroundColor Cyan
 Write-Host "Should work without password" -ForegroundColor Cyan

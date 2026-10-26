@@ -1,5 +1,7 @@
 # Automation & Sync System
 
+> **Status:** written for the first, Streamlit-era version of this project. The current system is described in the [README](../../README.md); deployment is in the [runbook](../deployment/RUNBOOK.md). Details below may be out of date.
+
 **Complete guide to automated TrainingPeaks sync and daily workout analysis**
 
 ## Table of Contents
@@ -1904,7 +1906,6 @@ Always rebuild containers after updating the Dockerfile. Use `--no-cache` to ens
 - **[AI Coaching System](ai-coaching-system.md)** - Workout analysis with Gemini AI
 - **[Database Schema](database-schema.md)** - Data storage and relationships
 - **[API Endpoints](api-endpoints.md)** - FastAPI upload endpoints
-- **[Development Workflow](../agent-instructions/development-workflow.md)** - Testing and debugging
 
 ---
 

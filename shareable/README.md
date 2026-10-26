@@ -4,22 +4,6 @@ This folder contains training plan and coaching resources you can share with tra
 
 ## Files Included
 
-### 📅 `workout_plan.txt`
-
-**Your Last 2 Months of Workouts (October-December 2025)**
-
-- **68 total workouts** including:
-  - 42 cycling workouts with detailed interval breakdowns
-  - 10 running workouts
-  - 10 strength/cross-training workouts
-  - 7 mobility/yoga sessions
-  - 3 rest days
-- All power targets expressed as **% of FTP** (adaptable to any fitness level)
-- Includes workout notes and duration/TSS targets
-- Shows complete training structure including cross-training
-- Personal details have been generalized for sharing
-
-**How to use:** Your co-worker can take these workouts and apply them to their own FTP. For example, if a workout says "2x20 min @ 88-93% FTP", they would calculate based on their own threshold power. Sprint intervals showing "167% FTP" are max efforts (500W at 300W FTP).
 
 ### 📚 `cycling_coaching_guide.md` / `cycling_coaching_guide.pdf`
 
@@ -85,7 +69,7 @@ You can:
 
 - Share `cycling_coaching_guide.pdf` (easier to read than markdown)
 - Include `zwift_workouts/` folder with installation instructions
-- Optionally include `workout_plan.txt` for reference
+- Optionally include `the weekly plan in the app` for reference
 
 ## Privacy Note
 

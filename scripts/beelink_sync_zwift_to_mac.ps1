@@ -5,10 +5,10 @@
 #
 # Everything runs through the container: the Beelink has no host Python, and the
 # Zwift files live in the fitness_tracker_shareable volume (not the host folder).
-# Output goes to C:\Users\<user>\fitness_tracker\logs\zwift_sync.log.
+# Output goes to %USERPROFILE%\fitness_tracker\logs\zwift_sync.log.
 
 $ErrorActionPreference = "Continue"
-$root = "C:\Users\<user>\fitness_tracker"
+$root = "$env:USERPROFILE\fitness_tracker"
 $log = Join-Path $root "logs\zwift_sync.log"
 New-Item -ItemType Directory -Force -Path (Split-Path $log) | Out-Null
 function Log($msg) { $line = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $msg"; Write-Host $line; Add-Content $log $line }

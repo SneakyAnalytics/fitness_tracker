@@ -1,5 +1,7 @@
 # AI Coaching System
 
+> **Status:** written for the first, Streamlit-era version of this project. The current system is described in the [README](../../README.md); deployment is in the [runbook](../deployment/RUNBOOK.md). Details below may be out of date.
+
 **Complete guide to how AI generates personalized training plans.**
 
 ## Table of Contents
@@ -1201,7 +1203,6 @@ coach = AICoachEngine(model=AIModel.GEMINI_FREE)
 - [Data Processing Pipeline](./data-processing-pipeline.md) - How workout data is processed
 - [Database Schema](./database-schema.md) - Where plans are stored
 - [API Endpoints](./api-endpoints.md) - HTTP interface to coaching engine
-- [Development Workflow](../agent-instructions/development-workflow.md) - Testing AI components
 
 ---
 

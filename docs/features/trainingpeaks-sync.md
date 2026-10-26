@@ -1,5 +1,7 @@
 # Automated Daily TrainingPeaks Sync & Analysis
 
+> **Status:** written for the first, Streamlit-era version of this project. The current system is described in the [README](../../README.md); deployment is in the [runbook](../deployment/RUNBOOK.md). Details below may be out of date.
+
 ## 🎯 Overview
 
 Complete end-to-end automation that runs at 10pm PST every day:

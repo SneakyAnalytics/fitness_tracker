@@ -77,6 +77,10 @@ Generated plans were cut off mid-JSON; the save would fail silently or produce a
 
 ## Deployment Notes (Beelink)
 
+- **This repository is public. Never commit machine- or network-specific details**: server addresses, usernames, home folders, SSH keys,
+  emails, API keys. Put them in the git-ignored `deploy.local.env` (read by the Mac-side scripts; template: `deploy.local.env.example`),
+  `AGENTS.local.md` (private notes for agents on this machine) or `.env`. In anything committed use placeholders (`<user>`, `<beelink-ip>`,
+  `%USERPROFILE%`). `tests/test_no_local_info.py` fails if one slips in. Host-side scripts derive paths from `$env:USERPROFILE`.
 - Beelink is **Windows** (`C:/Users/<user>/...`) with **no rsync or git** — only `tar`, `scp`, Docker Compose.
 - Deploy: push to `main` → GitHub Actions tests and publishes images to ghcr.io →
   `./deploy_to_beelink.sh` pulls them (backs up the DB first, health-checks after).

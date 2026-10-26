@@ -593,7 +593,7 @@ def display_performance_analytics():
             Then add to crontab (`crontab -e`):
             ```bash
             # Complete automation at 10pm PST
-            0 22 * * * cd /Users/<you>/fitness_tracker && /Users/<you>/fitness_tracker/venv/bin/python -m src.utils.daily_auto_sync_and_analyze >> /Users/<you>/fitness_tracker/logs/daily_automation.log 2>&1
+            0 22 * * * cd /path/to/fitness_tracker && /path/to/fitness_tracker/venv/bin/python -m src.utils.daily_auto_sync_and_analyze >> /path/to/fitness_tracker/logs/daily_automation.log 2>&1
             ```
             """)
         
@@ -2067,7 +2067,7 @@ def display_ai_coach():
                                 st.warning(
                                     "⚠️ Plan saved but no Zwift files generated. "
                                     "This usually means the Week folder doesn't exist yet on the Windows host. "
-                                    f"Create it with: `New-Item -Path 'C:/Users/<user>/fitness_tracker/shareable/zwift_workouts/Week_XX' -Force` "
+                                    f"Create it with: `New-Item -Path '<fitness_tracker folder>/shareable/zwift_workouts/Week_XX' -Force` "
                                     f"then re-run Zwift file generation from the Proposed Workouts page."
                                 )
                             st.rerun()

@@ -8,11 +8,11 @@
 
 set -e
 
-BEELINK_IP="<beelink-ip>"
-BEELINK_USER="<user>"
-BEELINK="${BEELINK_USER}@${BEELINK_IP}"
+cd "$(dirname "$0")"
+# Server address, user and folders come from the git-ignored deploy.local.env.
+source scripts/load_local_config.sh
 CONTAINER="fitness-tracker-api"
-REMOTE_STAGING="C:/Users/<user>/ft_db_snapshot.db"
+REMOTE_STAGING="${BEELINK_HOME}/ft_db_snapshot.db"
 LOCAL_DB_PATH="./data/fitness_data.db"
 BACKUP_PATH="./data/fitness_data.db.backup_$(date +%Y%m%d_%H%M%S)"
 TMP_DB="$(mktemp -t fitness_snapshot).db"
@@ -26,7 +26,7 @@ echo "🔌 Testing connection to Beelink..."
 if ! ssh -o ConnectTimeout=5 "${BEELINK}" "echo Connected" &>/dev/null; then
     echo "❌ Cannot connect to Beelink. Check:"
     echo "   - Tailscale is running on both devices"
-    echo "   - IP address is correct: ${BEELINK_IP}"
+    echo "   - Address is correct: ${BEELINK_HOST}"
     echo "   - SSH is configured"
     exit 1
 fi
@@ -43,8 +43,8 @@ src.backup(dst)
 dst.close()
 src.close()
 EOF
-scp -q "${SNAP_SCRIPT}" "${BEELINK}:C:/Users/<user>/ft_snap.py"
-ssh "${BEELINK}" "docker cp C:/Users/<user>/ft_snap.py ${CONTAINER}:/tmp/ft_snap.py"
+scp -q "${SNAP_SCRIPT}" "${BEELINK}:${BEELINK_HOME}/ft_snap.py"
+ssh "${BEELINK}" "docker cp ${BEELINK_HOME}/ft_snap.py ${CONTAINER}:/tmp/ft_snap.py"
 ssh "${BEELINK}" "docker exec ${CONTAINER} python3 /tmp/ft_snap.py"
 ssh "${BEELINK}" "docker cp ${CONTAINER}:/tmp/fitness_snapshot.db ${REMOTE_STAGING}"
 rm -f "${SNAP_SCRIPT}"

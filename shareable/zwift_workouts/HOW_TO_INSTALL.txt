@@ -27,14 +27,14 @@ WINDOWS:
 C:\Users\[YOUR_USERNAME]\Documents\Zwift\Workouts\[YOUR_ZWIFT_ID]\
 
 Example:
-C:\Users\JohnDoe\Documents\Zwift\Workouts\1234567\
+C:\Users\<you>\Documents\Zwift\Workouts\1234567\
 
 macOS:
 ------
 /Users/[YOUR_USERNAME]/Documents/Zwift/Workouts/[YOUR_ZWIFT_ID]/
 
 Example:
-/Users/johndoe/Documents/Zwift/Workouts/1234567/
+/Users/<you>/Documents/Zwift/Workouts/1234567/
 
 
 HOW TO FIND YOUR ZWIFT USER ID:
@@ -187,7 +187,7 @@ QUESTIONS?
 ================================================================================
 
 If you have questions about:
-- Workout structure → Check workout_plan.txt in the shareable folder
+- Workout structure → Ask whoever shared the plan with you
 - Training principles → Read cycling_coaching_guide.md/pdf in shareable folder
 - Specific workouts → Workout names indicate the focus (Recovery, VO2max, etc.)
 

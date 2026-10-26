@@ -1,5 +1,7 @@
 # Beelink Permanent Access Setup Guide
 
+> **Status:** written for the first, Streamlit-era version of this project. The current system is described in the [README](../../README.md); deployment is in the [runbook](../deployment/RUNBOOK.md). Details below may be out of date.
+
 ## Current Status: Mac Ready ✅
 
 Your Mac is configured with:
@@ -14,10 +16,10 @@ Your Mac is configured with:
 ### Method 1: Automated Setup (Recommended)
 
 1. **Copy the setup script to Beelink**
-   - Use USB drive: Copy `beelink_setup.ps1` to USB
+   - Use USB drive: Copy `scripts/host-setup/beelink_setup.ps1` to USB
    - Or download: Open PowerShell on Beelink and run:
      ```powershell
-     Invoke-WebRequest -Uri "https://raw.githubusercontent.com/YOUR_REPO/beelink_setup.ps1" -OutFile "$env:TEMP\beelink_setup.ps1"
+     Invoke-WebRequest -Uri "https://raw.githubusercontent.com/YOUR_REPO/beelink_setup.ps1" -OutFile "$env:TEMP\scripts/host-setup/beelink_setup.ps1"
      ```
 
 2. **Run the setup script as Administrator**
@@ -25,7 +27,7 @@ Your Mac is configured with:
    ```powershell
    # Right-click PowerShell → Run as Administrator
    Set-ExecutionPolicy Bypass -Scope Process -Force
-   & "$env:TEMP\beelink_setup.ps1"
+   & "$env:TEMP\scripts/host-setup/beelink_setup.ps1"
    ```
 
 3. **Follow the prompts**

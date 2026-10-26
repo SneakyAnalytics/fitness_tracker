@@ -1,5 +1,7 @@
 # FastAPI Endpoints Documentation
 
+> **Status:** written for the first, Streamlit-era version of this project. The current system is described in the [README](../../README.md); deployment is in the [runbook](../deployment/RUNBOOK.md). Details below may be out of date.
+
 ## Overview
 
 The FastAPI backend provides RESTful endpoints for workout management, AI analysis, weekly planning, and Zwift integration. The API runs on port 8000 and provides interactive documentation at `/docs`.
@@ -847,4 +849,3 @@ ZWIFT_WORKOUTS_DIR=/Users/username/Documents/Zwift/Workouts/6870291
 
 - **Database Schema**: [database-schema.md](./database-schema.md) - Understand data structure
 - **Streamlit UI**: [streamlit-app.md](./streamlit-app.md) - See how UI calls these endpoints
-- **Development**: [../agent-instructions/development-workflow.md](../agent-instructions/development-workflow.md#adding-a-new-api-endpoint) - Add new endpoints

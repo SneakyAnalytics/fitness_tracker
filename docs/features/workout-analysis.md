@@ -1,5 +1,7 @@
 # Text Event Enhancements - Quick Start
 
+> **Status:** written for the first, Streamlit-era version of this project. The current system is described in the [README](../../README.md); deployment is in the [runbook](../deployment/RUNBOOK.md). Details below may be out of date.
+
 ## What Changed? 🎉
 
 Your Zwift workout text events are now **2x more frequent** and **way more informative**!

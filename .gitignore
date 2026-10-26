@@ -104,3 +104,7 @@ archive/data_scripts_2026_10/
 !frontend/public/*.png
 !docs/images/*.jpg
 !docs/images/*.png
+
+# Machine-specific settings and notes: never committed (see deploy.local.env.example)
+deploy.local.env
+AGENTS.local.md

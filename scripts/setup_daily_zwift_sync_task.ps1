@@ -6,14 +6,14 @@
 #
 # Or manually create task with these settings:
 #   - Trigger: Daily at 5:00 AM PST
-#   - Action: Run PowerShell script: C:\Users\<user>\fitness_tracker\scripts\beelink_sync_zwift_to_mac.ps1
+#   - Action: Run PowerShell script: %USERPROFILE%\fitness_tracker\scripts\beelink_sync_zwift_to_mac.ps1
 #   - Settings: Run whether user is logged on or not, wake computer to run
 
 param(
     [string]$TaskName = "DailyZwiftSync",
-    [string]$ScriptPath = "C:\Users\<user>\fitness_tracker\scripts\beelink_sync_zwift_to_mac.ps1",
+    [string]$ScriptPath = "$env:USERPROFILE\fitness_tracker\scripts\beelink_sync_zwift_to_mac.ps1",
     [string]$TriggerTime = "05:00",
-    [string]$LogFile = "C:\Users\<user>\fitness_tracker\logs\zwift_sync.log"
+    [string]$LogFile = "$env:USERPROFILE\fitness_tracker\logs\zwift_sync.log"
 )
 
 Write-Host "Setting up Daily Zwift Sync scheduled task..." -ForegroundColor Green
