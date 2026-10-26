@@ -313,6 +313,20 @@ def _consistency(db_path: str, weeks: int = 12) -> Dict[str, Any]:
     return {"weeks": out, "streak": streak}
 
 
+class ConfirmFtp(BaseModel):
+    ftp: int = Field(ge=100, le=600)
+    date: Optional[str] = None
+
+
+@router.post("/zwift_ftp/confirm")
+def confirm_zwift_ftp(req: ConfirmFtp):
+    """The athlete read their FTP off Zwift (after a ramp test): record it so the app follows it."""
+    try:
+        return zwift_ftp.confirm_ftp(req.ftp, req.date)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
 @router.get("/dashboard/trends")
 def dashboard_trends(weeks: int = 16):
     db = WorkoutDatabase()
@@ -321,6 +335,7 @@ def dashboard_trends(weeks: int = 16):
         "load": training_load.load_snapshot(db.db_path),
         "weekly": training_load.weekly_load(db.db_path, weeks=weeks),
         "power_curve": training_load.compare_power_curves(90, db_path=db.db_path),
+        "power_profile": training_load.power_profile(db.db_path),
         "zwift_ftp": zwift_ftp.current(db.db_path),
         "readiness": training_load.readiness(db_path=db.db_path),
         "goals": _goal_medals(db.db_path),

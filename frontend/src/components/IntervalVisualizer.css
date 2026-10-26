@@ -125,3 +125,89 @@
   font-weight: 700;
   color: var(--color-forest);
 }
+
+/* Whole-interval hover: transparent zones over the plot area, a highlight drawn in the chart, a card above. */
+.iv-stage {
+  position: relative;
+}
+
+.iv-zones {
+  position: absolute;
+  left: 56px;
+  right: 16px;
+}
+
+.iv-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: crosshair;
+}
+
+.iv-zone:focus-visible {
+  outline: 2px solid var(--color-cyan);
+  outline-offset: -2px;
+}
+
+.iv-tip {
+  position: absolute;
+  bottom: 6px;      /* the area under the power lines is empty, so the card never hides them */
+  transform: translateX(-50%);
+  z-index: 5;
+  min-width: 190px;
+  max-width: 260px;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  background: #0e1d2c;
+  border: 1px solid rgba(63, 208, 224, 0.5);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+  color: var(--panel-text);
+  pointer-events: none;
+}
+
+.iv-tip h4 {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.iv-tip p {
+  margin: 0.1rem 0;
+  font-size: 0.82rem;
+  color: var(--panel-text);
+}
+
+.iv-tip strong {
+  color: var(--color-cyan-soft);
+}
+
+.iv-flag {
+  display: inline-block;
+  white-space: nowrap;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.iv-flag.on_target {
+  background: rgba(138, 240, 189, 0.18);
+  color: #8af0bd;
+}
+
+.iv-flag.close {
+  background: rgba(244, 210, 122, 0.18);
+  color: #f4d27a;
+}
+
+.iv-flag.low,
+.iv-flag.high,
+.iv-flag.missing {
+  background: rgba(229, 138, 74, 0.2);
+  color: #ffb27a;
+}

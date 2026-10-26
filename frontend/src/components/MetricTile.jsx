@@ -8,7 +8,7 @@ import "./MetricTile.css";
  * A KPI tile whose hover (or focus, or tap) card explains the number, reads today's value in plain
  * language, and links to the full write-up on the metric guide page.
  */
-export default function MetricTile({ metricId, label, value, raw, sub, ctx }) {
+export default function MetricTile({ metricId, label, value, raw, sub, ctx, action }) {
   const metric = metricById(metricId);
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
@@ -78,9 +78,16 @@ export default function MetricTile({ metricId, label, value, raw, sub, ctx }) {
             </p>
           )}
           <p className="metric-read">{metric.read}</p>
-          <Link to={`/metrics#${metric.id}`} className="metric-more" tabIndex={open ? 0 : -1}>
-            Full explanation <ArrowRight size={14} />
-          </Link>
+          <div className="metric-links">
+            <Link to={`/metrics#${metric.id}`} className="metric-more" tabIndex={open ? 0 : -1}>
+              Full explanation <ArrowRight size={14} />
+            </Link>
+            {action && (
+              <button type="button" className="metric-action" tabIndex={open ? 0 : -1} onClick={action.onClick}>
+                {action.label}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

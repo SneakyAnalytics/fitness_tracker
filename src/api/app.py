@@ -1426,6 +1426,11 @@ async def save_athlete_settings(request: Request):
     if not isinstance(settings_obj, dict):
         raise HTTPException(status_code=400, detail="`settings` object is required")
     aid = body.get("athlete_id") or "default"
+    # Keys the app maintains itself survive a settings form that doesn't know about them.
+    existing = WorkoutDatabase().load_athlete_settings(aid) or {}
+    for key in ("zwift_ftp_confirmed",):
+        if key in existing and key not in settings_obj:
+            settings_obj[key] = existing[key]
     if not WorkoutDatabase().save_athlete_settings(aid, settings_obj):
         raise HTTPException(status_code=500, detail="Failed to persist athlete settings")
     return {"message": "Athlete settings saved", "athlete_id": aid}

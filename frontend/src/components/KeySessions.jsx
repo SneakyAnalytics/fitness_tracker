@@ -6,14 +6,14 @@ import { ArtByKey } from "./CoachLogo";
 import { summarizeProgression } from "../lib/progression";
 import "./KeySessions.css";
 
-// archetype -> label, badge art, accent colour for its chart
+// archetype -> label, its badge (CoachLogo), accent colour for its chart
 const TYPES = [
-  ["threshold", "Threshold", "cycling", "#8af0bd"],
-  ["sweet_spot", "Sweet spot", "cycling", "#f4d27a"],
-  ["over_under", "Over / unders", "cycling", "#e58a4a"],
-  ["vo2max", "VO2max", "run", "#ff8fa3"],
-  ["tempo", "Tempo", "cycling", "#8be3ee"],
-  ["endurance", "Endurance", "rest", "#7fb2ff"],
+  ["threshold", "Threshold", "threshold", "#8af0bd"],
+  ["sweet_spot", "Sweet spot", "sweet_spot", "#f4d27a"],
+  ["over_under", "Over / unders", "over_under", "#e58a4a"],
+  ["vo2max", "VO2max", "vo2max", "#ff8fa3"],
+  ["tempo", "Tempo", "tempo", "#8be3ee"],
+  ["endurance", "Endurance", "endurance", "#7fb2ff"],
 ];
 
 const fmtDate = (d) => format(parseISO(d), "MMM d");
@@ -51,7 +51,7 @@ function SessionCard({ id, label, art, color, sessions }) {
   return (
     <article className="ks-card card panel-dark">
       <header className="ks-head">
-        <ArtByKey name={art} size={44} />
+        <ArtByKey name={art} size={64} />
         <div>
           <h4>{label}</h4>
           <span className={`ks-trend ${trend.cls}`}>

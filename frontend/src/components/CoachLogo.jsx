@@ -10,6 +10,12 @@ import artStrength from "../assets/art-strength.webp";
 import artMobility from "../assets/art-mobility.webp";
 import artSauna from "../assets/art-sauna.webp";
 import artRest from "../assets/art-rest.webp";
+import typeThreshold from "../assets/type-threshold.webp";
+import typeSweetSpot from "../assets/type-sweet-spot.webp";
+import typeOverUnder from "../assets/type-over-under.webp";
+import typeVo2 from "../assets/type-vo2max.webp";
+import typeTempo from "../assets/type-tempo.webp";
+import typeEndurance from "../assets/type-endurance.webp";
 import wave from "../assets/coach-wave.webp";
 import errorArt from "../assets/coach-error.webp";
 
@@ -36,7 +42,23 @@ export const CoachAdmin = (props) => <Art src={admin} size={32} {...props} />;
 export const CoachWave = (props) => <Art src={wave} size={140} {...props} />;
 export const CoachError = (props) => <Art src={errorArt} size={96} {...props} />;
 
-const SESSION_ART = { cycling: artCycling, run: artRun, strength: artStrength, mobility: artMobility, sauna: artSauna, rest: artRest };
+const SESSION_ART = {
+  cycling: artCycling, run: artRun, strength: artStrength, mobility: artMobility, sauna: artSauna, rest: artRest,
+  threshold: typeThreshold, sweet_spot: typeSweetSpot, over_under: typeOverUnder, vo2max: typeVo2, tempo: typeTempo, endurance: typeEndurance,
+};
+
+/** Key-session badge for a ride, by name; the same order as the backend's classification (progression.py). */
+export function bikeArtKey(name) {
+  const n = (name || "").toLowerCase();
+  if (/(commute|active recovery|recovery spin|flush|easy spin|recovery ride)/.test(n)) return "cycling";
+  if (/(vo2|vo₂)/.test(n)) return "vo2max";
+  if (/(over[-/ ]?unders?|overs\/unders)/.test(n)) return "over_under";
+  if (/sweet ?spot/.test(n)) return "sweet_spot";
+  if (/(threshold|ftp interval|pyramid)/.test(n)) return "threshold";
+  if (/tempo/.test(n)) return "tempo";
+  if (/(endurance|zone 2|\bz2\b|aerobic|long ride|\bbase\b)/.test(n)) return "endurance";
+  return "cycling";
+}
 
 /** Which session badge fits a workout, or null when there isn't one (hiking, walking...). */
 export function sessionArtKey(type, name) {
@@ -44,7 +66,7 @@ export function sessionArtKey(type, name) {
   const n = (name || "").toLowerCase();
   if (n.includes("sauna") || n.includes("hot bath")) return "sauna";
   if (n.includes("rest day") || t === "rest") return "rest";
-  if (t.includes("bike") || t.includes("cycling")) return "cycling";
+  if (t.includes("bike") || t.includes("cycling")) return bikeArtKey(n);
   if (t.includes("run")) return "run";
   if (t.includes("strength") || t.includes("routine")) return "strength";
   if (t.includes("yoga") || t.includes("mobility")) return "mobility";

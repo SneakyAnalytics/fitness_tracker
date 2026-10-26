@@ -127,3 +127,30 @@
     transition: none;
   }
 }
+
+.metric-links {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.metric-action {
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(63, 208, 224, 0.55);
+  background: rgba(63, 208, 224, 0.12);
+  color: var(--color-cyan-soft);
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.metric-action:hover,
+.metric-action:focus-visible {
+  background: rgba(63, 208, 224, 0.28);
+  color: #fff;
+  outline: none;
+}

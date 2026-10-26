@@ -217,6 +217,65 @@ def compare_power_curves(window_days: int = 90, years_back: int = 1, db_path: Op
     return {"window_days": window_days, "recent": recent, "year_ago": prior, "change_pct": delta}
 
 
+POWER_LABELS = {"p5s": "5 s", "p1m": "1 min", "p5m": "5 min", "p20m": "20 min", "p60m": "60 min"}
+
+
+def power_profile(db_path: Optional[str] = None, window_days: int = 90, months: int = 12,
+                  as_of: Optional[date] = None) -> Dict[str, Any]:
+    """Best power at each duration: this window vs the one before, best ever, a monthly trend, and year-ago when available.
+
+    The ride archive is young, so the comparison that always works is the last `window_days` against the
+    `window_days` before them; the year-ago figure appears only once there are rides that far back.
+    """
+    as_of = as_of or date.today()
+    conn = _connect(db_path)
+    try:
+        rows = [dict(r) for r in conn.execute(
+            "SELECT ride_date, p5s, p1m, p5m, p20m, p60m FROM ride_power_bests ORDER BY ride_date")]
+    finally:
+        conn.close()
+
+    def window(end: date, days: int):
+        lo, hi = (end - timedelta(days=days)).isoformat(), end.isoformat()
+        return [r for r in rows if lo < r["ride_date"] <= hi]
+
+    recent = window(as_of, window_days)
+    prior = window(as_of - timedelta(days=window_days), window_days)
+    then = window(as_of - timedelta(days=365), window_days)
+
+    def top(rs, key):
+        vals = [r[key] for r in rs if r.get(key)]
+        return round(max(vals)) if vals else None
+
+    def pct(a, b):
+        return round((a - b) / b * 100, 1) if a and b else None
+
+    # calendar months ending with the current one
+    month_keys = []
+    y, m = as_of.year, as_of.month
+    for _ in range(months):
+        month_keys.append(f"{y:04d}-{m:02d}")
+        m -= 1
+        if m == 0:
+            y, m = y - 1, 12
+    month_keys.reverse()
+
+    durations = []
+    for key in POWER_DURATIONS:
+        ranked = [r for r in rows if r.get(key)]
+        best_row = max(ranked, key=lambda r: r[key]) if ranked else None
+        recent_w, prior_w, then_w = top(recent, key), top(prior, key), top(then, key)
+        durations.append({
+            "key": key, "label": POWER_LABELS[key],
+            "recent": recent_w, "prior": prior_w, "change_pct": pct(recent_w, prior_w),
+            "year_ago": then_w, "year_ago_change_pct": pct(recent_w, then_w),
+            "best": round(best_row[key]) if best_row else None, "best_date": best_row["ride_date"] if best_row else None,
+            "monthly": [{"month": mk, "watts": top([r for r in rows if r["ride_date"].startswith(mk)], key)} for mk in month_keys],
+        })
+    return {"window_days": window_days, "archive_start": rows[0]["ride_date"] if rows else None,
+            "rides": {"recent": len(recent), "prior": len(prior), "year_ago": len(then)}, "durations": durations}
+
+
 # ── FTP ───────────────────────────────────────────────────────────────────────
 
 def estimate_ftp(db_path: Optional[str] = None, window_days: int = 90,

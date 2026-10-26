@@ -1,0 +1,147 @@
+.power-profile {
+  margin-bottom: 1rem;
+}
+
+.power-profile > h3 {
+  margin: 0 0 0.15rem;
+}
+
+.pp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+  gap: 0.75rem;
+}
+
+.pp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 1rem;
+}
+
+.pp-card header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.pp-dur {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.pp-feel {
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-cyan-soft);
+}
+
+.pp-now {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1.05;
+  color: #fff;
+  text-shadow: 0 0 16px rgba(63, 208, 224, 0.4);
+}
+
+.pp-now small {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--panel-muted);
+}
+
+.pp-none {
+  font-size: 1rem;
+  color: var(--panel-muted);
+  text-shadow: none;
+}
+
+.pp-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-height: 1.2rem;
+}
+
+.pp-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--panel-muted);
+}
+
+.pp-change.up {
+  color: #8af0bd;
+}
+
+.pp-change.down {
+  color: #ffb27a;
+}
+
+.pp-hint {
+  font-size: 0.75rem;
+  color: var(--panel-muted);
+}
+
+.pp-chart {
+  margin: 0.1rem -0.2rem;
+}
+
+.pp-tip {
+  display: flex;
+  flex-direction: column;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  background: #0e1d2c;
+  border: 1px solid rgba(63, 208, 224, 0.45);
+  color: var(--panel-text);
+  font-size: 0.78rem;
+}
+
+.pp-tip strong {
+  color: var(--color-cyan-soft);
+}
+
+.pp-card footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.pp-best,
+.pp-year {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.pp-best {
+  background: rgba(244, 210, 122, 0.14);
+  border: 1px solid rgba(244, 210, 122, 0.4);
+  color: #f4d27a;
+}
+
+.pp-best.now {
+  background: rgba(138, 240, 189, 0.16);
+  border-color: rgba(138, 240, 189, 0.5);
+  color: #8af0bd;
+}
+
+.pp-year {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--panel-text);
+}

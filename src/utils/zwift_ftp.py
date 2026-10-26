@@ -106,23 +106,85 @@ def history(db_path: Optional[str] = None) -> List[Dict[str, Any]]:
     return [{"date": d, "ftp": f} for d, f in rows]
 
 
+CONFIRMED_KEY = "zwift_ftp_confirmed"
+DISAGREE_WATTS = 3            # a ride "disagrees" with the confirmed FTP when it is this far off...
+DISAGREE_RIDES = 2            # ...and this many rides in a row do
+
+
+def _settings(db_path: Optional[str]):
+    from src.storage.database import WorkoutDatabase
+    db = WorkoutDatabase(db_path) if db_path else WorkoutDatabase()
+    return db, (db.get_athlete_settings() or {})
+
+
+def confirmed_ftp(db_path: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """The FTP the athlete read off Zwift (e.g. after a ramp test): {"ftp": 321, "date": "2026-10-20"}."""
+    value = _settings(db_path)[1].get(CONFIRMED_KEY)
+    return value if isinstance(value, dict) and value.get("ftp") and value.get("date") else None
+
+
+def confirm_ftp(ftp: int, day: Optional[str] = None, db_path: Optional[str] = None) -> Dict[str, Any]:
+    """Record Zwift's FTP as read by the athlete. It stands until later rides clearly disagree."""
+    from src.storage.events import record_event
+    ftp = int(ftp)
+    if not 100 <= ftp <= 600:
+        raise ValueError("FTP must be between 100 and 600 W")
+    day = (day or date.today().isoformat())[:10]
+    if datetime.strptime(day, "%Y-%m-%d").date() > date.today():
+        raise ValueError("the date can't be in the future")
+    db, settings = _settings(db_path)
+    settings[CONFIRMED_KEY] = {"ftp": ftp, "date": day}
+    db.save_athlete_settings("default", settings)
+    record_event("info", "zwift_ftp", f"Zwift FTP confirmed as {ftp}W (from {day})", {"ftp": ftp, "date": day}, db_path=db_path)
+    sync_settings_ftp(db_path)
+    return current(db_path)
+
+
+def _median_int(values) -> int:
+    return int(round(statistics.median(values)))
+
+
 def current(db_path: Optional[str] = None, today: Optional[date] = None) -> Dict[str, Any]:
-    """Latest Zwift FTP, when it last changed, and whether a test is due."""
+    """Zwift's FTP now, when it last changed, and whether a test is due.
+
+    Zwift only changes FTP at a ramp test, a race, or when the athlete edits it, so those are
+    changepoints: rides from before one are never averaged with rides after it. Priority:
+      1. an FTP the athlete confirmed (stands until 2+ later rides all disagree by 3 W or more),
+      2. rides since the latest test or race (median of the last 3),
+      3. the last 3 rides (no test on record).
+    """
     today = today or date.today()
     obs = history(db_path)
+    test_day = _last_test_or_race(db_path)
     out: Dict[str, Any] = {"ftp": None, "observed": None, "changed_on": None, "weeks_since_change": None,
-                           "last_test_or_race": _last_test_or_race(db_path), "test_due": False}
-    if not obs:
+                           "last_test_or_race": test_day, "test_due": False, "source": None}
+    confirmed = confirmed_ftp(db_path)
+    if confirmed and test_day and test_day > confirmed["date"]:
+        confirmed = None                       # a newer test supersedes an old confirmation
+
+    if confirmed:
+        after = [o for o in obs if o["date"] > confirmed["date"]]
+        recent = after[-DISAGREE_RIDES:]
+        if len(recent) >= DISAGREE_RIDES and all(abs(o["ftp"] - confirmed["ftp"]) >= DISAGREE_WATTS for o in recent):
+            ftp, observed, changed_on, source = _median_int(o["ftp"] for o in after[-3:]), after[-1]["date"], after[0]["date"], "rides"
+        else:
+            ftp, changed_on, source = confirmed["ftp"], confirmed["date"], "confirmed"
+            observed = after[-1]["date"] if after else confirmed["date"]
+    elif test_day and any(o["date"] > test_day for o in obs):
+        after = [o for o in obs if o["date"] > test_day]
+        ftp, observed, changed_on, source = _median_int(o["ftp"] for o in after[-3:]), after[-1]["date"], test_day, "rides_since_test"
+    elif obs:
+        before = [o for o in obs if not test_day or o["date"] <= test_day] or obs
+        ftp, observed, source = _median_int(o["ftp"] for o in before[-3:]), before[-1]["date"], "rides"
+        changed_on = before[0]["date"]
+        for prev, cur in zip(before, before[1:]):
+            if abs(cur["ftp"] - prev["ftp"]) >= 3:
+                changed_on = cur["date"]
+    else:
         return out
-    # Ignore one-off wobble from 5W target rounding: current = median of the
-    # last 3 rides, and a "change" is >= 3W.
-    latest = {"date": obs[-1]["date"], "ftp": int(statistics.median(o["ftp"] for o in obs[-3:]))}
-    changed_on = obs[0]["date"]
-    for prev, cur in zip(obs, obs[1:]):
-        if abs(cur["ftp"] - prev["ftp"]) >= 3:
-            changed_on = cur["date"]
-    out.update(ftp=latest["ftp"], observed=latest["date"], changed_on=changed_on)
-    reference = max(filter(None, [changed_on, out["last_test_or_race"]]))
+
+    out.update(ftp=ftp, observed=observed, changed_on=changed_on, source=source)
+    reference = max(filter(None, [changed_on, test_day]))
     weeks = (today - datetime.strptime(reference[:10], "%Y-%m-%d").date()).days / 7
     out["weeks_since_change"] = round(weeks, 1)
     out["test_due"] = weeks >= FTP_TEST_DUE_WEEKS

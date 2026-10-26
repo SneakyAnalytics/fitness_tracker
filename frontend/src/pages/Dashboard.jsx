@@ -1,12 +1,11 @@
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Area,
   AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -16,11 +15,12 @@ import { CoachDashboard } from "../components/CoachLogo";
 import Achievements from "../components/Achievements";
 import MetricTile from "../components/MetricTile";
 import KeySessions from "../components/KeySessions";
+import PowerProfile from "../components/PowerProfile";
 import { Link } from "react-router-dom";
 import { ArtByKey } from "../components/CoachLogo";
 import { todaysCall } from "../lib/readiness";
-import { format, parseISO } from "date-fns";
-import { dashboardAPI } from "../api/client";
+import { differenceInCalendarDays, format, parseISO } from "date-fns";
+import apiClient, { dashboardAPI } from "../api/client";
 import "../styles/pages.css";
 import "./Dashboard.css";
 
@@ -50,69 +50,9 @@ function Gradient({ id, top, bottom, topOpacity = 1, bottomOpacity = 1 }) {
     </linearGradient>
   );
 }
-const DURATIONS = [
-  ["p5s", "5s"],
-  ["p1m", "1m"],
-  ["p5m", "5m"],
-  ["p20m", "20m"],
-  ["p60m", "60m"],
-];
 
 const fmtWeek = (d) => format(parseISO(d), "MMM d");
 const signed = (n) => (n == null ? "—" : `${n > 0 ? "+" : ""}${n}`);
-
-function PowerCurve({ curve }) {
-  const hasPrior = (curve.year_ago?.rides || 0) > 0;
-  const rows = DURATIONS.map(([key, label]) => ({
-    label,
-    recent: curve.recent?.[key] ? Math.round(curve.recent[key]) : null,
-    prior: curve.year_ago?.[key] ? Math.round(curve.year_ago[key]) : null,
-    change: curve.change_pct?.[key],
-  }));
-  return (
-    <div className="card chart-card panel-dark">
-      <h3>Best power — last {curve.window_days} days{hasPrior ? " vs a year ago" : ""}</h3>
-      {!hasPrior && (
-        <p className="chart-note">No ride files from a year ago yet (the FIT archive starts in late 2025).</p>
-      )}
-      <ResponsiveContainer width="100%" height={240}>
-        <BarChart data={rows} barGap={2}>
-          <defs>
-            <Gradient id="recentFill" top="#7ff0f7" bottom="#1f8fa6" />
-            <Gradient id="priorFill" top="#ffb27a" bottom="#b9561f" />
-          </defs>
-          <CartesianGrid {...GRID} />
-          <XAxis dataKey="label" tick={AXIS} axisLine={false} tickLine={false} />
-          <YAxis tick={AXIS} axisLine={false} tickLine={false} unit="W" width={56} />
-          <Tooltip {...TOOLTIP} cursor={CURSOR} formatter={(v) => (v == null ? "—" : `${v} W`)} />
-          {hasPrior && <Legend />}
-          <Bar dataKey="recent" name={`Last ${curve.window_days} days`} fill="url(#recentFill)" radius={[6, 6, 0, 0]} maxBarSize={36} />
-          {hasPrior && <Bar dataKey="prior" name="Year ago" fill="url(#priorFill)" radius={[6, 6, 0, 0]} maxBarSize={36} />}
-        </BarChart>
-      </ResponsiveContainer>
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>Duration</th>
-            <th>Recent</th>
-            <th>Year ago</th>
-            <th>Change</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.label}>
-              <td>{r.label}</td>
-              <td>{r.recent ?? "—"} W</td>
-              <td>{r.prior ?? "—"}</td>
-              <td>{r.change == null ? "—" : `${signed(r.change)}%`}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 function TodaysCall({ load, readiness }) {
   const call = todaysCall({ tsb: load?.tsb, flags: readiness?.flags || [] });
@@ -163,6 +103,7 @@ function Consistency({ consistency }) {
 }
 
 function Dashboard() {
+  const queryClient = useQueryClient();
   const { data, isLoading, error } = useQuery({
     queryKey: ["trends"],
     queryFn: async () => (await dashboardAPI.getTrends(16)).data,
@@ -171,7 +112,26 @@ function Dashboard() {
   if (isLoading) return <div className="page-container spinner">Loading trends…</div>;
   if (error) return <div className="page-container error-message">Could not load trends: {error.message}</div>;
 
-  const { load, weekly, power_curve: curve, zwift_ftp: zftp, readiness, progression, goals, consistency } = data;
+  // After a Zwift ramp test, tell the app what Zwift now shows; it stands until later rides clearly disagree.
+  const confirmFtp = async () => {
+    const entered = window.prompt("What does Zwift show as your FTP now? (watts)", String(data.zwift_ftp?.ftp ?? ""));
+    if (entered == null) return;
+    const ftp = parseInt(entered, 10);
+    if (!Number.isFinite(ftp)) {
+      window.alert("Enter a number of watts, for example 321.");
+      return;
+    }
+    const test = data.zwift_ftp?.last_test_or_race;
+    const recentTest = test && differenceInCalendarDays(new Date(), parseISO(test)) <= 14;
+    try {
+      await apiClient.post("/zwift_ftp/confirm", { ftp, date: recentTest ? test : undefined });
+      await queryClient.invalidateQueries();
+    } catch (err) {
+      window.alert(err.response?.data?.detail || err.message);
+    }
+  };
+
+  const { load, weekly, power_profile, zwift_ftp: zftp, readiness, progression, goals, consistency } = data;
   const m = readiness?.metrics || {};
 
   return (
@@ -192,7 +152,8 @@ function Dashboard() {
         <MetricTile metricId="ramp" label="CTL ramp" value={`${signed(load.ctl_ramp_28d_per_week)}/wk`}
                     raw={load.ctl_ramp_28d_per_week} sub="last 4 weeks" />
         <MetricTile metricId="ftp" label="Zwift FTP" value={zftp?.ftp ? `${zftp.ftp}W` : "—"} raw={zftp?.ftp ?? null}
-                    sub={zftp?.test_due ? `test due · ${zftp.weeks_since_change} wks` : zftp?.changed_on ? `since ${fmtWeek(zftp.changed_on)}` : null} />
+                    action={{ label: "Confirm FTP from Zwift", onClick: confirmFtp }}
+                    sub={zftp?.test_due ? `test due · ${zftp.weeks_since_change} wks` : zftp?.changed_on ? `${zftp.source === "confirmed" ? "confirmed " : ""}since ${fmtWeek(zftp.changed_on)}` : null} />
         <MetricTile metricId="hrv" label="HRV (7d)" value={m.hrv?.last7 ?? "—"} raw={m.hrv?.last7 ?? null}
                     ctx={{ changePct: m.hrv?.change_pct }} sub={m.hrv ? `${signed(m.hrv.change_pct)}% vs baseline` : null} />
         <MetricTile metricId="sleep" label="Sleep (7d)" value={m.sleep_hours ? `${m.sleep_hours.last7}h` : "—"}
@@ -251,7 +212,7 @@ function Dashboard() {
 
       <Achievements goals={goals} />
 
-      <PowerCurve curve={curve} />
+      <PowerProfile profile={power_profile} />
       <KeySessions progression={progression} />
     </div>
   );
