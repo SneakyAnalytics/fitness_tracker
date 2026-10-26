@@ -8,3 +8,4 @@
 .ptw-bar span { display: block; height: 100%; border-radius: 6px; background: #3fd0e0; }
 .ptw-bar span.done { background: #8af0bd; }
 @media (max-width: 640px) { .power-to-weight { grid-template-columns: minmax(0, 1fr); } }
+.ptw-stale { margin: .4rem 0 0; font-size: .82rem; color: #f4d27a; }

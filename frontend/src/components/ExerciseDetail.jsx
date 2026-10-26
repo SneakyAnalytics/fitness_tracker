@@ -27,7 +27,7 @@ const isNumberish = (v) => /^\d+(\s*-\s*\d+)?$/.test(String(v).trim());
 // "12" -> "12 reps"; "10 each leg" or "30-40 seconds" are already descriptive.
 const reps = (v, side) => (isNumberish(range(v)) ? `${range(v)} reps${side}` : `${range(v)}${side && !/each/.test(String(v)) ? side : ""}`);
 
-function describeSet(s) {
+export function describeSet(s) {
   const side = s.perSide ? " each side" : "";
   return [
     s.reps && reps(s.reps, side),

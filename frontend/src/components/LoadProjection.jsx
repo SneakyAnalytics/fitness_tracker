@@ -44,9 +44,9 @@ export default function LoadProjection({ projection, goal }) {
       <XAxis dataKey="date" tickFormatter={fmtDay} tick={AXIS} axisLine={false} tickLine={false} minTickGap={40} />
       <ReferenceArea x1={today} x2={end} fill="#3fd0e0" fillOpacity={0.06} />
       <ReferenceLine x={today} stroke="rgba(232,241,238,0.55)" strokeDasharray="4 4" label={{ value: "today", fill: "#e8f1ee", fontSize: 11, position: "insideTopLeft" }} />
-      {assumedFrom && <ReferenceLine x={assumedFrom} stroke="rgba(244,210,122,0.7)" strokeDasharray="2 4" label={{ value: "plan ends", fill: "#f4d27a", fontSize: 11, position: "insideTopRight" }} />}
+      {assumedFrom && <ReferenceLine x={assumedFrom} stroke="rgba(244,210,122,0.7)" strokeDasharray="2 4" label={{ value: "plan ends", fill: "#f4d27a", fontSize: 11, position: "insideTopRight", dy: 16 }} />}
       {goal?.target_date && goal.target_date <= end && goal.target_date > today && (
-        <ReferenceLine x={goal.target_date} stroke="#8af0bd" label={{ value: goal.description.slice(0, 18), fill: "#8af0bd", fontSize: 11, position: "insideTopRight" }} />
+        <ReferenceLine x={goal.target_date} stroke="#8af0bd" label={{ value: goal.description.slice(0, 18), fill: "#8af0bd", fontSize: 11, position: "insideTopRight", dy: 32 }} />
       )}
     </>
   );

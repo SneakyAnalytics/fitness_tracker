@@ -1,6 +1,6 @@
 import React from "react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { format, parseISO } from "date-fns";
+import { differenceInCalendarDays, format, parseISO } from "date-fns";
 import { weightChange, wkgProgress } from "../lib/powerToWeight";
 import "./PowerToWeight.css";
 
@@ -11,6 +11,7 @@ export default function PowerToWeight({ data }) {
   const progress = wkgProgress(data);
   if (!progress) return null;
   const change = weightChange(data);
+  const staleDays = differenceInCalendarDays(new Date(), parseISO(data.weight_date));
   return (
     <section className="card panel-dark power-to-weight">
       <div className="ptw-main">
@@ -24,6 +25,7 @@ export default function PowerToWeight({ data }) {
           </div>
         )}
         {progress.sentence && <p className="ptw-sentence">{progress.sentence}</p>}
+        {staleDays > 14 && <p className="ptw-stale">Your last weigh-in was {staleDays} days ago, so this uses an old weight.</p>}
       </div>
       {data.weekly?.length > 2 && (
         <div className="ptw-trend">

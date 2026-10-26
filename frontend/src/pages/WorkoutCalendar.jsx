@@ -9,6 +9,7 @@ import {
   TrendingUp,
   X,
   Printer,
+  Play,
   Bike,
   Footprints,
   Dumbbell,
@@ -38,6 +39,7 @@ import {
 } from "../lib/workouts";
 import IntervalVisualizer from "../components/IntervalVisualizer";
 import ExerciseDetail from "../components/ExerciseDetail";
+import GymMode from "../components/GymMode";
 import AskCoach from "../components/AskCoach";
 import "./WorkoutCalendar.css";
 
@@ -236,6 +238,9 @@ function WorkoutCalendar() {
               </div>
             </div>
             <div className="workout-detail-actions">
+              {selected.completed && selected.fit_file_id && (
+                <Link className="btn btn-outline" to={`/compare?a=${selected.id}`}>Compare ride</Link>
+              )}
               <button className="btn btn-outline icon-btn" onClick={() => setSelectedKey(null)}>
                 <X size={20} />
               </button>
@@ -253,6 +258,7 @@ function WorkoutCalendar() {
 
 function ExerciseList({ workout }) {
   const exercises = flattenExercises(workout);
+  const [gym, setGym] = useState(false);
   const planId = workout.plan?.id ?? (workout.completed ? null : workout.id);
   const date = workout.date;
   const queryClient = useQueryClient();
@@ -274,9 +280,18 @@ function ExerciseList({ workout }) {
     queryClient.setQueryData(perfKey, next);
   };
 
+  const withIds = exercises.map((e, i) => ({ ...e, id: `${i}` }));
   return (
     <div className="exercises-section">
-      <h4>Exercises ({exercises.length})</h4>
+      <div className="exercises-head">
+        <h4>Exercises ({exercises.length})</h4>
+        {!workout.completed && (
+          <button className="btn btn-primary" onClick={() => setGym(true)}><Play size={16} /> Start gym mode</button>
+        )}
+      </div>
+      {gym && (
+        <GymMode title={displayName(workout)} exercises={withIds} logs={saved?.exercises || {}} onSave={save} onClose={() => setGym(false)} />
+      )}
       {exercises.map((exercise, idx) => {
         const id = `${idx}`;
         return (

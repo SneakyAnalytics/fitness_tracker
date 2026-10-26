@@ -20,6 +20,7 @@ function AppLayout({ children }) {
     { path: "/calendar", icon: CoachCalendar, label: "Workout Calendar", short: "Calendar" },
     { path: "/coaching", icon: CoachBoard, label: "Weekly Coaching", short: "Coach" },
     { path: "/dashboard", icon: CoachDashboard, label: "Dashboard", short: "Stats" },
+    { path: "/compare", icon: CoachDashboard, label: "Compare Rides", sidebarOnly: true },
     { path: "/admin", icon: CoachAdmin, label: "Admin", short: "Admin" },
   ];
 
@@ -93,7 +94,7 @@ function AppLayout({ children }) {
 
       {/* Phones: the five pages one thumb-tap away */}
       <nav className="tab-bar" aria-label="Pages">
-        {navItems.map(({ path, icon: Icon, short, label }) => (
+        {navItems.filter((n) => !n.sidebarOnly).map(({ path, icon: Icon, short, label }) => (
           <button key={path} className={`tab ${isActive(path) ? "active" : ""}`} onClick={() => navigate(path)}
                   aria-label={label} aria-current={isActive(path) ? "page" : undefined}>
             <Icon size={26} />

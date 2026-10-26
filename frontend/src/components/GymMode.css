@@ -1,0 +1,43 @@
+.gym { position: fixed; inset: 0; z-index: 300; display: flex; flex-direction: column; background: #0e1d2c; color: #e8f1ee;
+       padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0); }
+.gym-top { display: flex; align-items: center; gap: .75rem; padding: .75rem 1rem; }
+.gym-icon { background: rgba(255,255,255,.1); border: 0; color: inherit; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; }
+.gym-heading { display: grid; min-width: 0; }
+.gym-heading strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gym-heading span { color: rgba(232,241,238,.7); font-size: .85rem; }
+.gym-progress { height: 6px; background: rgba(255,255,255,.12); }
+.gym-progress span { display: block; height: 100%; background: #3fd0e0; transition: width .3s; }
+.gym-body { flex: 1; overflow-y: auto; padding: 1.25rem 1.25rem 1rem; display: grid; gap: 1rem; align-content: start; max-width: 640px; width: 100%; margin: 0 auto; }
+.gym-section { font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; color: #8be3ee; }
+.gym-name { margin: 0; font-size: 1.9rem; line-height: 1.15; color: #fff; }
+.gym-name::before { display: none; }
+.gym-rx { margin: 0; color: rgba(232,241,238,.8); }
+.gym-sets { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.gym-sets li { display: flex; align-items: center; gap: .75rem; padding: .7rem .9rem; border-radius: 12px; background: rgba(255,255,255,.06); border: 1px solid transparent; }
+.gym-sets li.current { border-color: #3fd0e0; background: rgba(63,208,224,.12); }
+.gym-sets li.done { opacity: .55; }
+.gym-set-n { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,.14); font-weight: 700; flex-shrink: 0; }
+.gym-sets li.done .gym-set-n { background: #2e7d32; }
+.gym-big { display: inline-flex; align-items: center; justify-content: center; gap: .6rem; min-height: 64px; width: 100%; font-size: 1.3rem; font-weight: 700;
+           border: 0; border-radius: 16px; background: #3fd0e0; color: #08212a; cursor: pointer; }
+.gym-big:active { transform: scale(.98); }
+.gym-rest { display: grid; gap: .5rem; justify-items: center; padding: 1rem; border-radius: 16px; background: rgba(229,138,74,.14); border: 1px solid rgba(229,138,74,.5); }
+.gym-rest-label { font-size: .75rem; letter-spacing: .12em; text-transform: uppercase; color: #f0b27f; }
+.gym-rest-time { font-size: 3.4rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+.gym-rest-bar { width: 100%; height: 8px; border-radius: 4px; background: rgba(255,255,255,.14); overflow: hidden; }
+.gym-rest-bar span { display: block; height: 100%; background: #e58a4a; transition: width .25s linear; }
+.gym-rest-actions { display: flex; gap: .6rem; }
+.gym-rest-actions button, .gym-nav-btn { display: inline-flex; align-items: center; gap: .4rem; min-height: 48px; padding: 0 1rem; border-radius: 12px; border: 1px solid rgba(255,255,255,.25); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.gym-log { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: .75rem; }
+.gym-log label { display: grid; gap: .3rem; font-size: .85rem; color: rgba(232,241,238,.75); }
+.gym-log .input { width: 100%; min-height: 48px; font-size: 1rem; }
+.gym-cues { margin: 0; padding-left: 1.1rem; color: rgba(232,241,238,.8); display: grid; gap: .25rem; }
+.gym-link { color: #8be3ee; display: inline-flex; align-items: center; gap: .3rem; font-size: .9rem; }
+.gym-error { color: #ff9c9c; margin: 0; }
+.gym-nav { display: flex; justify-content: space-between; gap: .75rem; padding: .75rem 1rem; border-top: 1px solid rgba(255,255,255,.12); }
+.gym-nav-btn:disabled { opacity: .35; }
+.gym-finish { margin: auto; text-align: center; display: grid; gap: .75rem; justify-items: center; padding: 2rem; max-width: 420px; }
+.gym-finish svg { color: #8af0bd; }
+.gym-finish h2 { margin: 0; color: #fff; }
+.gym-finish h2::before { display: none; }
+.gym .movement-timer { justify-self: start; }

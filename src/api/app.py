@@ -201,6 +201,8 @@ from src.api.coach_routes import router as coach_router
 app.include_router(coach_router)
 from src.api.admin_routes import router as admin_router
 app.include_router(admin_router)
+from src.api.compare_routes import router as compare_router
+app.include_router(compare_router)
 
 
 @app.get("/")

@@ -59,6 +59,11 @@ export const adminAPI = {
   updateGoal: (id, patch) => apiClient.patch(`/admin/goals/${id}`, patch),
 };
 
+export const compareAPI = {
+  rides: () => apiClient.get("/compare/rides"),
+  ride: (id) => apiClient.get(`/compare/rides/${id}`),
+};
+
 export const coachAPI = {
   getSession: (weekStart, model) => apiClient.get("/coach/session", { params: { week_start: weekStart, model } }),
   savePlan: (weekStart, model) => apiClient.post("/coach/session/save", { week_start: weekStart, model }),
