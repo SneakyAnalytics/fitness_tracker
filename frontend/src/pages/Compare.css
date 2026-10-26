@@ -1,8 +1,8 @@
 .compare-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; align-content: start; }
 .cmp-pickers { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: .75rem 1.25rem; padding: 1rem 1.25rem; }
 .cmp-picker { display: grid; gap: .3rem; min-width: 0; font-size: .85rem; color: var(--color-text-secondary); }
-.cmp-picker span, .cmp-table th { display: inline-flex; align-items: center; gap: .4rem; }
-.cmp-picker i, .cmp-table i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.cmp-picker span { display: inline-flex; align-items: center; gap: .4rem; }
+.cmp-picker i, .cmp-table i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; margin-right: .35rem; vertical-align: -1px; }
 .cmp-picker select { width: 100%; max-width: 100%; text-overflow: ellipsis; }
 .cmp-h3 { margin-top: 1.25rem; }
 .cmp-note { color: var(--color-text-secondary); margin: .25rem 0 .5rem; }

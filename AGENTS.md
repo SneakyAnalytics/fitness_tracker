@@ -213,3 +213,18 @@ instead of `print` on a headless box; compute anything numeric instead of asking
   wrong-sport and shared links, relinks, and removes analyses made from a file the workout no longer holds.
 - Periodization/CTL were unaffected: they read `training_load_daily`, built from TrainingPeaks TSS.
 - **Lesson:** a read path (a summary) must never write links; derived "best guess" joins belong in one matcher.
+
+---
+
+## 2026-10-26 — Retiring Streamlit and adding the new pages: three things that bit
+
+- **Removing a dependency can remove ones you use without declaring.** `pandas` and `numpy` were only installed because
+  `streamlit` pulled them in; CI failed on the first push without it (local tests passed because the venv still had them).
+  Before dropping a package, build a clean venv from `requirements.txt` and run the tests and an import of every module.
+- **`position: fixed` is relative to the nearest transformed ancestor.** The page-transition wrapper has a `transform`, so a
+  "full-screen" overlay (gym mode) rendered inside the page was clipped to it. Render overlays with a React portal on `<body>`.
+- **Recharts wrappers must not be constrained with `max-width: 100%`.** `.recharts-wrapper` collapsed to 0 px wide and the
+  chart was blank while its SVG, axes and lines all "existed". If a chart is empty, compare `.recharts-wrapper` width with a
+  working chart before suspecting the data. (Shared axes also need to be real children of the chart, not a fragment.)
+- `deploy_to_beelink.sh` deploys whatever `origin/main` is *now*: pushing again while waiting for images makes it fail with
+  "not found". Wait for the images of the newest commit.
