@@ -47,6 +47,18 @@ export const dashboardAPI = {
   getTrends: (weeks = 16) => apiClient.get("/dashboard/trends", { params: { weeks } }),
 };
 
+export const adminAPI = {
+  events: () => apiClient.get("/admin/events"),
+  dismissEvents: (ids) => apiClient.post("/admin/events/dismiss", { ids }),
+  workouts: (startDate, endDate) => apiClient.get("/admin/workouts", { params: { start_date: startDate, end_date: endDate } }),
+  fitFiles: (date) => apiClient.get("/admin/fit-files", { params: { date } }),
+  assignFit: (workoutId, fitFileId) => apiClient.post(`/admin/workouts/${workoutId}/fit`, { fit_file_id: fitFileId }),
+  deleteWorkout: (workoutId) => apiClient.delete(`/admin/workouts/${workoutId}`),
+  goals: () => apiClient.get("/admin/goals"),
+  addGoal: (goal) => apiClient.post("/admin/goals", goal),
+  updateGoal: (id, patch) => apiClient.patch(`/admin/goals/${id}`, patch),
+};
+
 export const coachAPI = {
   getSession: (weekStart, model) => apiClient.get("/coach/session", { params: { week_start: weekStart, model } }),
   savePlan: (weekStart, model) => apiClient.post("/coach/session/save", { week_start: weekStart, model }),

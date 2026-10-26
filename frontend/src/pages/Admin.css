@@ -1,0 +1,29 @@
+.admin-page { display: grid; gap: var(--spacing-lg, 1.25rem); }
+.admin-section { padding: 1.1rem 1.25rem; min-width: 0; }
+.admin-section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .75rem; }
+.admin-section-head h2 { margin: 0; font-size: 1.2rem; }
+.admin-empty, .admin-note { color: var(--color-text-secondary); margin: .25rem 0; display: flex; align-items: center; gap: .4rem; }
+.admin-error { color: var(--color-error, #b3261e); margin: .5rem 0 0; }
+.admin-ok { color: var(--color-success, #2e7d32); display: flex; align-items: center; gap: .4rem; margin: .75rem 0 0; }
+.range { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.range .input { width: auto; }
+.event-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.event { display: grid; grid-template-columns: auto 1fr auto; gap: .6rem; align-items: center; padding: .6rem .75rem; border-radius: 8px; border: 1px solid var(--color-border, #ddd); }
+.event.warning, .event.error { border-left: 4px solid var(--color-error, #b3261e); }
+.event.info { border-left: 4px solid var(--color-primary, #2f6b4f); }
+.event small, .admin-table small { color: var(--color-text-secondary); }
+.table-scroll { overflow-x: auto; max-width: 100%; }
+.admin-table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+.admin-table th { text-align: left; font-weight: 600; padding: .4rem .6rem; border-bottom: 1px solid var(--color-border, #ddd); white-space: nowrap; }
+.admin-table td { padding: .45rem .6rem; border-bottom: 1px solid var(--color-border, #eee); vertical-align: middle; }
+.admin-table tr.inactive td { opacity: .6; }
+.admin-table .input { width: auto; min-width: 0; }
+.row-actions { white-space: nowrap; display: flex; gap: .4rem; }
+.inline-editor { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.muted { color: var(--color-text-secondary); }
+.goal-form { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .75rem; }
+.goal-form .grow { flex: 1 1 14rem; }
+.goal-form .input { width: auto; }
+.goal-form .grow.input { width: auto; }
+.btn-danger { background: var(--color-error, #b3261e); color: #fff; border: 0; }
+@media (max-width: 560px) { .admin-section { padding: .9rem; } .event { grid-template-columns: auto 1fr; } .event .btn { grid-column: 1 / -1; } }

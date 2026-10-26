@@ -19,9 +19,8 @@ function AppLayout({ children }) {
     { path: "/calendar", icon: CoachCalendar, label: "Workout Calendar" },
     { path: "/coaching", icon: CoachBoard, label: "Weekly Coaching" },
     { path: "/dashboard", icon: CoachDashboard, label: "Dashboard" },
+    { path: "/admin", icon: CoachAdmin, label: "Admin" },
   ];
-  // Import, matching and analysis stay in the Streamlit admin app.
-  const adminUrl = import.meta.env.VITE_ADMIN_URL || `${window.location.protocol}//${window.location.hostname}:8501`;
 
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
@@ -58,10 +57,6 @@ function AppLayout({ children }) {
               <span className="nav-label">{label}</span>
             </button>
           ))}
-          <a className="nav-item" href={adminUrl} target="_blank" rel="noopener noreferrer">
-            <CoachAdmin size={30} />
-            <span className="nav-label">Admin (import &amp; matching)</span>
-          </a>
         </nav>
 
         <div className="sidebar-footer">

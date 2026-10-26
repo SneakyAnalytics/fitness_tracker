@@ -7,6 +7,7 @@ import WorkoutCalendar from "./pages/WorkoutCalendar";
 const WeeklyCoaching = lazy(() => import("./pages/WeeklyCoaching"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const MetricGuide = lazy(() => import("./pages/MetricGuide"));
+const Admin = lazy(() => import("./pages/Admin"));
 import "./styles/App.css";
 import "./styles/pages.css";
 
@@ -20,6 +21,7 @@ function Pages() {
         <Route path="/calendar" element={<WorkoutCalendar />} />
         <Route path="/coaching" element={<WeeklyCoaching />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/admin" element={<Admin />} />
         <Route path="/metrics" element={<MetricGuide />} />
         <Route path="*" element={<Navigate to="/calendar" replace />} />
       </Routes>

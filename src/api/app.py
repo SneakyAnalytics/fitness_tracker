@@ -199,6 +199,8 @@ class QualitativeData(BaseModel):
 
 from src.api.coach_routes import router as coach_router
 app.include_router(coach_router)
+from src.api.admin_routes import router as admin_router
+app.include_router(admin_router)
 
 
 @app.get("/")
