@@ -33,7 +33,7 @@ It began as a weekend project in January 2025. I rebuilt it in October 2026 afte
 
 > **The principle the rebuild is built on:** compute everything that can be computed. Fitness, fatigue, ramp rate, execution quality and FTP are deterministic. The language model reasons, asks questions and explains, but it works inside numbers it is handed and never grades or invents them.
 
-| 21 months | 762 | 738 | 5,898 | 837 | 89 |
+| 21 months | 762 | 738 | 5,898 | 837 | 106 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | continuous data, Feb 2025 → today | completed workouts | FIT files parsed (Zwift + Garmin) | daily biometric records (HRV · RHR · sleep · Body Battery) | prescribed sessions across 85 planned weeks | automated tests run on every push |
 
@@ -55,11 +55,19 @@ The training app is built to be used daily, on a laptop at the desk or a phone o
 | **Calendar** | The week at a glance with a forecast chip on each day, a badge per session type, execution scores, and `?week=` deep links to any week. Open a day for a hero header and the full session: target-vs-actual power chart, interval breakdown, and for strength and mobility days every movement with its own countdown timer. Any day has an **Ask the coach** thread for fueling, substitutions or "what is this movement?" |
 | **Weekly review → coach** | Sunday starts with a review step (confirm each session against its planned workout), then the coaching conversation, then the saved plan, which becomes Zwift files. The coach has an avatar that rocks and sends out rings while it answers; a referee whistle sounds when the plan is saved (there is a mute switch). |
 | **Dashboard** | *Today's call* (green light, easy or rest, from readiness and form), the KPI tiles, weekly load and fitness charts, a **consistency** ribbon, **achievements** as medals with a countdown to the next target, the power curve, and a card per kind of key session. |
+| **Power, by duration** | *Best power* shows the best 5 s / 1 min / 5 min / 20 min / 60 min over the last 90 days against the 90 before, the best ever, and a 12-month trend. The year-ago comparison fills itself in once the ride archive reaches back that far. Hover any interval on the target-vs-actual chart and the whole interval lights up with its target, what was ridden and how far off the band it was. |
 | **Self-explaining numbers** | Hover (or tap, or focus) any KPI tile for what it means, a plain-language reading of today's value, and a link to the **metric guide**: how each number is calculated here, how to read it, what the coach does with it, and where it misleads. |
 | **Look and feel** | Chakra Petch display type over Inter, a topographic page background, commissioned badge art for every section and session type, light and dark themes that follow the device, and quiet motion that respects reduced-motion settings. |
 
 <p align="center">
   <img src="docs/images/workout.jpg" alt="An opened workout: the cycling badge as a hero on a dark forest header, with the session title and type, minutes and TSS chips" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/images/interval-hover.jpg" alt="Hovering an interval on the target-vs-actual chart highlights the whole interval and shows its duration, target and what was ridden" width="88%">
+</p>
+<p align="center">
+  <sub>Hover an interval: the whole block lights up, with its target, what was ridden and whether it landed in the band.</sub>
 </p>
 
 <p align="center">
@@ -167,6 +175,13 @@ The app's FTP follows that value automatically. A Zwift FTP unchanged for 6 week
 </p>
 
 <p align="center">
+  <img src="docs/images/best-power.jpg" alt="Best power: five cards (5 s, 1 min, 5 min, 20 min, 60 min) with this window's best, the change against the previous window, a 12-month trend and the best ever" width="88%">
+</p>
+<p align="center">
+  <sub>Best power: this window against the last, a 12-month trend per duration, and the best ever.</sub>
+</p>
+
+<p align="center">
   <img src="docs/images/key-sessions.jpg" alt="Key sessions: a card per session type with latest average power, change since the last session, a trend line, best ever and execution dots" width="88%">
 </p>
 <p align="center">
@@ -262,7 +277,8 @@ Every one of these bugs was **silent**: a wrong key or column returned null, and
 - **UTC vs local time.** Garmin and Zwift record UTC, but TrainingPeaks days are Pacific. Evening commutes were attached to the next day's sessions. **Lesson:** convert to the athlete's local date before any join.
 - **A read path that wrote.** A weekly summary "helpfully" attached any same-day FIT file to sessions without one and saved the link. A sauna inherited a 4-hour gravel ride, and the coach saw 735 TSS for a 520 TSS week. **Lesson:** derived joins belong in one matcher; summaries must be read-only.
 - **Re-imports must keep identity.** The nightly re-import deletes and re-inserts rows. Without restoring ids and user decisions, it silently undid the athlete's Sunday review and detached analyses. **Lesson:** test idempotency by running everything twice.
-- **A mislabelled interval became a fake regression.** Intervals were tagged "work" by name, so a 1-minute opener and a Zone 2 flush counted as work. A 285 W sweet-spot session was recorded as 246 W, a 38 W "drop" that never happened. Work is now the sustained hard intervals judged by their prescribed targets, with a test on that exact session. **Lesson:** when a chart shows a surprise, check the inputs before believing the trend.
+- **A mislabelled interval became a fake regression.** Intervals were tagged "work" by name, so a 1-minute opener and a Zone 2 flush counted as work. A 276 W sweet-spot session was recorded as 246 W, a 30 W "drop" that never happened. Work is now the sustained hard intervals judged by their prescribed targets, with a test on that exact session. **Lesson:** when a chart shows a surprise, check the inputs before believing the trend.
+- **An average across a changepoint.** Zwift's FTP only changes at a ramp test, but the dashboard took the median of the last three rides, which straddled the test and read 314 W when the true value was 320 W. Rides before a test and rides after it are different populations; treat the test as a changepoint, and let the athlete confirm the value Zwift shows.
 - **Ask the data before tuning the prompt.** The "coaching doesn't progress" complaint looked like a prompt problem. It was a missing model of training load. Compute the state, then let the model reason over it.
 
 ---
@@ -284,7 +300,7 @@ cd frontend && npm install && npm run dev
 pytest -q && (cd frontend && npm test)
 ```
 
-Production deployment, rollback, and Windows/WSL stability notes are in the [runbook](docs/deployment/RUNBOOK.md). One-off maintenance (relinking FIT files, recomputing derived data) runs through `python -m src.utils.maintenance --help`.
+Production deployment, rollback, and Windows/WSL stability notes are in the [runbook](docs/deployment/RUNBOOK.md). Server addresses, usernames and folders are deliberately not in this repository: the deploy and sync scripts read them from a git-ignored `deploy.local.env` (template: [`deploy.local.env.example`](deploy.local.env.example)), and a test fails the build if one is committed. One-off maintenance (relinking FIT files, recomputing derived data) runs through `python -m src.utils.maintenance --help`.
 
 <details>
 <summary><b>Repository map</b></summary>
@@ -305,7 +321,7 @@ src/
   ui/             Streamlit admin
 frontend/         React 19 app: pages (calendar, coaching, dashboard, metric guide), components,
                   lib/ (metric glossary, readiness call, sounds, theme, weather)
-tests/            pytest suite (60) · frontend/src/**/*.test.js (29)
+tests/            pytest suite (71) · frontend/src/**/*.test.js (35)
 docs/             runbook, architecture notes, images
 ```
 </details>
