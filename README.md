@@ -53,7 +53,7 @@ The training app is built to be used daily, on a laptop at the desk or a phone o
 | Area | What it does |
 |---|---|
 | **Calendar** | A *this week* strip (load against the plan's TSS band, planned sessions done or missed, unplanned extras, rain ahead), then the week with a forecast chip on each day, a badge per session type, execution scores, and `?week=` deep links to any week, and a **Print / share** page: one clean sheet of the week's plan to print, save as a PDF or copy as text for a message. Open a day for a hero header and the full session: target-vs-actual power chart, interval breakdown, and for strength and mobility days every movement with its own countdown timer. Any day has an **Ask the coach** thread for fueling, substitutions or "what is this movement?" |
-| **Weekly review → coach** | Sunday starts with a review step (confirm each session against its planned workout), then the coaching conversation, then the saved plan, which becomes Zwift files. The coach has an avatar that rocks and sends out rings while it answers; a referee whistle sounds when the plan is saved (there is a mute switch). |
+| **Weekly review → coach** | Sunday starts with a review step (confirm each session against its planned workout, with an optional note on why you changed it, which the coach reads so a swap isn't mistaken for a missed session), then the coaching conversation, then the saved plan, which becomes Zwift files. The coach has an avatar that rocks and sends out rings while it answers; a referee whistle sounds when the plan is saved (there is a mute switch). |
 | **Dashboard** | *Today's call* (green light, easy or rest, from readiness and form), the KPI tiles, weekly load and fitness charts, a **consistency** ribbon, **readiness over time** (HRV, resting HR, sleep and Body Battery with a 7-day average against your own baseline), **achievements** as medals with a countdown to the next target, the power curve, and a card per kind of key session, easiest to hardest, with a watts / % of FTP toggle and a dashed line for what the plan asked for. |
 | **Power, by duration** | *Best power* shows the best 5 s / 1 min / 5 min / 20 min / 60 min over the last 90 days against the 90 before, the best ever, and a 12-month trend. The year-ago comparison fills itself in once the ride archive reaches back that far. Hover any interval on the target-vs-actual chart and the whole interval lights up with its target, what was ridden and how far off the band it was. |
 | **Self-explaining numbers** | Hover (or tap, or focus) any KPI tile for what it means, a plain-language reading of today's value, and a link to the **metric guide**: how each number is calculated here, how to read it, what the coach does with it, and where it misleads. |
@@ -336,7 +336,7 @@ src/
   ui/             Streamlit admin
 frontend/         React 19 app: pages (calendar, coaching, dashboard, metric guide), components,
                   lib/ (metric glossary, readiness call, sounds, theme, weather)
-tests/            pytest suite (75) · frontend/src/**/*.test.js (50)
+tests/            pytest suite (80) · frontend/src/**/*.test.js (57)
 docs/             runbook, architecture notes, images
 ```
 </details>
