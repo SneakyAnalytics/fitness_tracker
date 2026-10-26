@@ -69,6 +69,7 @@ function WeeklyCoaching() {
   const [streaming, setStreaming] = useState("");
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [step, setStep] = useState(null); // "review" | "coach"; null = pick automatically
@@ -154,6 +155,7 @@ function WeeklyCoaching() {
   };
 
   const save = async () => {
+    setSaving(true);
     setBusy(true);
     setError("");
     try {
@@ -174,6 +176,7 @@ function WeeklyCoaching() {
       setError(err.response?.data?.detail || err.message);
     } finally {
       setStatus("");
+      setSaving(false);
       setBusy(false);
     }
   };
@@ -289,7 +292,8 @@ function WeeklyCoaching() {
           <div className="chat-row">
             <CoachAvatar speaking />
             <div className="chat-msg assistant">
-              {status && <div className="chat-status">🔎 {status}…</div>}
+              {saving && <div className="spinner saving-runner" aria-hidden="true" />}
+              {status && <div className="chat-status">{saving ? "" : "🔎 "}{status}…</div>}
               {streaming ? <Markdown>{streaming}</Markdown> : !status && <span className="chat-status">Thinking…</span>}
             </div>
           </div>

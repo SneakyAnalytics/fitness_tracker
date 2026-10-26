@@ -96,7 +96,8 @@ TOOLS: List[Dict[str, Any]] = [
     {
         "name": "get_week_detail",
         "description": ("Everything about one past or current week: the plan, what was actually done each day "
-                        "(matched to the plan or not), execution scores, athlete comments and analysis excerpts."),
+                        "(matched to the plan or not), execution scores, athlete comments, any note explaining why the athlete "
+                        "changed the plan on purpose (match_note) and analysis excerpts."),
         "input_schema": {"type": "object", "properties": {
             "week_start": {"type": "string", "description": "Monday, YYYY-MM-DD"}},
             "required": ["week_start"], "additionalProperties": False},
@@ -209,7 +210,7 @@ def _get_week_detail(args, db_path):
         done = conn.execute(
             "SELECT w.id, w.workout_day, w.workout_title, w.proposed_workout_id, w.proposed_workout_name, "
             "json_extract(w.workout_data, '$.type') AS type, json_extract(w.workout_data, '$.metrics.actual_tss') AS tss, "
-            "json_extract(w.workout_data, '$.metrics.actual_duration') AS minutes, w.athlete_comments, "
+            "json_extract(w.workout_data, '$.metrics.actual_duration') AS minutes, w.athlete_comments, w.match_note, "
             "wa.execution_score, substr(wa.analysis_text, 1, 600) AS analysis_excerpt "
             "FROM workouts w LEFT JOIN workout_analyses wa ON wa.workout_id = w.id "
             "WHERE w.workout_day BETWEEN ? AND ? ORDER BY w.workout_day, w.id",

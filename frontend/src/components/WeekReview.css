@@ -197,3 +197,15 @@
     transform: rotate(360deg);
   }
 }
+
+.match-note-input {
+  margin-top: 0.4rem;
+  width: 100%;
+}
+
+.review-note {
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--color-text-secondary);
+}

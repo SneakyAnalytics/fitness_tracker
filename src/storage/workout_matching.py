@@ -181,6 +181,18 @@ def match_workout_to_proposed(db_path: str, workout_id: int, proposed_workout_na
         conn.close()
 
 
+def set_match_note(db_path: str, workout_id: int, note: Optional[str]) -> bool:
+    """Record why a session differs from the plan; an empty note clears it."""
+    text = (note or "").strip()[:500] or None
+    conn = sqlite3.connect(db_path)
+    try:
+        cur = conn.execute("UPDATE workouts SET match_note = ? WHERE id = ?", (text, workout_id))
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
 def get_matched_workouts(db_path: str, start_date: str, end_date: str) -> List[Dict[str, Any]]:
     """
     Get workouts that have already been matched (for re-matching)

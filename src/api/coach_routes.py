@@ -371,6 +371,7 @@ class MatchRequest(BaseModel):
     workout_id: int
     proposed_workout_id: Optional[int] = None
     label: Optional[str] = None
+    note: Optional[str] = Field(None, max_length=500)    # why this differs from the plan
 
 
 class ReviewWeekRequest(BaseModel):
@@ -387,7 +388,7 @@ def review_week_get(week_start: str):
 def review_match(req: MatchRequest):
     from src.utils.week_review import apply_match
     try:
-        apply_match(req.workout_id, req.proposed_workout_id, req.label)
+        apply_match(req.workout_id, req.proposed_workout_id, req.label, note=req.note)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return {"ok": True}

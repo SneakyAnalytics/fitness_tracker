@@ -97,7 +97,7 @@ def _week_rows(conn: sqlite3.Connection, start: str, end: str):
     for r in conn.execute("""
         SELECT w.id, w.workout_day, w.workout_title, w.workout_data, w.proposed_workout_id,
                w.proposed_workout_name, w.match_source, w.fit_file_id,
-               json_extract(f.fit_data, '$.start_time'), wa.execution_score, wa.proposed_workout_id
+               json_extract(f.fit_data, '$.start_time'), wa.execution_score, wa.proposed_workout_id, w.match_note
         FROM workouts w
         LEFT JOIN fit_files f ON f.id = w.fit_file_id
         LEFT JOIN workout_analyses wa ON wa.workout_id = w.id
@@ -108,7 +108,7 @@ def _week_rows(conn: sqlite3.Connection, start: str, end: str):
             "id": r[0], "date": r[1][:10], "title": r[2], "type": data.get("type"),
             "minutes": round(metrics.get("actual_duration") or 0), "tss": metrics.get("actual_tss"),
             "proposed_workout_id": r[4], "label": r[5], "match_source": r[6], "has_fit": bool(r[7]),
-            "start_hour": _pacific_hour(r[8]), "execution_score": r[9], "analysis_plan_id": r[10],
+            "start_hour": _pacific_hour(r[8]), "execution_score": r[9], "analysis_plan_id": r[10], "note": r[11],
         })
     plans = [{"id": r[0], "date": r[1], "type": r[2], "name": r[3], "planned_minutes": r[4],
               "tss_min": r[5], "tss_max": r[6]} for r in conn.execute("""
@@ -160,7 +160,7 @@ def review_week(week_start: str, db_path: Optional[str] = None) -> Dict[str, Any
                 guess = _unplanned_guess(w, commutes)
                 match = {"kind": "unplanned", "name": guess, "confidence": "medium" if guess else "low"}
         rows.append({**{k: w[k] for k in ("id", "date", "title", "type", "minutes", "tss", "has_fit",
-                                          "execution_score")},
+                                          "execution_score", "note")},
                      "status": status, "match": match, "analysis": analysis_status(w["id"])})
 
     matched_plan_ids = {r["match"].get("proposed_workout_id") for r in rows if r["status"] == "confirmed"}
@@ -176,8 +176,9 @@ def review_week(week_start: str, db_path: Optional[str] = None) -> Dict[str, Any
 # ── Applying matches (+ background analysis) ────────────────────────────────
 
 def apply_match(workout_id: int, proposed_workout_id: Optional[int] = None, label: Optional[str] = None,
-                db_path: Optional[str] = None) -> None:
-    from src.storage.workout_matching import match_workout_to_proposed
+                db_path: Optional[str] = None, note: Optional[str] = None) -> None:
+    """Confirm a match. `note` (why it differs from the plan) is saved when given; "" clears it, None leaves it."""
+    from src.storage.workout_matching import match_workout_to_proposed, set_match_note
     path = db_path or get_db_path()
     conn = sqlite3.connect(path)
     try:
@@ -199,6 +200,8 @@ def apply_match(workout_id: int, proposed_workout_id: Optional[int] = None, labe
     if prev is None:
         raise ValueError(f"workout {workout_id} not found")
     match_workout_to_proposed(path, workout_id, name, "manual", proposed_workout_id=proposed_workout_id)
+    if note is not None:
+        set_match_note(path, workout_id, note)
     has_fit, has_analysis, analysed_against, minutes = prev
     # Planned workouts get analyzed against their plan; unplanned sessions only
     # when substantial (commutes and sauna don't need an AI write-up).

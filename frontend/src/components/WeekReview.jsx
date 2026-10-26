@@ -13,10 +13,12 @@ function MatchPicker({ row, planned, categories, onSave, onCancel }) {
   const current = row.match?.proposed_workout_id ? `plan:${row.match.proposed_workout_id}` : `label:${row.match?.name || ""}`;
   const [choice, setChoice] = useState(current);
   const [custom, setCustom] = useState("");
+  const [note, setNote] = useState(row.note || "");
   const save = () => {
-    if (choice === "custom") onSave({ label: custom });
-    else if (choice.startsWith("plan:")) onSave({ proposed_workout_id: Number(choice.slice(5)) });
-    else onSave({ label: choice.slice(6) });
+    // the note is always sent, so emptying the box clears an old one
+    if (choice === "custom") onSave({ label: custom, note });
+    else if (choice.startsWith("plan:")) onSave({ proposed_workout_id: Number(choice.slice(5)), note });
+    else onSave({ label: choice.slice(6), note });
   };
   return (
     <div className="match-picker">
@@ -42,6 +44,9 @@ function MatchPicker({ row, planned, categories, onSave, onCancel }) {
         <input className="input" autoFocus value={custom} placeholder="e.g. Ride with friends"
                onChange={(e) => setCustom(e.target.value)} />
       )}
+      <input className="input match-note-input" value={note} maxLength={500}
+             placeholder="Why did this change? (optional, the coach reads it)"
+             onChange={(e) => setNote(e.target.value)} />
       <div className="match-picker-actions">
         <button className="btn btn-primary btn-sm" onClick={save} disabled={choice === "custom" && !custom.trim()}>
           Save
@@ -85,6 +90,7 @@ function Row({ row, planned, categories, onMatch }) {
         <span className="review-meta">
           {row.type} · {row.minutes} min{row.tss ? ` · ${Math.round(row.tss)} TSS` : ""}
         </span>
+        {row.note && <span className="review-note" title="Your note to the coach">“{row.note}”</span>}
       </div>
       {editing ? (
         <MatchPicker row={row} planned={planned} categories={categories} onSave={save}

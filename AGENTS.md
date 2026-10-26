@@ -153,7 +153,7 @@ Two separate goals systems existed side-by-side:
 
 ---
 
-## 2026-10-05 — Why training plateaued and good rides were scored badly (overhaul)
+## 2026-10-05 — Data-quality lessons: computed training state and measured execution
 
 Every one of these was silent: a wrong key or column returned null/empty and a broad `except` hid it.
 

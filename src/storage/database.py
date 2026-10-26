@@ -692,6 +692,18 @@ class WorkoutDatabase:
             
         return best_match
 
+    def _plan_changes(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
+        """Sessions the athlete deliberately changed, with their reason, so a substitution isn't read as a failure."""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            rows = conn.execute(
+                "SELECT w.workout_day, w.workout_title, w.proposed_workout_name, w.match_note FROM workouts w "
+                "WHERE w.workout_day BETWEEN ? AND ? AND w.match_note IS NOT NULL AND w.match_note != '' "
+                "ORDER BY w.workout_day, w.id", (start_date, end_date)).fetchall()
+        finally:
+            conn.close()
+        return [{"date": d[:10], "title": t, "planned": p, "note": n} for d, t, p, n in rows]
+
     def generate_weekly_summary(self, start_date: str, end_date: str) -> Optional[Dict[str, Any]]:
         """Generate a comprehensive weekly summary integrating all data sources"""
         print("\nDEBUG: Generating weekly summary")
@@ -1410,7 +1422,8 @@ class WorkoutDatabase:
                 'daily_energy': daily_energy,
                 'avg_daily_energy': avg_daily_energy,
                 'daily_sleep_quality': daily_sleep_quality,
-                'avg_sleep_quality': avg_sleep_quality
+                'avg_sleep_quality': avg_sleep_quality,
+                'plan_changes': self._plan_changes(start_date, end_date),
             }
 
             # Add weekly power zone aggregates if available

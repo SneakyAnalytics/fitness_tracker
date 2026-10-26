@@ -295,6 +295,14 @@ You are an expert cycling coach specializing in endurance training and gravel ra
                     sections.append("*The athlete provided these comments about specific workouts:*\n")
                     sections.extend(athlete_comments_list)
             
+            # Deliberate plan changes: a substitution the athlete chose is not a failed session
+            if ws.get('plan_changes'):
+                sections.append("\n### Plan Changes the Athlete Made On Purpose")
+                sections.append("*These sessions differ from the plan by choice. Do not treat them as missed or failed workouts:*\n")
+                for c in ws['plan_changes']:
+                    planned = f" (plan: {c['planned']})" if c.get('planned') else ""
+                    sections.append(f"  - **{c['date']} {c['title']}**{planned}: {c['note']}")
+
             # AI Workout Analyses (Gemini coaching insights)
             if ws.get('ai_workout_analyses'):
                 sections.append("\n### AI Workout Analyses")

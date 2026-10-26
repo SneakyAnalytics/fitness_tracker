@@ -577,3 +577,8 @@
   border-left-color: var(--color-copper);
   background: rgba(217, 120, 59, 0.08);
 }
+
+/* the runner beside "Saving the plan..." sits inline instead of centred on the page */
+.saving-runner {
+  margin: 0 auto 0.25rem;
+}

@@ -211,6 +211,13 @@ def _m14_progression_target(conn):
         conn.execute("ALTER TABLE workout_progression ADD COLUMN work_target_power REAL")
 
 
+def _m15_match_note(conn):
+    """The athlete's reason for changing the plan ("swapped for a long ride because of the weather")."""
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(workouts)")}
+    if "match_note" not in cols:
+        conn.execute("ALTER TABLE workouts ADD COLUMN match_note TEXT")
+
+
 MIGRATIONS: List[Tuple[int, str, Callable[[sqlite3.Connection], None]]] = [
     (1, "matching columns on workouts", _m1_matching_columns),
     (2, "workouts.proposed_workout_id foreign key + backfill", _m2_proposed_workout_fk),
@@ -226,6 +233,7 @@ MIGRATIONS: List[Tuple[int, str, Callable[[sqlite3.Connection], None]]] = [
     (12, "ride_power_bests table", _m12_ride_power_bests),
     (13, "zwift_ftp_observations table", _m13_zwift_ftp_observations),
     (14, "workout_progression.work_target_power", _m14_progression_target),
+    (15, "workouts.match_note", _m15_match_note),
 ]
 
 
