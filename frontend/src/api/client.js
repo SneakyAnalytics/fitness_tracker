@@ -64,6 +64,11 @@ export const compareAPI = {
   ride: (id) => apiClient.get(`/compare/rides/${id}`),
 };
 
+export const gymAPI = {
+  last: (names, before) => apiClient.get("/strength/last", { params: { name: names, before }, paramsSerializer: { indexes: null } }),
+  match: (name) => apiClient.get("/exercise/match", { params: { name } }),
+};
+
 export const coachAPI = {
   getSession: (weekStart, model) => apiClient.get("/coach/session", { params: { week_start: weekStart, model } }),
   savePlan: (weekStart, model) => apiClient.post("/coach/session/save", { week_start: weekStart, model }),

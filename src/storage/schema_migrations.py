@@ -218,6 +218,26 @@ def _m15_match_note(conn):
         conn.execute("ALTER TABLE workouts ADD COLUMN match_note TEXT")
 
 
+def _m16_strength_log(conn):
+    """One row per exercise per planned workout, keyed by name so lifts can be tracked across weeks."""
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS strength_log ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " planned_workout_id INTEGER NOT NULL,"
+        " log_date TEXT NOT NULL,"
+        " exercise_key TEXT NOT NULL,"
+        " exercise_name TEXT NOT NULL,"
+        " sets_json TEXT NOT NULL,"
+        " top_weight REAL,"
+        " notes TEXT,"
+        " updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
+        " UNIQUE(planned_workout_id, exercise_key))")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_strength_log_key_date ON strength_log(exercise_key, log_date)")
+    if conn.execute("SELECT name FROM sqlite_master WHERE name = 'workout_performance'").fetchone():
+        from src.storage import strength_log
+        strength_log.backfill(conn)
+
+
 MIGRATIONS: List[Tuple[int, str, Callable[[sqlite3.Connection], None]]] = [
     (1, "matching columns on workouts", _m1_matching_columns),
     (2, "workouts.proposed_workout_id foreign key + backfill", _m2_proposed_workout_fk),
@@ -234,6 +254,7 @@ MIGRATIONS: List[Tuple[int, str, Callable[[sqlite3.Connection], None]]] = [
     (13, "zwift_ftp_observations table", _m13_zwift_ftp_observations),
     (14, "workout_progression.work_target_power", _m14_progression_target),
     (15, "workouts.match_note", _m15_match_note),
+    (16, "strength_log table + backfill from saved logs", _m16_strength_log),
 ]
 
 

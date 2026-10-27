@@ -228,3 +228,20 @@ instead of `print` on a headless box; compute anything numeric instead of asking
   working chart before suspecting the data. (Shared axes also need to be real children of the chart, not a fragment.)
 - `deploy_to_beelink.sh` deploys whatever `origin/main` is *now*: pushing again while waiting for images makes it fail with
   "not found". Wait for the images of the newest commit.
+
+---
+
+## 2026-10-27 — A refactor dropped an import and broke strength saves and interval charts for a day
+
+- **Symptom:** gym mode / the exercise list said it could not reach the API when saving weights and reps; the interval chart
+  on completed rides in the calendar was also dead. The server was fine (a direct POST returned 200).
+- **Root cause:** moving `useWeek`/`useWeather` out of `WorkoutCalendar.jsx` replaced the `workoutAPI` import line, so
+  `workoutAPI.savePerformance`, `.getPerformance` and `.getIntervals` threw `ReferenceError`. Axios errors without a
+  `response` looked identical to a network failure in the UI message. Neither the build nor the tests noticed.
+- **Fix:** import restored; `src/imports.test.js` now runs ESLint (`no-undef`, `react/jsx-no-undef` only) over `src/`, so a
+  missing import fails `npm test` and CI. Verified by deleting the import: the test names the three lines.
+- **Also learned:** logs were keyed by the exercise's *position* and the coach never read them. They are now indexed by
+  name (`strength_log`, migration 16, backfilled) and fed to the coach. Older free-text entries hold one number for the
+  whole exercise ("24" for 3 x 8); those are flagged `total` and never trigger an automatic weight increase.
+- **Lesson:** after a refactor that moves code between files, exercise the feature in a browser, not just the build. And keep
+  user-facing error text honest: only blame the network when there actually was no response.

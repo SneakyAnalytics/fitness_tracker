@@ -1,0 +1,16 @@
+.ex-carousel { display: grid; gap: .5rem; min-width: 0; }
+.ex-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; border-radius: 14px; background: rgba(255,255,255,.06); scrollbar-width: none; }
+.ex-track::-webkit-scrollbar { display: none; }
+.ex-track img { flex: 0 0 100%; width: 100%; max-height: 300px; object-fit: contain; scroll-snap-align: center; background: #fff; }
+.ex-controls { display: flex; align-items: center; justify-content: center; gap: .75rem; }
+.ex-controls button { width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); background: transparent; color: inherit; display: grid; place-items: center; cursor: pointer; }
+.ex-controls button:disabled { opacity: .3; }
+.ex-dots { display: inline-flex; gap: .4rem; }
+.ex-dots i { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.3); }
+.ex-dots i.on { background: #3fd0e0; }
+.ex-caption { margin: 0; font-size: .82rem; color: rgba(232,241,238,.7); }
+.ex-steps-toggle { justify-self: start; display: inline-flex; align-items: center; gap: .3rem; background: none; border: 0; color: #8be3ee; font: inherit; padding: .3rem 0; cursor: pointer; }
+.ex-steps-toggle svg { transition: transform .2s; transform: rotate(-90deg); }
+.ex-steps-toggle svg.open { transform: none; }
+.ex-steps { margin: 0; padding-left: 1.2rem; display: grid; gap: .35rem; color: rgba(232,241,238,.85); font-size: .92rem; }
+.ex-link { color: #8be3ee; display: inline-flex; align-items: center; gap: .3rem; font-size: .9rem; justify-self: start; }

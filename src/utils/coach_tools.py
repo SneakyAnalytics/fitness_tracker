@@ -103,6 +103,16 @@ TOOLS: List[Dict[str, Any]] = [
             "required": ["week_start"], "additionalProperties": False},
     },
     {
+        "name": "get_strength_history",
+        "description": ("What the athlete actually lifted in strength sessions: weight and reps per set, newest first, "
+                        "for one exercise by name or for every exercise logged recently. Use it to choose real weights "
+                        "for next week instead of prescribing 'moderate'."),
+        "input_schema": {"type": "object", "properties": {
+            "exercise": {"type": "string", "description": "Exercise name, e.g. 'Goblet Squat'. Omit for all."},
+            "weeks": {"type": "integer", "description": "How far back (default 12)"}},
+            "additionalProperties": False},
+    },
+    {
         "name": "get_workout_intervals",
         "description": "Per-interval prescribed vs actual power for one completed workout id.",
         "input_schema": {"type": "object", "properties": {
@@ -195,6 +205,13 @@ def _update_goal(args, db_path):
     return {"updated": updated} if updated else {"error": f"no goal with id {args['goal_id']}"}
 
 
+def _get_strength_history(args, db_path):
+    from src.storage import strength_log
+    data = strength_log.history(args.get("exercise"), int(args.get("weeks") or 12), 6, db_path)
+    return {"exercises": {name: [{**s, "summary": strength_log.describe(s)} for s in sessions]
+                          for name, sessions in data.items()}} if data else {"exercises": {}, "note": "nothing logged"}
+
+
 def _get_week_detail(args, db_path):
     start = _parse(args["week_start"], date.today())
     start -= timedelta(days=start.weekday())
@@ -244,6 +261,7 @@ _HANDLERS: Dict[str, Callable[[Dict[str, Any], Optional[str]], Any]] = {
     "update_goal": _update_goal,
     "get_week_detail": _get_week_detail,
     "get_workout_intervals": _get_workout_intervals,
+    "get_strength_history": _get_strength_history,
 }
 
 TOOL_STATUS = {
@@ -257,6 +275,7 @@ TOOL_STATUS = {
     "update_goal": "updating goal",
     "get_week_detail": "looking at that week",
     "get_workout_intervals": "looking at interval data",
+    "get_strength_history": "checking what you lifted",
 }
 
 

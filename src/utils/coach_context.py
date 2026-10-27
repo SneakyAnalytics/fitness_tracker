@@ -48,6 +48,10 @@ def build_training_state(week_start_date: str, current_ftp: Optional[float] = No
     lines.append("## Key-session progression (oldest → newest; work intervals only)")
     lines.append(trajectory or "_No matched structured sessions yet._")
     lines.append("")
+    from src.storage import strength_log
+    strength = strength_log.prompt_summary(db_path)
+    if strength:
+        lines += [strength, ""]
     lines.append("## Readiness (last 7 days vs 60-day baseline)")
     metrics = readiness.get("metrics", {})
     if metrics:

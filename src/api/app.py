@@ -1,12 +1,12 @@
 # src/api/app.py
 
 from src.config import get_db_path
-from fastapi import Request, FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import Request, FastAPI, HTTPException, Query, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import List, Optional, Dict, Any
 import pandas as pd
 import pytz
 import io
@@ -203,6 +203,8 @@ from src.api.admin_routes import router as admin_router
 app.include_router(admin_router)
 from src.api.compare_routes import router as compare_router
 app.include_router(compare_router)
+from src.api.exercise_routes import router as exercise_router
+app.include_router(exercise_router)
 
 
 @app.get("/")
@@ -1529,7 +1531,35 @@ async def save_workout_performance(request: Request):
             workout_id=workout_id, workout_date=workout_date,
             actual_duration=actual_duration, performance_data=perf):
         raise HTTPException(status_code=500, detail="Failed to save performance data")
+    _record_strength_log(workout_id, workout_date, perf)
     return {"message": "Performance data saved successfully"}
+
+def _record_strength_log(workout_id: int, workout_date: str, perf: Dict[str, Any]) -> None:
+    """Flatten the saved log into the per-exercise table. A failure is recorded, not hidden, and never loses the save."""
+    from src.storage import strength_log
+    from src.storage.events import record_event
+    logs = perf.get("exercises") if isinstance(perf, dict) else None
+    if not isinstance(logs, dict):
+        return
+    db_path = WorkoutDatabase().db_path
+    conn = sqlite3.connect(db_path)
+    try:
+        strength_log.record(conn, workout_id, workout_date, logs)
+        conn.commit()
+    except sqlite3.Error as exc:
+        conn.rollback()
+        record_event("warning", "strength_log", f"Saved your lifts but could not index them by exercise: {exc}",
+                     {"workout_id": workout_id, "date": workout_date})
+    finally:
+        conn.close()
+
+
+@app.get("/strength/last")
+async def strength_last(name: List[str] = Query(default=[]), before: Optional[str] = None):
+    """The most recent logged session for each exercise name (what you lifted last time)."""
+    from src.storage import strength_log
+    return {"last": strength_log.last_for(name[:60], WorkoutDatabase().db_path, before)}
+
 
 @app.get("/workout/performance")
 async def get_workout_performance(workout_id: int, workout_date: str):

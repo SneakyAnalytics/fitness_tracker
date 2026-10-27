@@ -18,6 +18,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { format, parseISO, startOfWeek, addDays, addWeeks, subWeeks, isSameDay } from "date-fns";
+import { workoutAPI } from "../api/client";
 import { useWeek, useWeather } from "../hooks/useWeekData";
 import WeatherChip from "../components/WeatherChip";
 import WeekStrip from "../components/WeekStrip";
@@ -290,7 +291,7 @@ function ExerciseList({ workout }) {
         )}
       </div>
       {gym && (
-        <GymMode title={displayName(workout)} exercises={withIds} logs={saved?.exercises || {}} onSave={save} onClose={() => setGym(false)} />
+        <GymMode title={displayName(workout)} date={workout.date} exercises={withIds} logs={saved?.exercises || {}} onSave={save} onClose={() => setGym(false)} />
       )}
       {exercises.map((exercise, idx) => {
         const id = `${idx}`;
