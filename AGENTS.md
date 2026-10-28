@@ -245,3 +245,19 @@ instead of `print` on a headless box; compute anything numeric instead of asking
   whole exercise ("24" for 3 x 8); those are flagged `total` and never trigger an automatic weight increase.
 - **Lesson:** after a refactor that moves code between files, exercise the feature in a browser, not just the build. And keep
   user-facing error text honest: only blame the network when there actually was no response.
+
+---
+
+## 2026-10-28 — An over-under was recorded as "1 x 7 min at 194 W"
+
+- **Symptom:** the dashboard showed the Oct 27 over-under as a 110 W drop from the one before. The ride itself was fine
+  (execution score 10, every segment matched its target).
+- **Root cause:** `pick_work` only counted single intervals of 4+ minutes. That plan wrote each block as 2 min under / 1 min
+  over pieces (five per block), so no piece qualified and the only 4+ minute interval left was the 7-minute easy spin-out.
+- **Fix:** consecutive hard pieces are merged into one block before the 4-minute test, starting from the highest prescribed
+  intensity and stepping down until a sustained block exists (so a sprint can't hide the work). Rebuilt on the real data:
+  4 x 8 min at 303.6 W against a 304.9 W target. A rebuild also corrected ~20 older rows (over-unders from May to August now
+  show their real block sizes; steady rides split into segments read as one block).
+- **Lesson:** an aggregation written against one plan format silently misreads another. When the ledger looks wrong, check
+  `GET /workouts/<id>/intervals` first: if the intervals are right and the summary is wrong, the picker is the bug.
+  After changing it, rebuild a copy of the DB and diff every row before shipping.

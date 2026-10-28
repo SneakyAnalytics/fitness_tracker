@@ -68,25 +68,65 @@ MIN_WORK_SECONDS = 240
 WORK_INTENSITY_FLOOR = 0.85
 
 
+def _target(r: Dict[str, Any]) -> float:
+    lo, hi = r.get("target_low_w"), r.get("target_high_w")
+    return (lo + hi) / 2 if lo and hi else r["actual_avg_w"]
+
+
+def _merge(segments: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """One block from back-to-back hard segments (e.g. 2 min under + 1 min over + 2 min under ...)."""
+    if len(segments) == 1:
+        return segments[0]
+    seconds = sum(r["duration_sec"] for r in segments)
+
+    def weighted(key):
+        vals = [(r[key], r["duration_sec"]) for r in segments if r.get(key)]
+        return round(sum(v * d for v, d in vals) / sum(d for _, d in vals), 1) if len(vals) == len(segments) else None
+
+    return {"label": "WORK", "name": f"Block of {len(segments)} segments", "duration_sec": seconds,
+            "actual_avg_w": round(sum(r["actual_avg_w"] * r["duration_sec"] for r in segments) / seconds, 1),
+            "target_low_w": weighted("target_low_w"), "target_high_w": weighted("target_high_w"),
+            "interval_index": segments[0].get("interval_index"), "segments": len(segments)}
+
+
+def _blocks(rows: List[Dict[str, Any]], candidates: List[Dict[str, Any]], floor: float) -> List[Dict[str, Any]]:
+    """Runs of consecutive candidate rows prescribed at or above `floor`, each merged into one block."""
+    ids = {id(r) for r in candidates}
+    blocks, run = [], []
+    for r in rows:
+        if id(r) in ids and _target(r) >= floor:
+            run.append(r)
+        else:
+            if run:
+                blocks.append(_merge(run))
+            run = []
+    if run:
+        blocks.append(_merge(run))
+    return blocks
+
+
 def pick_work(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """The intervals that make up a session's work: sustained and at the session's main intensity.
+    """The blocks that make up a session's work: sustained and at the session's main intensity.
 
     Intervals are labelled WORK by name, so "Opener" and "Zone 2 Flush" slip in; counting them
     turned a 284 W sweet-spot session into a 246 W "regression". Targets decide instead.
+
+    A plan may cut one block into short pieces (an over-under written as 2 min under / 1 min over, five
+    pieces to a block). No piece is "sustained" on its own, so back-to-back hard pieces are merged into one
+    block first. Otherwise the only sustained thing left was the easy cool-down, and a 305 W over-under was
+    recorded as "1 x 7 min at 194 W".
     """
     candidates = [r for r in rows if r["label"] == "WORK" and r["actual_avg_w"]]
     if not candidates:
         candidates = [r for r in rows if r["label"] not in ("WARMUP", "COOLDOWN") and r["actual_avg_w"]]
-    sustained = [r for r in candidates if r["duration_sec"] >= MIN_WORK_SECONDS]
-    if not sustained:
-        return candidates                        # e.g. 30 s VO2max efforts
-
-    def target(r):
-        lo, hi = r.get("target_low_w"), r.get("target_high_w")
-        return (lo + hi) / 2 if lo and hi else r["actual_avg_w"]
-
-    top = max(target(r) for r in sustained)
-    return [r for r in sustained if target(r) >= WORK_INTENSITY_FLOOR * top]
+    # Highest prescribed intensity first, so a one-minute sprint or opener can't set a floor that hides the real
+    # work; the first intensity that yields a sustained block wins.
+    for top in sorted({_target(r) for r in candidates}, reverse=True):
+        sustained = [b for b in _blocks(rows, candidates, WORK_INTENSITY_FLOOR * top) if b["duration_sec"] >= MIN_WORK_SECONDS]
+        if sustained:
+            main = max(_target(b) for b in sustained)
+            return [b for b in sustained if _target(b) >= WORK_INTENSITY_FLOOR * main]
+    return candidates                            # e.g. 30 s VO2max efforts
 
 
 def work_target_power(work: List[Dict[str, Any]]) -> Optional[float]:
