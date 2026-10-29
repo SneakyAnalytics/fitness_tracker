@@ -63,7 +63,36 @@ def score(query: str, candidate: str) -> float:
     return len(a & b) / len(a | b) if a and b else 0.0
 
 
+# Hand-checked pairs where the library has the same movement under another name (mostly stretches, which people
+# write many ways). Keys are the cleaned name (no brackets, lower case); values are the library's exact names. Yoga poses
+# the library lacks (pigeon, downward dog, legs up the wall, open book) are deliberately absent: a near miss would be a
+# wrong demonstration.
+ALIASES = {
+    "cat cow": "Cat Stretch",
+    "soleus wall stretch": "Standing Soleus And Achilles Stretch",
+    "standing soleus stretch": "Standing Soleus And Achilles Stretch",
+    "standing calf stretch": "Standing Gastrocnemius Calf Stretch",
+    "supine hamstring strap stretch": "Leg-Up Hamstring Stretch",
+    "seated forward fold": "Seated Floor Hamstring Stretch",
+    "kneeling hip flexor lunge": "Kneeling Hip Flexor",
+    "low lunge hip flexor stretch": "Kneeling Hip Flexor",
+    "half kneeling hip flexor stretch": "Kneeling Hip Flexor",
+    "hip flexor kneeling stretch": "Kneeling Hip Flexor",
+    "ankle circles and alphabet": "Ankle Circles",
+    "standing quad stretch": "Quad Stretch",
+}
+
+
+def _alias_key(name: str) -> str:
+    return re.sub(r"\s+", " ", _clean(name).strip())
+
+
 def best_match(name: str, index: List[Dict[str, Any]], min_score: float = MIN_SCORE) -> Optional[Dict[str, Any]]:
+    wanted = ALIASES.get(_alias_key(name))
+    if wanted:
+        for ex in index:
+            if ex["name"] == wanted and ex.get("images"):
+                return {**ex, "score": 1.0}
     best, best_score = None, 0.0
     for ex in index:
         if not ex.get("images"):

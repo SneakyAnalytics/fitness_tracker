@@ -103,3 +103,21 @@ describe("saveErrorMessage", () => {
     expect(saveErrorMessage({ response: { status: 502 } })).toBe("The server refused the save (502).");
   });
 });
+
+import { holdSteps, setsAfter } from "./gym";
+
+describe("holdSteps", () => {
+  it("makes one hold per side for a per-side stretch, in order", () => {
+    const steps = holdSteps({ sets: [{ duration: 90, perSide: true }] }, { seconds: 90, perSide: true });
+    expect(steps).toEqual([{ set: 0, side: "Left", seconds: 90 }, { set: 0, side: "Right", seconds: 90 }]);
+  });
+  it("makes one hold per set otherwise, and repeats for several sets", () => {
+    expect(holdSteps({ sets: [{ duration: 120 }] }, { seconds: 120, perSide: false })).toEqual([{ set: 0, side: null, seconds: 120 }]);
+    expect(holdSteps({ sets: [{ sets: 2, duration: 30, perSide: true }] }, { seconds: 30, perSide: true })).toHaveLength(4);
+  });
+  it("counts finished sets from finished holds", () => {
+    expect(setsAfter(1, { perSide: true })).toBe(0);
+    expect(setsAfter(2, { perSide: true })).toBe(1);
+    expect(setsAfter(3, { perSide: false })).toBe(3);
+  });
+});

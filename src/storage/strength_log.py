@@ -186,6 +186,8 @@ def last_for(names: List[str], db_path: Optional[str] = None, before: Optional[s
 def describe(session: Dict[str, Any]) -> str:
     """"45 lb × 10, 10, 8" or "bodyweight × 24"."""
     sets = session["sets"]
+    if session.get("notes") == "hold":                       # a timed stretch: the number is seconds, not reps
+        return "hold " + ", ".join(str(s["reps"]) for s in sets if s["reps"] is not None) + " s"
     weights = {s["weight"] for s in sets if s["weight"] is not None}
     reps = ", ".join(str(s["reps"]) for s in sets if s["reps"] is not None)
     if reps and any(s.get("total") for s in sets):
@@ -204,7 +206,7 @@ def prompt_summary(db_path: Optional[str] = None, weeks: int = 10) -> str:
     for name, sessions in data.items():
         if any(s["top_weight"] for s in sessions):
             loaded[name] = sessions
-        else:
+        elif sessions[0]["notes"] != "hold":                   # stretches and holds aren't progression
             reps = [r["reps"] for r in sessions[0]["sets"] if r["reps"]]
             if reps and max(reps) > 1:       # a "1" is a stretch or hold that was ticked, not a count
                 bodyweight[name] = sessions[0]

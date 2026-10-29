@@ -4,11 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, ArrowLeft, ArrowRight, Check, Plus, SkipForward, X } from "lucide-react";
 import { gymAPI } from "../api/client";
 import { beep, ding, audio } from "../lib/sounds";
-import { clock, cuesFor, describeSession, expandSets, logEntry, restSeconds, saveErrorMessage, sessionProgress, suggestWeight, targetRepsTop } from "../lib/gym";
+import { clock, cuesFor, describeSession, expandSets, holdSteps, logEntry, restSeconds, saveErrorMessage, sessionProgress, setsAfter, suggestWeight, targetRepsTop } from "../lib/gym";
 import { movementTiming } from "../lib/workouts";
 import { describeSet, prescription } from "./ExerciseDetail";
 import ExerciseCarousel from "./ExerciseCarousel";
-import MovementTimer from "./MovementTimer";
+import HoldTimer from "./HoldTimer";
 import "./GymMode.css";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -73,7 +73,15 @@ function GymSession({ title, date, exercises, logs = {}, onSave, onClose }) {
     return { ...t, [exercise.id]: rows };
   });
 
-  const ticked = (ex, exIdx, count) => Array.from({ length: count }, (_, i) => ({ weight: valueOf(ex, exIdx, i, "weight"), reps: valueOf(ex, exIdx, i, "reps") }));
+  const ticked = (ex, exIdx, count) => {
+    const hold = movementTiming(ex);
+    if (hold) return Array.from({ length: count }, () => ({ weight: "", reps: String(hold.seconds) }));   // seconds held
+    return Array.from({ length: count }, (_, i) => ({ weight: valueOf(ex, exIdx, i, "weight"), reps: valueOf(ex, exIdx, i, "reps") }));
+  };
+  const entryFor = (ex, exIdx, count) => {
+    const entry = logEntry(ex, ticked(ex, exIdx, count));
+    return entry && movementTiming(ex) ? { ...entry, notes: "hold" } : entry;
+  };
 
   // ── saving: sequential (the API stores one record per workout), retried, never blocks navigation ──
   const saveExercise = useCallback((ex, entry) => {
@@ -96,7 +104,7 @@ function GymSession({ title, date, exercises, logs = {}, onSave, onClose }) {
     return chain.current;
   }, [onSave]);
 
-  const saveCurrent = () => saveExercise(exercise, logEntry(exercise, ticked(exercise, idx, completed)));
+  const saveCurrent = () => saveExercise(exercise, entryFor(exercise, idx, completed));
 
   const retryAll = useCallback(() => Object.values(pending).forEach((p) => saveExercise(p.ex, p.entry)), [pending, saveExercise]);
   useEffect(() => {
@@ -204,30 +212,37 @@ function GymSession({ title, date, exercises, logs = {}, onSave, onClose }) {
         <h2 className="gym-name">{exercise.name}</h2>
         {summary && <p className="gym-rx">{summary}</p>}
 
-        <div className="gym-last">
+        {!timing && <div className="gym-last">
           {lastSession ? (
             <>
               <span>Last time ({lastSession.date.slice(5)}): <strong>{describeSession(lastSession)}</strong></span>
               {suggestion && <span className={`gym-suggest ${suggestion.change}`}>Try {suggestion.weight} lb: {suggestion.reason}.</span>}
             </>
           ) : <span>No lifts logged for this movement yet. What you enter here is what the coach will build on.</span>}
-        </div>
+        </div>}
 
         <ol className="gym-sets" aria-label="Sets">
           {sets.map((s, i) => (
             <li key={i} className={i < completed ? "done" : i === completed ? "current" : ""}>
               <span className="gym-set-n">{i < completed ? <Check size={16} /> : i + 1}</span>
               <span className="gym-set-text">{describeSet(s) || "Set"}</span>
-              <input className="gym-num" inputMode="decimal" aria-label={`Set ${i + 1} weight in pounds`} placeholder="lb"
-                     value={valueOf(exercise, idx, i, "weight")} onChange={(e) => edit(i, "weight", e.target.value)} />
-              <span className="gym-x">×</span>
-              <input className="gym-num" inputMode="numeric" aria-label={`Set ${i + 1} reps`} placeholder="reps"
-                     value={valueOf(exercise, idx, i, "reps")} onChange={(e) => edit(i, "reps", e.target.value)} />
+              {!timing && (
+                <>
+                  <input className="gym-num" inputMode="decimal" aria-label={`Set ${i + 1} weight in pounds`} placeholder="lb"
+                         value={valueOf(exercise, idx, i, "weight")} onChange={(e) => edit(i, "weight", e.target.value)} />
+                  <span className="gym-x">×</span>
+                  <input className="gym-num" inputMode="numeric" aria-label={`Set ${i + 1} reps`} placeholder="reps"
+                         value={valueOf(exercise, idx, i, "reps")} onChange={(e) => edit(i, "reps", e.target.value)} />
+                </>
+              )}
             </li>
           ))}
         </ol>
 
-        {timing && <MovementTimer seconds={timing.seconds} perSide={timing.perSide} />}
+        {timing && !allSetsDone && (
+          <HoldTimer key={exercise.id} steps={holdSteps(exercise, timing)}
+                     onStep={(n) => setDone((d) => ({ ...d, [idx]: setsAfter(n, timing) }))} />
+        )}
 
         {rest ? (
           <div className="gym-rest" aria-live="polite">
@@ -240,7 +255,8 @@ function GymSession({ title, date, exercises, logs = {}, onSave, onClose }) {
             </div>
           </div>
         ) : !allSetsDone ? (
-          <button className="gym-big" onClick={setDoneTap}>Set {completed + 1} done</button>
+          timing ? <button className="gym-skip-hold" onClick={() => setDone((d) => ({ ...d, [idx]: sets.length }))}>Mark as done without the timer</button>
+                 : <button className="gym-big" onClick={setDoneTap}>Set {completed + 1} done</button>
         ) : (
           <button className="gym-big" onClick={() => go(idx + 1)}>{last_ ? "Finish workout" : "Next exercise"} <ArrowRight size={22} /></button>
         )}

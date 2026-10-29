@@ -87,8 +87,15 @@ def test_history_the_coach_tool_and_the_prompt_section():
                      " VALUES (?, '2026-10-20', ?, ?, ?)", (pid, name.lower(), name, json.dumps([{"weight": None, "reps": reps}])))
     conn.commit(); conn.close()
     text = sl.prompt_summary(path, weeks=520)
-    assert "Bodyweight work, latest reps: Plank 40" in text and "Cat-Cow" not in text   # a ticked stretch isn't a count
-    conn = sqlite3.connect(path); conn.execute("DELETE FROM strength_log WHERE planned_workout_id IN (7201, 7202)"); conn.commit(); conn.close()
+    conn = sqlite3.connect(path)
+    conn.execute("INSERT INTO strength_log (planned_workout_id, log_date, exercise_key, exercise_name, sets_json, notes)"
+                 " VALUES (7203, '2026-10-21', 'low lunge', 'Low Lunge', ?, 'hold')", (json.dumps([{"weight": None, "reps": 90}] * 2),))
+    conn.commit(); conn.close()
+    text = sl.prompt_summary(path, weeks=520)
+    assert "Bodyweight work, latest reps: Plank 40" in text and "Cat-Cow" not in text
+    assert "Low Lunge" not in text                                       # a timed stretch isn't progression
+    assert sl.describe({"sets": [{"weight": None, "reps": 90}] * 2, "notes": "hold"}) == "hold 90, 90 s"   # a ticked stretch isn't a count
+    conn = sqlite3.connect(path); conn.execute("DELETE FROM strength_log WHERE planned_workout_id IN (7201, 7202, 7203)"); conn.commit(); conn.close()
 
 
 def test_backfill_flattens_existing_logs_and_skips_old_shapes():

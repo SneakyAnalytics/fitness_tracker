@@ -55,3 +55,4 @@
 .gym-warn div { display: grid; flex: 1; min-width: 0; font-size: .85rem; }
 .gym-warn span { color: rgba(232,241,238,.8); }
 .gym-warn button { min-height: 44px; padding: 0 .9rem; border-radius: 10px; border: 1px solid rgba(255,255,255,.35); background: transparent; color: #fff; font: inherit; cursor: pointer; }
+.gym-skip-hold { justify-self: center; background: none; border: 0; color: #8be3ee; font: inherit; text-decoration: underline; padding: .5rem; cursor: pointer; }

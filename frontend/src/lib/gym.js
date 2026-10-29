@@ -97,3 +97,17 @@ export function saveErrorMessage(err) {
   const detail = err.response.data?.detail;
   return `The server refused the save (${err.response.status}${detail ? `: ${typeof detail === "string" ? detail : "invalid data"}` : ""}).`;
 }
+
+/**
+ * The timed holds of one exercise, in order: each set, and each side within it when the movement is per side.
+ * (A "90 s each side" stretch is two holds; 3 sets of it would be six.)
+ */
+export function holdSteps(exercise, timing) {
+  const sides = timing.perSide ? ["Left", "Right"] : [null];
+  const out = [];
+  expandSets(exercise).forEach((_, set) => sides.forEach((side) => out.push({ set, side, seconds: timing.seconds })));
+  return out;
+}
+
+/** Sets finished after `steps` holds are done. */
+export const setsAfter = (steps, timing) => Math.floor(steps / (timing.perSide ? 2 : 1));

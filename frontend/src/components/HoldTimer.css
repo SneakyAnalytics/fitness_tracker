@@ -1,0 +1,11 @@
+.hold { display: grid; gap: .35rem; justify-items: center; padding: 1.1rem 1rem; border-radius: 18px; background: rgba(63,208,224,.1); border: 1px solid rgba(63,208,224,.45); }
+.hold.run { background: rgba(138,240,189,.12); border-color: rgba(138,240,189,.6); }
+.hold.switch { background: rgba(229,138,74,.14); border-color: rgba(229,138,74,.55); }
+.hold-label { font-size: .85rem; letter-spacing: .1em; text-transform: uppercase; color: #8be3ee; }
+.hold.switch .hold-label { color: #f0b27f; }
+.hold-time { font-size: 3.8rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; color: #fff; }
+.hold-count { font-size: .85rem; color: rgba(232,241,238,.7); }
+.hold-actions { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: center; margin-top: .4rem; width: 100%; }
+.hold-actions button { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; min-height: 48px; padding: 0 1rem; border-radius: 12px; border: 1px solid rgba(255,255,255,.3); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.hold-actions .hold-go { flex: 1 1 100%; min-height: 60px; font-size: 1.2rem; font-weight: 700; border: 0; background: #3fd0e0; color: #08212a; }
+.hold-done { color: #8af0bd; font-weight: 600; }
